@@ -4,7 +4,7 @@ import { useConfigStyles } from './useConfigStyles';
 interface ViewEntry {
   id: number; key: string; type: string; description: string;
   data: string; dataR: string; dataG: string; dataB: string;
-  cmap: string; clip: string; vmin: string; vmax: string;
+  cmap: string; clip: string; vmin: string; vmax: string; customData: boolean;
 }
 
 interface ViewListEditorProps { bands?: string[]; }
@@ -44,6 +44,9 @@ const ViewListEditor = forwardRef<any, ViewListEditorProps>(({ bands = [] }, ref
         dataR: Array.isArray(v.data) && v.data.length === 3 ? v.data[0] || '' : '',
         dataG: Array.isArray(v.data) && v.data.length === 3 ? v.data[1] || '' : '',
         dataB: Array.isArray(v.data) && v.data.length === 3 ? v.data[2] || '' : '',
+        customData: !bands.length || (Array.isArray(v.data)
+          ? v.data.some((value: unknown) => typeof value !== 'string' || !bands.includes(value))
+          : !bands.includes(mono)),
         cmap: v.cmap || '', clip: v.clip !== undefined ? String(v.clip) : '',
         vmin: v.vmin !== undefined ? String(v.vmin) : '', vmax: v.vmax !== undefined ? String(v.vmax) : '',
       };
@@ -54,12 +57,14 @@ const ViewListEditor = forwardRef<any, ViewListEditorProps>(({ bands = [] }, ref
   useImperativeHandle(ref, () => ({ getData, setData }));
 
   const addView = () => {
-    setViews([...views, { id: nextId, key: '', type: 'Monochrome', description: '', data: '', dataR: '', dataG: '', dataB: '', cmap: 'jet', clip: '', vmin: '', vmax: '' }]);
+    setViews([...views, { id: nextId, key: '', type: 'Monochrome', description: '', data: '', dataR: '', dataG: '', dataB: '', customData: !bands.length, cmap: 'jet', clip: '', vmin: '', vmax: '' }]);
     setNextId(nextId + 1);
   };
   const removeView = (id: number) => setViews(views.filter((v) => v.id !== id));
   const updateView = (id: number, field: keyof ViewEntry, value: string) =>
     setViews(views.map((v) => (v.id === id ? { ...v, [field]: value } : v)));
+  const setCustomData = (id: number, customData: boolean) =>
+    setViews(views.map((v) => (v.id === id ? { ...v, customData } : v)));
   const bandSelect = (view: ViewEntry, field: 'data' | 'dataR' | 'dataG' | 'dataB', label: string) => {
     const value = bands.includes(view[field]) ? view[field] : '';
     return bands.length ? (
@@ -110,10 +115,13 @@ const ViewListEditor = forwardRef<any, ViewListEditorProps>(({ bands = [] }, ref
           {view.type === 'Monochrome' && (
             <div style={{ marginBottom: '12px' }}>
               <label style={s.labelStyle}>Data *</label>
-              <small style={s.descriptionStyle}>Choose a loaded band, or enter an expression for indices and derived views.</small>
-              {bandSelect(view, 'data', 'source')}
-              <input type="text" placeholder="e.g., $Sentinel2.B11**0.8*5" value={view.data}
-                onChange={(e) => updateView(view.id, 'data', e.target.value)} style={s.inputStyle} />
+              <small style={s.descriptionStyle}>Choose one loaded band.</small>
+              {!view.customData && bandSelect(view, 'data', 'source')}
+              {view.customData && <input type="text" placeholder="e.g., $Sentinel2.B11**0.8*5" value={view.data}
+                onChange={(e) => updateView(view.id, 'data', e.target.value)} style={s.inputStyle} />}
+              {bands.length > 0 && <button type="button" onClick={() => setCustomData(view.id, !view.customData)} style={{ padding: '6px 10px', border: `1px solid ${s.theme.inputBorder}`, borderRadius: '6px', marginTop: '7px', color: s.theme.gray900, background: s.theme.bgSecondary, fontSize: '12px', cursor: 'pointer' }}>
+                {view.customData ? 'Use band picker' : 'Use custom expression'}
+              </button>}
               {!bands.length && <small style={{ ...s.descriptionStyle, marginTop: '5px' }}>Open an image first to populate the band picker.</small>}
             </div>
           )}
@@ -121,21 +129,24 @@ const ViewListEditor = forwardRef<any, ViewListEditorProps>(({ bands = [] }, ref
           {view.type === 'RGB' && (
             <div style={{ marginBottom: '12px' }}>
               <label style={s.labelStyle}>Data (RGB Channels) *</label>
-              <small style={s.descriptionStyle}>Three band expressions for Red, Green, and Blue channels.</small>
+              <small style={s.descriptionStyle}>Choose the red, green and blue bands for this composite.</small>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 {(['Red Channel', 'Green Channel', 'Blue Channel'] as const).map((lbl, i) => {
                   const field = (['dataR', 'dataG', 'dataB'] as const)[i];
                   return (
                     <div key={lbl}>
                       <label style={{ display: 'block', fontSize: '11px', marginBottom: '2px', color: s.theme.gray600 }}>{lbl}</label>
-                      {bandSelect(view, field, lbl.replace(' Channel', '').toLowerCase())}
-                      <input type="text" placeholder={`e.g., $Sentinel2.B${5 - i}`} value={view[field]}
+                      {!view.customData && bandSelect(view, field, lbl.replace(' Channel', '').toLowerCase())}
+                      {view.customData && <input type="text" placeholder={`e.g., $Sentinel2.B${5 - i}`} value={view[field]}
                         onChange={(e) => updateView(view.id, field, e.target.value)}
-                        style={{ ...s.inputStyle, padding: '6px', fontSize: '12px' }} />
+                        style={{ ...s.inputStyle, padding: '6px', fontSize: '12px' }} />}
                     </div>
                   );
                 })}
               </div>
+              {bands.length > 0 && <button type="button" onClick={() => setCustomData(view.id, !view.customData)} style={{ padding: '6px 10px', border: `1px solid ${s.theme.inputBorder}`, borderRadius: '6px', marginTop: '10px', color: s.theme.gray900, background: s.theme.bgSecondary, fontSize: '12px', cursor: 'pointer' }}>
+                {view.customData ? 'Use band picker' : 'Use custom expressions'}
+              </button>}
             </div>
           )}
 

@@ -110,7 +110,6 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
       setAllBands(data.allBands);
       const isAdminUser = data.isAdmin;
       setIsAdmin(isAdminUser);
-      if (isAdminUser) setActiveTab('configuration');
     } catch (error) {
       console.error('Error fetching config:', error);
       setError('Failed to load preferences. Please try again.');
@@ -192,8 +191,8 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   const tabs: { key: typeof activeTab; label: string; adminOnly?: boolean }[] = [
-    { key: 'configuration', label: 'Configuration', adminOnly: true },
     { key: 'segmentation-ai', label: 'Segmentation AI' },
+    { key: 'configuration', label: 'Configuration', adminOnly: true },
   ];
 
   return (

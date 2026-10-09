@@ -231,6 +231,8 @@ describe('ViewListEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g., RGB, Cirrus, NDVI'), { target: { value: 'Natural colour' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'View type' }), { target: { value: 'RGB' } });
 
+    expect(screen.queryByPlaceholderText('e.g., $Sentinel2.B5')).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour red band' }), { target: { value: '$Sentinel2.B4' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour green band' }), { target: { value: '$Sentinel2.B3' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour blue band' }), { target: { value: '$Sentinel2.B2' } });
@@ -238,6 +240,9 @@ describe('ViewListEditor', () => {
     expect(ref.current?.getData()['Natural colour'].data).toEqual([
       '$Sentinel2.B4', '$Sentinel2.B3', '$Sentinel2.B2',
     ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use custom expressions' }));
+    expect(screen.getByPlaceholderText('e.g., $Sentinel2.B5')).toBeInTheDocument();
   });
 
   describe('Add/Remove functionality', () => {
