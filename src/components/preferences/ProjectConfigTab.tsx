@@ -7,8 +7,10 @@ import SegmentationSection from './config/SegmentationSection';
 import { backend } from '../../services/backend';
 import { validateProject } from '../../project/validate';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useViewManagerStore } from '../../stores/viewManagerStore';
 
 type ProjectConfig = Record<string, any>;
+const EMPTY_BANDS: string[] = [];
 
 /**
  * SectionRef Interface
@@ -47,6 +49,7 @@ const ProjectConfigTab: React.FC<ProjectConfigTabProps> = ({ onStateChange }) =>
   const [savesTo, setSavesTo] = useState<'hub' | 'download'>('download');
 
   const { theme } = useTheme();
+  const bands = useViewManagerStore((state) => state.georef?.bands ?? EMPTY_BANDS);
 
   useEffect(() => {
     loadConfiguration();
@@ -150,12 +153,18 @@ const ProjectConfigTab: React.FC<ProjectConfigTabProps> = ({ onStateChange }) =>
       }
       const savedTo = await backend().saveProjectFile(config);
       setSuccess(savedTo === 'hub'
-        ? 'Project saved to its dataset, reload the page to use it'
+        ? 'Project saved to its dataset. Reloading IRIS…'
         : 'Project downloaded: replace the project file with it to use it');
       setLoadedConfig(config);
       setOriginalConfigJson(JSON.stringify(form));
       setHasUnsavedChanges(false);
-      setTimeout(() => setSuccess(null), 5000);
+      if (savedTo === 'hub') {
+        // The map views are built from project.json at startup. Reload only
+        // after the Hub commit succeeds, so the new view is immediately used.
+        if (!import.meta.env.TEST) window.setTimeout(() => window.location.reload(), 900);
+      } else {
+        setTimeout(() => setSuccess(null), 5000);
+      }
     } catch (err: any) {
       console.error('[ProjectConfigTab] Failed to save configuration:', err);
       setError(err.message || 'Failed to save configuration');
@@ -195,7 +204,7 @@ const ProjectConfigTab: React.FC<ProjectConfigTabProps> = ({ onStateChange }) =>
 
       <GeneralSection ref={generalRef} />
       <ClassesSection ref={classesRef} />
-      <ViewsSection ref={viewsRef} />
+      <ViewsSection ref={viewsRef} bands={bands} />
       <ViewGroupsSection ref={viewGroupsRef} getAvailableViews={getAvailableViews} />
       <SegmentationSection ref={segmentationRef} />
 

@@ -224,6 +224,22 @@ describe('ViewListEditor', () => {
 
   });
 
+  it('fills RGB expressions from the loaded-band pickers', () => {
+    const ref = React.createRef<any>();
+    render(<ViewListEditor ref={ref} bands={['$Sentinel2.B2', '$Sentinel2.B3', '$Sentinel2.B4']} />);
+    fireEvent.click(screen.getByText('+ Add'));
+    fireEvent.change(screen.getByPlaceholderText('e.g., RGB, Cirrus, NDVI'), { target: { value: 'Natural colour' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'View type' }), { target: { value: 'RGB' } });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour red band' }), { target: { value: '$Sentinel2.B4' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour green band' }), { target: { value: '$Sentinel2.B3' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Natural colour blue band' }), { target: { value: '$Sentinel2.B2' } });
+
+    expect(ref.current?.getData()['Natural colour'].data).toEqual([
+      '$Sentinel2.B4', '$Sentinel2.B3', '$Sentinel2.B2',
+    ]);
+  });
+
   describe('Add/Remove functionality', () => {
     it('adds new view when clicking Add button', () => {
       render(<ViewListEditor />);

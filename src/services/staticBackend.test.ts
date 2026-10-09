@@ -131,6 +131,21 @@ describe('staticBackend', () => {
     await expect(source.saveProjectFile(project)).rejects.toThrow(/administrator/);
   });
 
+  it('lets a signed-in Hugging Face user edit a Hub project', async () => {
+    const site = { project: 'hf://datasets/org/clouds/project.json', login: 'huggingface' as const };
+    saveSession(`${new URL('iris.json', window.location.href).href}|${site.project}`,
+      { user: 'alice', role: 'annotator', hfToken: 'hf_alice' });
+    vi.mocked(global.fetch).mockImplementation(async () => new Response(JSON.stringify(project)));
+    uploadFiles.mockReset().mockResolvedValue(undefined);
+    const source = staticBackend(site);
+
+    await source.loadProject();
+    expect((await source.loadPreferences([])).isAdmin).toBe(true);
+    await expect(source.loadProjectFile()).resolves.toMatchObject({ savesTo: 'hub' });
+    await source.saveProjectFile(project);
+    expect(uploadFiles.mock.calls[0][0].files[0].path).toBe('project.json');
+  });
+
   it('identifies a user from their own Hugging Face token', async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce(new Response('{"name":"alice"}'));
     const source = staticBackend({

@@ -7,7 +7,9 @@ interface ViewEntry {
   cmap: string; clip: string; vmin: string; vmax: string;
 }
 
-const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
+interface ViewListEditorProps { bands?: string[]; }
+
+const ViewListEditor = forwardRef<any, ViewListEditorProps>(({ bands = [] }, ref) => {
   const [views, setViews] = useState<ViewEntry[]>([]);
   const [nextId, setNextId] = useState(1);
   const s = useConfigStyles();
@@ -58,6 +60,20 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
   const removeView = (id: number) => setViews(views.filter((v) => v.id !== id));
   const updateView = (id: number, field: keyof ViewEntry, value: string) =>
     setViews(views.map((v) => (v.id === id ? { ...v, [field]: value } : v)));
+  const bandSelect = (view: ViewEntry, field: 'data' | 'dataR' | 'dataG' | 'dataB', label: string) => {
+    const value = bands.includes(view[field]) ? view[field] : '';
+    return bands.length ? (
+      <select
+        aria-label={`${view.key || 'New view'} ${label} band`}
+        value={value}
+        onChange={(event) => updateView(view.id, field, event.target.value)}
+        style={{ ...s.selectStyle, width: '100%', marginBottom: '6px' }}
+      >
+        <option value="">Choose a band</option>
+        {bands.map((band) => <option key={band} value={band}>{band}</option>)}
+      </select>
+    ) : null;
+  };
 
   return (
     <div>
@@ -77,7 +93,7 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
 
           <div style={{ marginBottom: '12px' }}>
             <label style={s.labelStyle}>View Type *</label>
-            <select value={view.type} onChange={(e) => updateView(view.id, 'type', e.target.value)} style={s.selectStyle}>
+            <select aria-label="View type" value={view.type} onChange={(e) => updateView(view.id, 'type', e.target.value)} style={s.selectStyle}>
               <option value="Monochrome">Monochrome (single band)</option>
               <option value="RGB">RGB (3 bands)</option>
             </select>
@@ -94,9 +110,11 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
           {view.type === 'Monochrome' && (
             <div style={{ marginBottom: '12px' }}>
               <label style={s.labelStyle}>Data *</label>
-              <small style={s.descriptionStyle}>Band expression for monochrome view. Examples: $B1, $Sentinel2.B11**0.8*5, edges($Sentinel2.B2+$Sentinel2.B3)</small>
+              <small style={s.descriptionStyle}>Choose a loaded band, or enter an expression for indices and derived views.</small>
+              {bandSelect(view, 'data', 'source')}
               <input type="text" placeholder="e.g., $Sentinel2.B11**0.8*5" value={view.data}
                 onChange={(e) => updateView(view.id, 'data', e.target.value)} style={s.inputStyle} />
+              {!bands.length && <small style={{ ...s.descriptionStyle, marginTop: '5px' }}>Open an image first to populate the band picker.</small>}
             </div>
           )}
 
@@ -110,8 +128,9 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
                   return (
                     <div key={lbl}>
                       <label style={{ display: 'block', fontSize: '11px', marginBottom: '2px', color: s.theme.gray600 }}>{lbl}</label>
+                      {bandSelect(view, field, lbl.replace(' Channel', '').toLowerCase())}
                       <input type="text" placeholder={`e.g., $Sentinel2.B${5 - i}`} value={view[field]}
-                        onChange={(e) => setViews(views.map((v) => (v.id === view.id ? { ...v, [field]: e.target.value } : v)))}
+                        onChange={(e) => updateView(view.id, field, e.target.value)}
                         style={{ ...s.inputStyle, padding: '6px', fontSize: '12px' }} />
                     </div>
                   );

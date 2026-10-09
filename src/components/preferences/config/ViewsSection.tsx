@@ -2,7 +2,9 @@ import { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import ViewListEditor from './ViewListEditor';
 import { useConfigStyles } from './useConfigStyles';
 
-const ViewsSection = forwardRef<any, {}>((_props, ref) => {
+interface ViewsSectionProps { bands: string[]; }
+
+const ViewsSection = forwardRef<any, ViewsSectionProps>(({ bands }, ref) => {
   const editorRef = useRef<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const s = useConfigStyles();
@@ -28,9 +30,9 @@ const ViewsSection = forwardRef<any, {}>((_props, ref) => {
       {/* Hidden rather than removed, so a folded section keeps its data */}
       <div style={{ ...s.panelStyle, display: isOpen ? undefined : 'none' }}>
         <small style={s.descriptionStyle}>
-          Configure how multi-spectral images are presented. Each view defines band mappings and display settings.
+          Configure how multi-spectral images are presented. Pick bands for each channel or use an expression when needed.
         </small>
-        <ViewListEditor ref={editorRef} />
+        <ViewListEditor ref={editorRef} bands={bands} />
       </div>
     </div>
   );

@@ -64,10 +64,17 @@ export const staticBackend = (site: SiteConfig): Backend => {
     (hasLogin ? savedSession(siteKey) : { user: LOCAL_USER, role: 'admin' });
   const token = () => session()?.hfToken ?? null;
   const userName = () => session()?.user ?? GUEST;
-  const requireAdmin = () => {
+  // A personal Hugging Face token is also enough to edit a Hub project. The
+  // Hub, rather than this static page, is the authority that decides whether
+  // that token may actually commit the change.
+  const canEditProject = () => {
     const current = session();
-    if (!current || current.role !== 'admin' || current.guest) {
-      throw new Error('Only an administrator can edit the project');
+    return !!current && !current.guest
+      && (current.role === 'admin' || (isHfPath(projectFile) && !!current.hfToken));
+  };
+  const requireProjectEditor = () => {
+    if (!canEditProject()) {
+      throw new Error('Sign in as an administrator or with a Hugging Face token to edit the project');
     }
   };
 
@@ -242,12 +249,12 @@ export const staticBackend = (site: SiteConfig): Backend => {
       const projectModel = config.segmentation.ai_model === false ? {} : config.segmentation.ai_model;
       const aiModel = { ...projectModel, ...readSettings(projectFile, config.name) } as AIModelConfig;
       if (!aiModel.bands?.length) aiModel.bands = allBands;
-      const current = session();
       return {
         config: { segmentation: { ai_model: aiModel }, classes: config.classes },
         allBands,
-        // Admins can edit the project
-        isAdmin: current?.role === 'admin' && !current.guest,
+        // The project editor is available to admins and authenticated Hub
+        // users. The Hub checks write access when they save.
+        isAdmin: canEditProject(),
       };
     },
 
@@ -312,7 +319,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
     flush: () => labels().flush(),
 
     async loadProjectFile() {
-      requireAdmin();
+      requireProjectEditor();
       const response = await fetchFile(projectFile, token(), { cache: 'no-store' });
       if (!response.ok) throw new Error(`Could not read the project ${site.project} (${response.status})`);
       return {
@@ -323,7 +330,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
     },
 
     async saveProjectFile(config) {
-      requireAdmin();
+      requireProjectEditor();
       const text = `${JSON.stringify(config, null, 2)}\n`;
       if (isHfPath(projectFile) && token()) {
         const location = parseHfPath(projectFile);

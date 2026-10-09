@@ -3,7 +3,6 @@ import { UserConfig, AIModelConfig } from '../types/iris';
 import { backend } from '../services/backend';
 import { useViewManagerStore } from '../stores/viewManagerStore';
 import SegmentationAITab from './preferences/SegmentationAITab';
-import ViewsTab from './preferences/ViewsTab';
 import ProjectConfigTab from './preferences/ProjectConfigTab';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -66,14 +65,14 @@ class PreferencesErrorBoundary extends React.Component<
  * Provides a tabbed interface for configuring:
  * - Project Configuration (admin only)
  * - Segmentation AI settings (model parameters, inputs, postprocessing)
- * - Views configuration (not yet implemented)
+ * - Project configuration, including the configured image views
  */
 const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onClose }) => {
   const [config, setConfig] = useState<UserConfig | null>(null);
   const [originalConfig, setOriginalConfig] = useState<UserConfig | null>(null);
   const [allBands, setAllBands] = useState<string[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'configuration' | 'segmentation-ai' | 'views'>('segmentation-ai');
+  const [activeTab, setActiveTab] = useState<'configuration' | 'segmentation-ai'>('segmentation-ai');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -195,7 +194,6 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
   const tabs: { key: typeof activeTab; label: string; adminOnly?: boolean }[] = [
     { key: 'configuration', label: 'Configuration', adminOnly: true },
     { key: 'segmentation-ai', label: 'Segmentation AI' },
-    { key: 'views', label: 'Views' },
   ];
 
   return (
@@ -346,8 +344,6 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
                   moveBands={moveBands}
                 />
               )}
-              {activeTab === 'views' && <ViewsTab />}
-
               {/* Action Buttons */}
               {activeTab !== 'configuration' && (
                 <div style={{ display: 'flex', gap: '8px', marginTop: '20px', justifyContent: 'flex-end' }}>
