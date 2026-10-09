@@ -15,9 +15,9 @@ const pixels = (type: 'final' | 'user' | 'errors') =>
   Array.from(maskPixels(layers, type, classes, 2, [0, 0, 2, 2]));
 
 describe('maskPixels', () => {
-  it('colours every pixel by its class in the final mask', () => {
+  it('keeps the base class transparent in the final mask', () => {
     expect(pixels('final')).toEqual([
-      0, 150, 255, 70, 255, 255, 0, 70, 255, 255, 0, 70, 0, 0, 0, 0,
+      255, 255, 255, 0, 255, 255, 0, 70, 255, 255, 0, 70, 0, 0, 0, 0,
     ]);
   });
 

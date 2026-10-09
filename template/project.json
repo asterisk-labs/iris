@@ -6,7 +6,7 @@
     "metadata": "images/{id}/metadata.json"
   },
   "classes": [
-    { "name": "Background", "colour": [0, 150, 255, 70], "description": "Pixels outside the class of interest." },
+    { "name": "Background", "colour": [0, 150, 255, 0], "description": "Pixels outside the class of interest." },
     { "name": "Target", "colour": [255, 80, 60, 90], "description": "Pixels that belong to the class of interest." }
   ],
   "views": {
