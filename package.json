@@ -1,6 +1,6 @@
 {
   "name": "@asterisk-labs/iris",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Segmentation of satellite images in the browser, without a server",
   "license": "GPL-3.0-only",
   "type": "module",
