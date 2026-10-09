@@ -117,7 +117,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ catalog, onOpen, onOpe
           {mode === 'remote' ? <>
             <header className="workspace-heading">
               <div><span>Remote mode</span><h2>Choose a dataset</h2></div>
-              <small>{catalog.projects.length} projects</small>
+              <div className="dataset-source">
+                <small>{catalog.projects.length} projects</small>
+                <a href="https://huggingface.co/datasets/asterisk-labs/iris-datasets" target="_blank" rel="noreferrer">
+                  View datasets on Hugging Face <span aria-hidden="true">↗</span>
+                </a>
+              </div>
             </header>
 
             <div className="project-catalog">

@@ -120,9 +120,11 @@ describe('SegmentationApp - start', () => {
   it('shows the compact data-source selector at the root URL', async () => {
     selectedProjectId.mockReturnValue(null);
 
-    const { findByText } = render(<SegmentationApp />);
+    const { findByRole, findByText } = render(<SegmentationApp />);
 
     expect(await findByText('Choose a dataset')).toBeInTheDocument();
+    expect(await findByRole('link', { name: /View datasets on Hugging Face/ }))
+      .toHaveAttribute('href', 'https://huggingface.co/datasets/asterisk-labs/iris-datasets');
     expect(chooseBackend).not.toHaveBeenCalled();
   });
 });
