@@ -9,6 +9,7 @@ import { backend, loadSiteConfig, setBackend } from '../services/backend';
 import { staticBackend } from '../services/staticBackend';
 import { maskAreaBoundsError } from '../project/validate';
 import type { ProjectConfig } from '../types/iris';
+import type { SiteConfig } from '../services/staticBackend';
 
 /** Views of the project, with their band expressions */
 export const projectViews = (config: ProjectConfig): { [name: string]: ViewConfig } =>
@@ -32,8 +33,8 @@ export const pageImageId = (): string | null =>
   new URLSearchParams(window.location.search).get('image_id');
 
 /** The project, the accounts and the masks named by iris.json next to the page */
-export const chooseBackend = async () => {
-  setBackend(staticBackend(await loadSiteConfig()));
+export const chooseBackend = async (site?: SiteConfig) => {
+  setBackend(staticBackend(site ?? await loadSiteConfig()));
   return backend();
 };
 

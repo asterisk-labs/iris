@@ -134,8 +134,20 @@ describe('staticBackend', () => {
     expect(source.signInOptions()).toEqual({ guest: true, method: 'huggingface' });
     await source.signIn('', '  hf_alice  ');
 
-    const siteKey = new URL('iris.json', window.location.href).href;
+    const siteKey = `${new URL('iris.json', window.location.href).href}|${new URL('demo/clouds.json', window.location.href).href}`;
     expect(savedSession(siteKey)).toEqual({ user: 'alice', role: 'annotator', hfToken: 'hf_alice' });
     expect((await source.currentUser())?.name).toBe('alice');
+  });
+
+  it('opens the configured demo administrator without embedding a token', async () => {
+    const source = staticBackend({
+      project: 'demo/clouds.json', login: 'huggingface', admin: { username: 'admin', password: 'admin' },
+    });
+
+    await source.signIn('admin', 'admin');
+
+    expect((await source.currentUser())?.admin).toBe(true);
+    expect(source.review()).not.toBeNull();
+    await expect(source.signIn('admin', 'wrong')).rejects.toThrow(/Wrong administrator/);
   });
 });

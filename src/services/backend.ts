@@ -12,6 +12,22 @@ import type { ImageNotes } from './localLabels';
 import type { LabelEntry } from './labelStorage';
 import type { SiteConfig } from './staticBackend';
 
+export interface SiteProject extends SiteConfig {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnail?: string;
+  tags?: string[];
+}
+
+export interface SiteCatalog {
+  default?: string;
+  projects: SiteProject[];
+  allowCustomProjects: boolean;
+  /** False for the old single-project iris.json format */
+  showLanding: boolean;
+}
+
 export interface UserMask {
   mask: Uint8Array;
   userMask: Uint8Array;
@@ -33,6 +49,7 @@ export interface Profile extends UserProfile {
 export interface SignInOptions {
   guest: boolean;
   method: 'credentials' | 'huggingface';
+  admin?: { username: string; password: string };
 }
 
 /** The masks of every user, for reviewing them */
@@ -101,7 +118,7 @@ export const setBackend = (chosen: Backend) => {
 export const chosenBackend = (): Backend | null => current;
 
 /** iris.json next to the page; throws an error that says what is wrong */
-export const loadSiteConfig = async (): Promise<SiteConfig> => {
+export const loadSiteCatalog = async (): Promise<SiteCatalog> => {
   const address = new URL('iris.json', window.location.href).href;
   let response: Response;
   try {
@@ -110,18 +127,82 @@ export const loadSiteConfig = async (): Promise<SiteConfig> => {
     throw new Error(`Could not read ${address}`);
   }
   if (!response.ok) throw new Error(`Could not read ${address} (${response.status}): IRIS needs it next to the page`);
-  let site: SiteConfig;
+  let raw: any;
   try {
-    site = await response.json();
+    raw = await response.json();
   } catch {
     throw new Error(`${address} is not a JSON file: IRIS needs iris.json next to the page, naming the project file`);
   }
-  if (typeof site?.project !== 'string') throw new Error(`${address} has to name the project file in "project"`);
-  if (site.login !== undefined && site.login !== 'huggingface') {
-    throw new Error(`${address} has an unsupported "login" method`);
+
+  // A single-project iris.json remains supported for existing deployments.
+  const projects: SiteProject[] = Array.isArray(raw?.projects)
+    ? raw.projects
+    : typeof raw?.project === 'string'
+      ? [{ id: 'default', name: 'IRIS project', ...raw }]
+      : [];
+  if (!projects.length) throw new Error(`${address} has to define at least one project`);
+
+  const ids = new Set<string>();
+  for (const project of projects) {
+    if (typeof project?.id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(project.id)) {
+      throw new Error(`${address} has a project with an invalid id`);
+    }
+    if (ids.has(project.id)) throw new Error(`${address} has duplicate project id '${project.id}'`);
+    ids.add(project.id);
+    if (typeof project.name !== 'string' || !project.name.trim()) {
+      throw new Error(`${address} project '${project.id}' needs a name`);
+    }
+    if (typeof project.project !== 'string' || !project.project.trim()) {
+      throw new Error(`${address} project '${project.id}' needs a project file`);
+    }
+    if (project.login !== undefined && project.login !== 'huggingface') {
+      throw new Error(`${address} project '${project.id}' has an unsupported login method`);
+    }
+    if (project.login && project.credentials) {
+      throw new Error(`${address} project '${project.id}' cannot use both "login" and "credentials"`);
+    }
+    if (project.admin !== undefined && (typeof project.admin?.username !== 'string'
+      || typeof project.admin?.password !== 'string')) {
+      throw new Error(`${address} project '${project.id}' has an invalid admin account`);
+    }
   }
-  if (site.login && site.credentials) {
-    throw new Error(`${address} cannot use both "login" and "credentials"`);
+  if (raw.default !== undefined && !ids.has(raw.default)) {
+    throw new Error(`${address} names an unknown default project '${raw.default}'`);
   }
-  return site;
+  return {
+    default: raw.default ?? projects[0].id,
+    projects,
+    allowCustomProjects: raw.allow_custom_projects !== false,
+    showLanding: Array.isArray(raw?.projects),
+  };
+};
+
+const CUSTOM_PROJECT_KEY = 'iris-custom-project';
+
+export const saveCustomProject = (project: SiteProject) => {
+  sessionStorage.setItem(CUSTOM_PROJECT_KEY, JSON.stringify(project));
+};
+
+export const loadCustomProject = (): SiteProject | null => {
+  try {
+    const project = JSON.parse(sessionStorage.getItem(CUSTOM_PROJECT_KEY) || 'null');
+    return project?.id === 'custom' && typeof project?.project === 'string' ? project : null;
+  } catch {
+    return null;
+  }
+};
+
+export const selectedProjectId = () => new URLSearchParams(window.location.search).get('project');
+
+export const loadSiteConfig = async (projectId = selectedProjectId()): Promise<SiteConfig> => {
+  if (projectId === 'custom') {
+    const custom = loadCustomProject();
+    if (!custom) throw new Error('This custom project is no longer available; choose it again from the start page');
+    return custom;
+  }
+  const catalog = await loadSiteCatalog();
+  const id = projectId ?? catalog.default;
+  const project = catalog.projects.find((entry) => entry.id === id);
+  if (!project) throw new Error(`IRIS has no project '${id}'`);
+  return project;
 };

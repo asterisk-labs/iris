@@ -1,6 +1,21 @@
 {
-  "project": "demo/cloud-segmentation.json",
-  "labels": "hf://buckets/asterisk-labs/iris",
-  "login": "huggingface",
-  "guests": true
+  "default": "cloud-demo",
+  "allow_custom_projects": true,
+  "projects": [
+    {
+      "id": "cloud-demo",
+      "name": "Cloud segmentation demo",
+      "description": "Explore and label two real Sentinel-2 scenes prepared as Cloud Optimized GeoTIFFs.",
+      "thumbnail": "demo/images/coast/thumbnail.png",
+      "tags": ["Sentinel-2", "Demo"],
+      "project": "demo/cloud-segmentation.json",
+      "labels": "hf://buckets/asterisk-labs/iris",
+      "login": "huggingface",
+      "guests": true,
+      "admin": {
+        "username": "admin",
+        "password": "admin"
+      }
+    }
+  ]
 }

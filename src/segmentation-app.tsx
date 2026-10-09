@@ -21,11 +21,18 @@ import { useUiStore } from './stores/uiStore';
 import { useShortcut } from './hooks/useShortcut';
 import { useEditorShortcuts } from './hooks/useEditorShortcuts';
 import { chooseBackend, startSegmentation } from './segmentation/startup';
-import { backend } from './services/backend';
+import {
+  backend, loadSiteCatalog, saveCustomProject, selectedProjectId,
+  type SiteCatalog, type SiteProject,
+} from './services/backend';
+import LandingPage from './components/LandingPage';
 
 const HELP_SHOWN_KEY = 'iris-help-shown';
 
 const SegmentationApp: React.FC = () => {
+  const [screen, setScreen] = useState<'loading' | 'landing' | 'workspace'>('loading');
+  const [catalog, setCatalog] = useState<SiteCatalog | null>(null);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -39,17 +46,25 @@ const SegmentationApp: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { leftExpanded, rightExpanded, toggleLeft, toggleRight } = useSidebars();
 
-  // Find where the project is, then sign in unless the session is still open
+  // Show the catalog first. A project in the URL opens directly and keeps deep links stable.
   useEffect(() => {
-    chooseBackend()
-      .then(async (source) => {
+    loadSiteCatalog()
+      .then(async (loadedCatalog) => {
+        setCatalog(loadedCatalog);
+        if (!selectedProjectId() && loadedCatalog.showLanding) {
+          setScreen('landing');
+          useViewManagerStore.getState().setInitialized(true);
+          return;
+        }
+        const source = await chooseBackend();
         const user = await source.currentUser();
         setIsAuthenticated(!!user);
         setCanReview(!!source.review());
         if (!user) setIsLoginOpen(true);
+        setScreen('workspace');
       })
       .catch((error: Error) => {
-        useUiStore.getState().showErrorModal(error.message, 'Could not open the project');
+        setStartupError(error.message);
         useViewManagerStore.getState().setInitialized(true);
       });
   }, []);
@@ -122,6 +137,24 @@ const SegmentationApp: React.FC = () => {
     window.location.reload();
   }, []);
 
+  const openProject = useCallback((project: SiteProject) => {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.searchParams.set('project', project.id);
+    window.location.assign(`${url.pathname}${url.search}`);
+  }, []);
+
+  const openCustomProject = useCallback((project: SiteProject) => {
+    saveCustomProject(project);
+    openProject(project);
+  }, [openProject]);
+
+  const changeProject = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.search = '';
+    window.location.assign(url.pathname);
+  }, []);
+
   // Shortcuts of the dialogs and the side panel (see utils/shortcuts.ts)
   useShortcut('classDialog', () => setIsClassSelectionOpen(true));
   useShortcut('imageInfo', () => setIsImageInfoOpen((open) => !open));
@@ -134,6 +167,18 @@ const SegmentationApp: React.FC = () => {
   useShortcut('rightPanel', toggleRight);
   useEditorShortcuts({ onResetMask: handleResetMask });
 
+  if (startupError) {
+    return <ThemeProvider><div className="iris-startup iris-startup-error" role="alert"><span>Could not open IRIS</span><p>{startupError}</p><button type="button" onClick={() => window.location.reload()}>Try again</button></div></ThemeProvider>;
+  }
+
+  if (screen === 'loading') {
+    return <ThemeProvider><div className="iris-startup" role="status"><span>IRIS</span><small>Loading workspace…</small></div></ThemeProvider>;
+  }
+
+  if (screen === 'landing' && catalog) {
+    return <ThemeProvider><LandingPage catalog={catalog} onOpen={openProject} onOpenCustom={openCustomProject} /></ThemeProvider>;
+  }
+
   return (
     <ThemeProvider>
       <div style={{ height: '100vh', overflow: 'hidden' }}>
@@ -141,6 +186,7 @@ const SegmentationApp: React.FC = () => {
           onOpenPreferences={handleOpenPreferences}
           onOpenHelp={handleOpenHelp}
           onOpenProfile={handleOpenProfile}
+          onChangeProject={catalog?.showLanding ? changeProject : undefined}
         />
 
         <LeftToolbar expanded={leftExpanded} onToggle={toggleLeft} onResetMask={handleResetMask} />

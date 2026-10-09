@@ -5,9 +5,18 @@ import SegmentationApp from './segmentation-app';
 
 const chooseBackend = vi.fn();
 const startSegmentation = vi.fn();
+const loadSiteCatalog = vi.fn();
+const selectedProjectId = vi.fn();
 vi.mock('./segmentation/startup', () => ({
   chooseBackend: () => chooseBackend(),
   startSegmentation: () => startSegmentation(),
+}));
+vi.mock('./services/backend', () => ({
+  backend: vi.fn(),
+  chosenBackend: () => null,
+  loadSiteCatalog: () => loadSiteCatalog(),
+  saveCustomProject: vi.fn(),
+  selectedProjectId: () => selectedProjectId(),
 }));
 
 // Mock ThemeContext to avoid matchMedia issues in test environment
@@ -74,6 +83,11 @@ describe('SegmentationApp - start', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     startSegmentation.mockResolvedValue(undefined);
+    selectedProjectId.mockReturnValue('cloud-demo');
+    loadSiteCatalog.mockResolvedValue({
+      default: 'cloud-demo', showLanding: true, allowCustomProjects: true,
+      projects: [{ id: 'cloud-demo', name: 'Cloud demo', project: 'demo/clouds.json' }],
+    });
   });
 
   it('asks to sign in when nobody is signed in', async () => {
@@ -95,11 +109,20 @@ describe('SegmentationApp - start', () => {
   });
 
   it('says what is wrong when the page has no project', async () => {
-    chooseBackend.mockRejectedValue(new Error('Could not read iris.json (404): IRIS needs it next to the page'));
+    loadSiteCatalog.mockRejectedValue(new Error('Could not read iris.json (404): IRIS needs it next to the page'));
 
     const { findByText } = render(<SegmentationApp />);
 
     expect(await findByText(/IRIS needs it next to the page/)).toBeInTheDocument();
     expect(startSegmentation).not.toHaveBeenCalled();
+  });
+
+  it('shows the dataset catalog before authentication', async () => {
+    selectedProjectId.mockReturnValue(null);
+
+    const { findByText } = render(<SegmentationApp />);
+
+    expect(await findByText('Choose a dataset')).toBeInTheDocument();
+    expect(chooseBackend).not.toHaveBeenCalled();
   });
 });

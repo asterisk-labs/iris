@@ -22,26 +22,43 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:3000: IRIS opens the demo project in [public/demo](public/demo). It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
+Then open the address printed by Vite (normally http://localhost:3000). IRIS opens its dataset catalog, including the demo project in [public/demo](public/demo). It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
 
 ## How a site is put together
 
-The page reads `iris.json` next to it, which says where everything is:
+The page reads `iris.json` next to it. It can contain a catalog so people choose a dataset before they sign in:
 
 ```json
 {
-  "project": "demo/cloud-segmentation.json",
-  "labels": "hf://buckets/<owner>/<name>",
-  "login": "huggingface",
-  "guests": true
+  "default": "clouds",
+  "allow_custom_projects": true,
+  "projects": [
+    {
+      "id": "clouds",
+      "name": "Cloud segmentation",
+      "description": "Label clouds in Sentinel-2 scenes.",
+      "thumbnail": "demo/images/coast/thumbnail.png",
+      "tags": ["Sentinel-2"],
+      "project": "hf://datasets/<owner>/<dataset>/project.json",
+      "labels": "hf://buckets/<owner>/<bucket>",
+      "login": "huggingface",
+      "guests": true,
+      "admin": { "username": "admin", "password": "admin" }
+    }
+  ]
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
+| `projects` | Projects shown on the start page. The old single-project `iris.json` format remains supported. |
+| `default` | The project selected when an old direct link does not name one. |
+| `allow_custom_projects` | Whether the start page accepts a project path entered by the user. |
+| `id`, `name`, `description`, `thumbnail`, `tags` | The identity and presentation of a project in the catalog. |
 | `project` | The project file ([guide](docs/config.md)), a path relative to the page or a Hugging Face path. Required. |
 | `labels` | Where the masks of the team go: a bucket `hf://buckets/<owner>/<name>` (recommended) or a dataset `hf://datasets/<owner>/<name>`. Without it, every user keeps their masks in their own browser. |
 | `login` | Set to `"huggingface"` to let each user sign in with their own token. The token identifies the user and remains in that browser tab's session. |
+| `admin` | Optional demonstration administrator for the review and configuration UI. It contains no Hugging Face token and is not a security boundary. |
 | `credentials` | The accounts, see [Accounts](#accounts). Without it there are no accounts: whoever opens the page is the user `local`, an admin. |
 | `guests` | Whether people can enter without an account (default `true`). Their masks stay in their browser. |
 
@@ -81,6 +98,8 @@ In a bucket each save simply replaces the files. In a dataset each save is a com
 ### Accounts
 
 The simplest shared setup uses `"login": "huggingface"`. Each person enters their own personal token; IRIS verifies it with Hugging Face, uses the corresponding HF account name on saved masks, and sends that token only to Hugging Face. A public bucket is readable without a token, but writing still requires the user's token to have write access to the bucket's organization.
+
+The public demo additionally declares `"admin": { "username": "admin", "password": "admin" }`. This deliberately public account opens the review and project-configuration interface for testing, but it contains no Hugging Face token. It can read shared labels from a public bucket and downloads project edits instead of writing them to the Hub. Do not treat a password published in `iris.json` as authentication or put a token behind it.
 
 For teams that do not want users to enter tokens directly, `credentials.json` holds one entry per user, encrypted with a key derived from their name and password. Do not configure both `login` and `credentials`. The file shows no names and can be published with the site. Unlocking an entry gives the role of the user (`admin` or `annotator`) and their Hugging Face token, kept for the session of the browser tab.
 

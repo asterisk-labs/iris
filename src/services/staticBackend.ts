@@ -31,6 +31,8 @@ export interface SiteConfig {
   /** Let each user sign in with their own Hugging Face token */
   login?: 'huggingface';
   guests?: boolean;
+  /** Public demo administrator. This gates UI features, not storage permissions. */
+  admin?: { username: string; password: string };
 }
 
 const LOCAL_USER = 'local';
@@ -49,12 +51,13 @@ const readSettings = (project: string, legacyProject?: string): Partial<AIModelC
 };
 
 export const staticBackend = (site: SiteConfig): Backend => {
-  const siteKey = new URL('iris.json', window.location.href).href;
   // Paths of the site are relative to the page, those of the project to the project file
   const projectFile = resolvePath(site.project, window.location.href);
+  // Accounts and roles belong to one project, not to every project in this IRIS site.
+  const siteKey = `${new URL('iris.json', window.location.href).href}|${projectFile}`;
   let project: ProjectConfig | null = null;
   let storage: LabelStorage | null = null;
-  const hasLogin = !!site.credentials || site.login === 'huggingface';
+  const hasLogin = !!site.credentials || site.login === 'huggingface' || !!site.admin;
 
   const session = (): Session | null =>
     (hasLogin ? savedSession(siteKey) : { user: LOCAL_USER, role: 'admin' });
@@ -119,9 +122,17 @@ export const staticBackend = (site: SiteConfig): Backend => {
     signInOptions: () => ({
       guest: site.guests !== false,
       method: site.login === 'huggingface' ? 'huggingface' : 'credentials',
+      ...(site.admin ? { admin: site.admin } : {}),
     }),
 
     async signIn(user, secret) {
+      if (site.admin && user.trim() === site.admin.username) {
+        if (secret !== site.admin.password) {
+          throw new Error('Wrong administrator name or password');
+        }
+        saveSession(siteKey, { user: site.admin.username, role: 'admin', hfToken: null });
+        return;
+      }
       if (site.login === 'huggingface') {
         const account = await huggingFaceUser(secret.trim());
         saveSession(siteKey, { user: account, role: 'annotator', hfToken: secret.trim() });
@@ -171,7 +182,12 @@ export const staticBackend = (site: SiteConfig): Backend => {
       return images.find((image) => image.image_id === last)?.image_id ?? images[0]?.image_id ?? null;
     },
 
-    pageUrl: (imageId) => `${window.location.pathname}?image_id=${encodeURIComponent(imageId)}`,
+    pageUrl(imageId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('image_id');
+      const existing = url.searchParams.toString();
+      return `${url.pathname}?${existing ? `${existing}&` : ''}image_id=${encodeURIComponent(imageId)}`;
+    },
 
     async imageFiles(config, imageId) {
       const paths = config.images.path;

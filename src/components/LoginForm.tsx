@@ -12,11 +12,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [adminLogin, setAdminLogin] = useState(false);
 
   const { theme } = useTheme();
   const source = chosenBackend();
   const options = source?.signInOptions() ?? { guest: false, method: 'credentials' as const };
-  const huggingFaceLogin = options.method === 'huggingface';
+  const huggingFaceLogin = options.method === 'huggingface' && !adminLogin;
+
+  const changeMode = (admin: boolean) => {
+    setAdminLogin(admin);
+    setUsername('');
+    setPassword('');
+    setError(null);
+  };
 
   const finish = () => {
     if (onSuccess) { onSuccess(); } else { window.location.reload(); }
@@ -116,12 +124,44 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             <circle cx="12" cy="7" r="4" />
           </svg>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: theme.gray900 }}>
-            {huggingFaceLogin ? 'Hugging Face login' : 'Login'}
+            {huggingFaceLogin ? 'Hugging Face login' : adminLogin ? 'Administrator login' : 'Login'}
           </h2>
         </div>
 
         {/* Body */}
         <div style={{ padding: '24px' }}>
+          {options.method === 'huggingface' && options.admin && <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '4px',
+            marginBottom: '20px',
+            padding: '4px',
+            borderRadius: '8px',
+            background: theme.segmentedBg,
+          }}>
+            <button
+              type="button"
+              onClick={() => changeMode(false)}
+              style={{
+                margin: 0, border: 'none', borderRadius: '6px', padding: '8px',
+                background: !adminLogin ? theme.segmentedActive : 'transparent',
+                color: theme.gray800, fontSize: '12px', boxShadow: 'none',
+              }}
+            >
+              Hugging Face
+            </button>
+            <button
+              type="button"
+              onClick={() => changeMode(true)}
+              style={{
+                margin: 0, border: 'none', borderRadius: '6px', padding: '8px',
+                background: adminLogin ? theme.segmentedActive : 'transparent',
+                color: theme.gray800, fontSize: '12px', boxShadow: 'none',
+              }}
+            >
+              Administrator
+            </button>
+          </div>}
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {!huggingFaceLogin && <div>
@@ -165,6 +205,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   {' '}with the Write role, or fine-grained write access to this bucket. Your HF account must also
                   have write access to its organization. The token remains in this tab's session.
                 </div>}
+                {adminLogin && <div style={{ marginTop: '7px', color: theme.gray600, fontSize: '12px', lineHeight: 1.4 }}>
+                  Demo access: <strong>{options.admin?.username}</strong> / <strong>{options.admin?.password}</strong>. It controls the review and configuration interface but contains no Hugging Face token.
+                </div>}
               </div>
             </div>
 
@@ -202,7 +245,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = theme.buttonPrimaryHover; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.buttonPrimaryBg; }}
               >
-                {loading ? 'Please wait...' : huggingFaceLogin ? 'Sign in with Hugging Face' : 'Login'}
+                {loading ? 'Please wait...' : huggingFaceLogin ? 'Sign in with Hugging Face' : adminLogin ? 'Enter as administrator' : 'Login'}
               </button>
 
               {options.guest && <button

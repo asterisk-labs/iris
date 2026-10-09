@@ -24,9 +24,10 @@ interface TopBarProps {
   onOpenPreferences: () => void;
   onOpenHelp: () => void;
   onOpenProfile: () => void;
+  onChangeProject?: () => void;
 }
 
-const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenProfile }) => {
+const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenProfile, onChangeProject }) => {
   const { theme } = useTheme();
   const config = useSegmentationStore((state) => state.config);
   const projectName = config?.name || 'IRIS';
@@ -93,7 +94,10 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
     >
       {/* Left: Project Name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <h1
+        <button
+          type="button"
+          onClick={onChangeProject}
+          disabled={!onChangeProject}
           title={projectName}
           style={{
             margin: 0,
@@ -103,10 +107,16 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
             whiteSpace: 'nowrap',
             fontSize: '16px',
             fontWeight: 'bold',
+            color: theme.toolbarText,
+            background: 'transparent',
+            border: 0,
+            padding: '6px 8px',
+            cursor: onChangeProject ? 'pointer' : 'default',
           }}
+          {...(onChangeProject ? tooltip('Choose another dataset') : {})}
         >
           {projectName}
-        </h1>
+        </button>
       </div>
 
       {/* Center: Image Navigation */}

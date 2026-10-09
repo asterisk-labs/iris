@@ -4,6 +4,47 @@ body {
     font-family: Arial, Helvetica, sans-serif;
 }
 
+.iris-startup {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 8px;
+    color: #1c5b4f;
+    background: #f4f5f0;
+    text-align: center;
+}
+
+.iris-startup span {
+    font-size: 32px;
+    font-weight: 850;
+    letter-spacing: -.06em;
+}
+
+.iris-startup small {
+    color: #66736d;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.iris-startup-error p {
+    max-width: 520px;
+    margin: 0;
+    color: #66736d;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.iris-startup-error button {
+    justify-self: center;
+    margin-top: 12px;
+    border: 0;
+    padding: 10px 14px;
+    color: white;
+    background: #1c5b4f;
+}
+
 select {
     display: block;
     /* font-size: 16px; */

@@ -128,6 +128,22 @@ describe('LoginForm', () => {
       .toHaveAttribute('href', 'https://huggingface.co/settings/tokens');
   });
 
+  it('offers the separate demo administrator login', async () => {
+    signInOptions.mockReturnValue({
+      guest: true, method: 'huggingface', admin: { username: 'admin', password: 'admin' },
+    });
+    signIn.mockResolvedValue(undefined);
+    const onSuccess = vi.fn();
+    const { container } = renderWithTheme(<LoginForm onSuccess={onSuccess} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
+    fillIn(container, 'admin', 'admin');
+    fireEvent.click(screen.getByRole('button', { name: 'Enter as administrator' }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    expect(signIn).toHaveBeenCalledWith('admin', 'admin');
+  });
+
   it('displays why the sign in failed', async () => {
     signIn.mockRejectedValue(new Error('Wrong user name or password'));
     const { container } = renderWithTheme(<LoginForm />);
