@@ -4,7 +4,8 @@
  * iris.json, next to the page, says where everything is:
  *   project      the project file, a path next to the page or hf://...
  *   labels       where the masks go: hf://buckets/<owner>/<name> or
- *                hf://datasets/<owner>/<name>; this browser when left out
+ *                hf://datasets/<owner>/<name>; by default the folder of a
+ *                project on the Hub, else this browser
  *   credentials  the accounts (scripts/credentials.mjs); anyone can use the
  *                page as the local user when left out
  *   guests       whether people without an account can enter (default true);
@@ -17,7 +18,7 @@ import { imagePath, loadImageIds, normalizeProject } from '../project/project';
 import type { AIModelConfig, ProjectConfig, UserInfo } from '../types/iris';
 import type { Backend, Preferences, Profile, UserMask } from './backend';
 import { CredentialsFile, Session, clearSession, saveSession, savedSession, unlock } from './credentials';
-import { fetchFile, hub, hubRepo, huggingFaceUser, isHfPath, parseHfPath, readableUrl, resolvePath } from './huggingface';
+import { fetchFile, hub, hubRepo, huggingFaceUser, isHfPath, parseHfPath, readJson, readableUrl, resolvePath } from './huggingface';
 import { downloadFile } from '../utils/download';
 import { LabelStorage, browserStorage, hubStorage } from './labelStorage';
 import { rasterEngine } from '../raster/engine';
@@ -77,11 +78,18 @@ export const staticBackend = (site: SiteConfig): Backend => {
   const fileOf = (template: string | false | undefined, imageId: string) =>
     (template ? resolvePath(imagePath(template, imageId), projectFile) : null);
 
+  // The masks go next to the project, under segmentation/, as in an IRIS
+  // project folder; iris.json can name another place. A project that is not
+  // on the Hub, and guests, keep them in the browser.
+  const labelsLocation = site.labels
+    ? resolvePath(site.labels, window.location.href)
+    : isHfPath(projectFile) ? projectFile.slice(0, projectFile.lastIndexOf('/')) : null;
+
   const labels = (): LabelStorage => {
     if (!storage) {
       const current = session();
-      storage = site.labels && current && !current.guest
-        ? hubStorage(resolvePath(site.labels, window.location.href), current.hfToken ?? null)
+      storage = labelsLocation && current && !current.guest
+        ? hubStorage(labelsLocation, current.hfToken ?? null)
         : browserStorage(projectFile, loaded().name);
     }
     return storage;
@@ -122,7 +130,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
     signInOptions: () => ({
       guest: site.guests !== false,
       method: site.login === 'huggingface' ? 'huggingface' : 'credentials',
-      ...(site.admin ? { admin: site.admin } : {}),
+      ...(site.admin ? { admin: true } : {}),
     }),
 
     async signIn(user, secret) {
@@ -141,7 +149,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
       if (!site.credentials) throw new Error('This site has no accounts');
       const response = await fetch(new URL(site.credentials, window.location.href).href, { cache: 'no-store' });
       if (!response.ok) throw new Error(`Could not read the accounts (${response.status})`);
-      const file: CredentialsFile = await response.json();
+      const file: CredentialsFile = await readJson(response, site.credentials);
       saveSession(siteKey, await unlock(file, user.trim(), secret));
     },
 
@@ -157,7 +165,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
           ? `No access to the project ${site.project}: sign in with an account that can read it`
           : `Could not read the project ${site.project} (${response.status})`);
       }
-      project = normalizeProject(await response.json(), projectFile);
+      project = normalizeProject(await readJson(response, site.project), projectFile);
       return project;
     },
 
@@ -308,7 +316,7 @@ export const staticBackend = (site: SiteConfig): Backend => {
       const response = await fetchFile(projectFile, token(), { cache: 'no-store' });
       if (!response.ok) throw new Error(`Could not read the project ${site.project} (${response.status})`);
       return {
-        config: await response.json(),
+        config: await readJson(response, site.project),
         location: projectFile,
         savesTo: isHfPath(projectFile) && token() ? 'hub' as const : 'download' as const,
       };

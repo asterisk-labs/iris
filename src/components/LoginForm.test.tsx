@@ -130,13 +130,20 @@ describe('LoginForm', () => {
 
   it('offers the separate demo administrator login', async () => {
     signInOptions.mockReturnValue({
-      guest: true, method: 'huggingface', admin: { username: 'admin', password: 'admin' },
+      guest: true, method: 'huggingface', admin: true,
     });
     signIn.mockResolvedValue(undefined);
     const onSuccess = vi.fn();
     const { container } = renderWithTheme(<LoginForm onSuccess={onSuccess} />);
 
+    expect(screen.getByText(/Annotations are saved with the permissions/)).toBeInTheDocument();
+    // Guests can still look around
+    expect(screen.getByText('Continue without account')).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
+    expect(screen.getByText(/administrator account of this site/)).toBeInTheDocument();
+    // The password of the account is never shown
+    expect(screen.queryByText(/admin \/ admin/)).not.toBeInTheDocument();
     fillIn(container, 'admin', 'admin');
     fireEvent.click(screen.getByRole('button', { name: 'Enter as administrator' }));
 

@@ -133,3 +133,9 @@ node_modules
 /.claude/
 /demo/
 /iris/
+
+# Packages made by npm pack
+*.tgz
+
+# npm authentication belongs to each developer's computer
+/.npmrc

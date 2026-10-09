@@ -18,6 +18,7 @@ export interface SiteProject extends SiteConfig {
   description?: string;
   thumbnail?: string;
   tags?: string[];
+  coming_soon?: boolean;
 }
 
 export interface SiteCatalog {
@@ -49,7 +50,8 @@ export interface Profile extends UserProfile {
 export interface SignInOptions {
   guest: boolean;
   method: 'credentials' | 'huggingface';
-  admin?: { username: string; password: string };
+  /** The site has an administrator account; the page never shows its password */
+  admin?: boolean;
 }
 
 /** The masks of every user, for reviewing them */
@@ -154,6 +156,9 @@ export const loadSiteCatalog = async (): Promise<SiteCatalog> => {
     }
     if (typeof project.project !== 'string' || !project.project.trim()) {
       throw new Error(`${address} project '${project.id}' needs a project file`);
+    }
+    if (project.coming_soon !== undefined && typeof project.coming_soon !== 'boolean') {
+      throw new Error(`${address} project '${project.id}' has an invalid coming_soon value`);
     }
     if (project.login !== undefined && project.login !== 'huggingface') {
       throw new Error(`${address} project '${project.id}' has an unsupported login method`);

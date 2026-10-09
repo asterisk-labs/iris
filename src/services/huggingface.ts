@@ -79,6 +79,22 @@ export const huggingFaceUser = async (token: string): Promise<string> => {
   return identity.name;
 };
 
+/**
+ * The JSON of a response. A server that answers a missing file with a web
+ * page (as development servers and single-page hosts do) gets an error that
+ * names the file instead of a JSON parse error.
+ */
+export const readJson = async (response: Response, location: string): Promise<any> => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(/^\s*</.test(text)
+      ? `${location} was not found: the server answered with a web page instead of the file`
+      : `${location} is not valid JSON`);
+  }
+};
+
 /** Read a file, from the Hub with the token or from any address */
 export const fetchFile = (location: string, token?: string | null, init: RequestInit = {}) =>
   isHfPath(location)

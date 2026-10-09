@@ -117,7 +117,7 @@ describe('SegmentationApp - start', () => {
     expect(startSegmentation).not.toHaveBeenCalled();
   });
 
-  it('shows the dataset catalog before authentication', async () => {
+  it('shows the compact data-source selector at the root URL', async () => {
     selectedProjectId.mockReturnValue(null);
 
     const { findByText } = render(<SegmentationApp />);

@@ -7,7 +7,7 @@
  */
 
 import defaultConfig from './defaultConfig.json';
-import { fetchFile, resolvePath } from '../services/huggingface';
+import { fetchFile, readJson, resolvePath } from '../services/huggingface';
 import { validateProject } from './validate';
 import type { ProjectConfig } from '../types/iris';
 
@@ -67,7 +67,7 @@ export const loadImageIds = async (config: Json, projectFile: string, token?: st
     if (!response.ok) {
       throw new Error(`The project lists no images: give images.ids, or a list of ids in ${list}`);
     }
-    const ids = await response.json();
+    const ids = await readJson(response, list);
     values = Array.isArray(ids) ? ids : ids.ids || [];
   }
   const imageIds = values.map(String);

@@ -5,7 +5,7 @@
     {
       "id": "cloud-demo",
       "name": "Cloud segmentation demo",
-      "description": "Explore and label two real Sentinel-2 scenes prepared as Cloud Optimized GeoTIFFs.",
+      "description": "Two Sentinel-2 scenes, a coast and some mountains, with plenty of clouds to paint.",
       "thumbnail": "demo/images/coast/thumbnail.png",
       "tags": ["Sentinel-2", "Demo"],
       "project": "demo/cloud-segmentation.json",
@@ -16,6 +16,34 @@
         "username": "admin",
         "password": "admin"
       }
+    },
+    {
+      "id": "flood-mapping",
+      "name": "Flood mapping",
+      "description": "Sentinel-1 flood extent labelling.",
+      "project": "coming-soon/flood-mapping.json",
+      "coming_soon": true
+    },
+    {
+      "id": "burn-scars",
+      "name": "Burn scars",
+      "description": "Sentinel-2 burned area labelling.",
+      "project": "coming-soon/burn-scars.json",
+      "coming_soon": true
+    },
+    {
+      "id": "land-cover",
+      "name": "Land cover",
+      "description": "Multi-class land-cover labelling.",
+      "project": "coming-soon/land-cover.json",
+      "coming_soon": true
+    },
+    {
+      "id": "urban-change",
+      "name": "Urban change",
+      "description": "Building and infrastructure change labelling.",
+      "project": "coming-soon/urban-change.json",
+      "coming_soon": true
     }
   ]
 }

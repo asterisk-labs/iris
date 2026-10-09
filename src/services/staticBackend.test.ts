@@ -5,6 +5,12 @@ import { unzipSync } from 'fflate';
 import { readMaskCog } from '../export/maskFiles';
 import { savedSession, saveSession } from './credentials';
 
+const uploadFiles = vi.fn();
+vi.mock('@huggingface/hub', () => ({
+  uploadFiles: (...args: unknown[]) => uploadFiles(...args),
+  listFiles: vi.fn(),
+}));
+
 vi.mock('../raster/engine', () => ({
   rasterEngine: () => ({
     open: async () => ({
@@ -139,11 +145,43 @@ describe('staticBackend', () => {
     expect((await source.currentUser())?.name).toBe('alice');
   });
 
+  it('says the project is missing when the server answers with a web page', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(new Response('<!doctype html><html></html>'));
+    const source = staticBackend({ project: '/project.json' });
+
+    await expect(source.loadProject()).rejects.toThrow('/project.json was not found');
+  });
+
+  it('saves the masks next to a project on the Hub, under segmentation/', async () => {
+    vi.mocked(global.fetch).mockImplementation(async (url) => {
+      if (String(url).includes('/projects/p.json')) return new Response(JSON.stringify(project));
+      if (String(url).endsWith('/s2.tif')) return new Response('');
+      return new Response('', { status: 404 });
+    });
+    uploadFiles.mockReset().mockResolvedValue(undefined);
+    const site = { project: 'hf://datasets/org/clouds/projects/p.json', login: 'huggingface' as const };
+    saveSession(`${new URL('iris.json', window.location.href).href}|${site.project}`,
+      { user: 'alice', role: 'annotator', hfToken: 'hf_alice' });
+    const source = staticBackend(site);
+    await source.loadProject();
+
+    await source.saveMask('coast', mask(1));
+
+    const call = uploadFiles.mock.calls[0][0];
+    expect(call.repo).toEqual({ type: 'dataset', name: 'org/clouds' });
+    expect(call.accessToken).toBe('hf_alice');
+    expect(call.files.map((file: { path: string }) => file.path).sort()).toEqual([
+      'projects/segmentation/coast/alice.json', 'projects/segmentation/coast/alice_mask.tif',
+    ]);
+  });
+
   it('opens the configured demo administrator without embedding a token', async () => {
     const source = staticBackend({
       project: 'demo/clouds.json', login: 'huggingface', admin: { username: 'admin', password: 'admin' },
     });
 
+    // The page learns that the account exists, never its password
+    expect(source.signInOptions().admin).toBe(true);
     await source.signIn('admin', 'admin');
 
     expect((await source.currentUser())?.admin).toBe(true);

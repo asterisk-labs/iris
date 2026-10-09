@@ -13,16 +13,24 @@ Tool for manual image segmentation of satellite imagery. It was designed to acce
 
 ## Quick start
 
-IRIS needs [Node.js](https://nodejs.org/) 22.22.2 or higher.
+IRIS needs [Node.js](https://nodejs.org/) 22 or higher. Run the demo:
 
 ```bash
-git clone https://github.com/ESA-PhiLab/iris
-cd iris
-npm install
-npm run dev
+npx @asterisk-labs/iris demo
 ```
 
-Then open the address printed by Vite (normally http://localhost:3000). IRIS opens its dataset catalog, including the demo project in [public/demo](public/demo). It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
+IRIS opens in your browser with two Sentinel-2 scenes to label. It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
+
+To start your own project from a copy of the demo, and open it:
+
+```bash
+npx @asterisk-labs/iris init my-project
+npx @asterisk-labs/iris my-project
+```
+
+Edit `my-project/project.json` ([guide](docs/config.md)), put your COGs in `my-project/images/` and list their ids in `my-project/images.json`. IRIS only serves the files of the folder to your browser; the masks stay in the browser, and you download them from your profile. `npx @asterisk-labs/iris --help` lists the options (`--port`, `--host`, `--no-open`).
+
+The same page is published at https://asterisk.coop/iris/ for projects on the Hugging Face Hub.
 
 ## How a site is put together
 
@@ -56,9 +64,9 @@ The page reads `iris.json` next to it. It can contain a catalog so people choose
 | `allow_custom_projects` | Whether the start page accepts a project path entered by the user. |
 | `id`, `name`, `description`, `thumbnail`, `tags` | The identity and presentation of a project in the catalog. |
 | `project` | The project file ([guide](docs/config.md)), a path relative to the page or a Hugging Face path. Required. |
-| `labels` | Where the masks of the team go: a bucket `hf://buckets/<owner>/<name>` (recommended) or a dataset `hf://datasets/<owner>/<name>`. Without it, every user keeps their masks in their own browser. |
+| `labels` | Where the masks go, a bucket `hf://buckets/<owner>/<name>` or a dataset `hf://datasets/<owner>/<name>`. By default, when the project is on Hugging Face, the masks go next to the project file, under `segmentation/`. Otherwise they stay in each user's browser. |
 | `login` | Set to `"huggingface"` to let each user sign in with their own token. The token identifies the user and remains in that browser tab's session. |
-| `admin` | Optional demonstration administrator for the review and configuration UI. It contains no Hugging Face token and is not a security boundary. |
+| `admin` | The administrator account for the review and the project settings. The default is `admin` / `admin`: change it in your fork. It holds no Hugging Face token and is not a security boundary. |
 | `credentials` | The accounts, see [Accounts](#accounts). Without it there are no accounts: whoever opens the page is the user `local`, an admin. |
 | `guests` | Whether people can enter without an account (default `true`). Their masks stay in their browser. |
 
@@ -99,7 +107,7 @@ In a bucket each save simply replaces the files. In a dataset each save is a com
 
 The simplest shared setup uses `"login": "huggingface"`. Each person enters their own personal token; IRIS verifies it with Hugging Face, uses the corresponding HF account name on saved masks, and sends that token only to Hugging Face. A public bucket is readable without a token, but writing still requires the user's token to have write access to the bucket's organization.
 
-The public demo additionally declares `"admin": { "username": "admin", "password": "admin" }`. This deliberately public account opens the review and project-configuration interface for testing, but it contains no Hugging Face token. It can read shared labels from a public bucket and downloads project edits instead of writing them to the Hub. Do not treat a password published in `iris.json` as authentication or put a token behind it.
+The default `iris.json` sets `"admin": { "username": "admin", "password": "admin" }`. Change it in your fork. The login page never shows it, but anyone can read it in `iris.json`, so it only opens the review and the project settings: it holds no Hugging Face token, and project edits are downloaded instead of written to the Hub.
 
 For teams that do not want users to enter tokens directly, `credentials.json` holds one entry per user, encrypted with a key derived from their name and password. Do not configure both `login` and `credentials`. The file shows no names and can be published with the site. Unlocking an entry gives the role of the user (`admin` or `annotator`) and their Hugging Face token, kept for the session of the browser tab.
 
@@ -132,10 +140,40 @@ To publish it elsewhere, build it and copy `dist/` to any web host:
 npm run build
 ```
 
+## Publishing on npm
+
+Releases are published by [npm.yml](.github/workflows/npm.yml) with npm Trusted Publishing. The workflow uses GitHub's short-lived OIDC identity, so it does not need an `NPM_TOKEN` secret.
+
+Configure the trusted publisher once in the settings of `@asterisk-labs/iris` on npm:
+
+| Setting | Value |
+| --- | --- |
+| Provider | GitHub Actions |
+| Organization or user | `asterisk-labs` |
+| Repository | `iris` |
+| Workflow filename | `npm.yml` |
+| Environment | Leave empty |
+
+For each release, update the version in `package.json` and `package-lock.json`, merge that commit, then create a GitHub release whose tag is exactly `v<version>`, for example `v1.0.1`. Publishing the release runs the type checker and test suite, verifies that its tag matches the package version, builds the package and publishes it with public access.
+
+Maintainers can still inspect a package locally before making the release:
+
+```bash
+npm test
+npm run typecheck
+npm pack --dry-run
+```
+
+The package contains the built page, the demo and the command line in `bin/`. It has no runtime dependencies. A root `.npmrc` is ignored so a developer's local npm credentials cannot be committed accidentally.
+
 ## Development
 
 ```bash
+git clone https://github.com/asterisk-labs/iris
+cd iris
+npm install
 npm run dev          # Vite dev server on port 3000
+npm run demo         # build, then serve the demo as npx does
 npm test             # the tests (Vitest)
 npm run typecheck    # TypeScript type checking
 npm run build        # the site in dist/

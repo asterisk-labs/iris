@@ -14,6 +14,8 @@ import ViewerComparison from './components/segmentation/ViewerComparison';
 import ImageNotesDialog from './components/segmentation/ImageNotesDialog';
 import StatusLayer from './components/segmentation/StatusLayer';
 import ReviewModal from './components/ReviewModal';
+import { LoginForm } from './components/LoginForm';
+import LandingPage from './components/LandingPage';
 import TooltipLayer from './components/TooltipLayer';
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useViewManagerStore } from './stores/viewManagerStore';
@@ -25,17 +27,15 @@ import {
   backend, loadSiteCatalog, saveCustomProject, selectedProjectId,
   type SiteCatalog, type SiteProject,
 } from './services/backend';
-import LandingPage from './components/LandingPage';
 
 const HELP_SHOWN_KEY = 'iris-help-shown';
 
 const SegmentationApp: React.FC = () => {
-  const [screen, setScreen] = useState<'loading' | 'landing' | 'workspace'>('loading');
+  const [screen, setScreen] = useState<'loading' | 'landing' | 'login' | 'workspace'>('loading');
   const [catalog, setCatalog] = useState<SiteCatalog | null>(null);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isResetMaskOpen, setIsResetMaskOpen] = useState(false);
   const [isClassSelectionOpen, setIsClassSelectionOpen] = useState(false);
@@ -46,7 +46,7 @@ const SegmentationApp: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { leftExpanded, rightExpanded, toggleLeft, toggleRight } = useSidebars();
 
-  // Show the catalog first. A project in the URL opens directly and keeps deep links stable.
+  // Choose a data source first. Authentication belongs to the selected project.
   useEffect(() => {
     loadSiteCatalog()
       .then(async (loadedCatalog) => {
@@ -60,8 +60,7 @@ const SegmentationApp: React.FC = () => {
         const user = await source.currentUser();
         setIsAuthenticated(!!user);
         setCanReview(!!source.review());
-        if (!user) setIsLoginOpen(true);
-        setScreen('workspace');
+        setScreen(user ? 'workspace' : 'login');
       })
       .catch((error: Error) => {
         setStartupError(error.message);
@@ -150,9 +149,7 @@ const SegmentationApp: React.FC = () => {
   }, [openProject]);
 
   const changeProject = useCallback(() => {
-    const url = new URL(window.location.href);
-    url.search = '';
-    window.location.assign(url.pathname);
+    window.location.assign(window.location.pathname);
   }, []);
 
   // Shortcuts of the dialogs and the side panel (see utils/shortcuts.ts)
@@ -177,6 +174,10 @@ const SegmentationApp: React.FC = () => {
 
   if (screen === 'landing' && catalog) {
     return <ThemeProvider><LandingPage catalog={catalog} onOpen={openProject} onOpenCustom={openCustomProject} /></ThemeProvider>;
+  }
+
+  if (screen === 'login') {
+    return <ThemeProvider><LoginForm onSuccess={handleLoginSuccess} /></ThemeProvider>;
   }
 
   return (
@@ -228,7 +229,7 @@ const SegmentationApp: React.FC = () => {
           onClosePreferences={() => setIsPreferencesOpen(false)}
           isProfileOpen={isProfileOpen}
           onCloseProfile={() => setIsProfileOpen(false)}
-          isLoginOpen={isLoginOpen}
+          isLoginOpen={false}
           onLoginSuccess={handleLoginSuccess}
           isHelpOpen={isHelpOpen}
           onCloseHelp={() => setIsHelpOpen(false)}
