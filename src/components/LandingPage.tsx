@@ -167,12 +167,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ catalog, onOpen, onOpe
                 <header>
                   <span className="local-kicker">Your own imagery</span>
                   <h3>Create a project</h3>
-                  <p>Start from the included example, then replace its images and configuration with yours.</p>
+                  <p>Create a small project folder, add your own images and open it locally.</p>
                 </header>
                 <ol className="local-steps">
                   <li>
                     <span>1</span>
-                    <div><strong>Create the folder</strong><small>Copies the editable project file, image list and demo COGs.</small></div>
+                    <div><strong>Create the folder</strong><small>Adds an editable project file, an empty image list and the data folders.</small></div>
                     <Command>npx @asterisk-labs/iris init my-project</Command>
                   </li>
                   <li>

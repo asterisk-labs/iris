@@ -82,3 +82,26 @@ describe('byteRange', () => {
     expect(byteRange('bytes=9-2', 10)).toBe('invalid');
   });
 });
+
+describe('a remote project server', () => {
+  it('serves the supplied site configuration without exposing a local project route', async () => {
+    const remote = {
+      project: 'hf://datasets/asterisk-labs/iris-datasets/cloud-demo/project.json',
+      labels: 'hf://datasets/asterisk-labs/iris-datasets/cloud-demo',
+      login: 'huggingface',
+      guests: true,
+    };
+    const remoteServer = createIrisServer({ dist, site: remote });
+    const port = await listen(remoteServer, { port: 0, host: '127.0.0.1' });
+    try {
+      expect(await (await fetch(`http://127.0.0.1:${port}/iris.json`)).json()).toEqual(remote);
+      expect((await fetch(`http://127.0.0.1:${port}/project/project.json`)).status).toBe(404);
+    } finally {
+      await new Promise((done) => remoteServer.close(done));
+    }
+  });
+
+  it('requires either a local project or a site configuration', () => {
+    expect(() => createIrisServer({ dist })).toThrow(/project file or site configuration/);
+  });
+});

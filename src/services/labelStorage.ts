@@ -80,8 +80,8 @@ const uploadError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   if (/authorization error|xet-write-token|\b(?:401|403)\b/i.test(message)) {
     return new Error(
-      'Hugging Face rejected the upload. Use a token with the Write role (or fine-grained write access to this bucket), '
-      + 'and make sure your account has write access to the bucket organization.'
+      'Hugging Face rejected the upload. Use a token with the Write role (or fine-grained write access to this dataset or bucket), '
+      + 'and make sure your account has write access to its organization.'
     );
   }
   return error instanceof Error ? error : new Error(message);

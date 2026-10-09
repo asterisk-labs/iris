@@ -19,18 +19,18 @@ IRIS needs [Node.js](https://nodejs.org/) 22 or higher. Run the demo:
 npx @asterisk-labs/iris demo
 ```
 
-IRIS opens in your browser with two Sentinel-2 scenes to label. It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
+`npx` downloads IRIS when necessary; there is no separate install step. IRIS then opens the cloud demo from Hugging Face with two Sentinel-2 scenes to label. It is recommended to use a keyboard and mouse with scrollwheel for IRIS; the help (`?` in the top bar) lists the shortcuts.
 
-To start your own project from a copy of the demo, and open it:
+To create an empty project folder and open it:
 
 ```bash
 npx @asterisk-labs/iris init my-project
 npx @asterisk-labs/iris my-project
 ```
 
-Edit `my-project/project.json` ([guide](docs/config.md)), put your COGs in `my-project/images/` and list their ids in `my-project/images.json`. IRIS only serves the files of the folder to your browser; the masks stay in the browser, and you download them from your profile. `npx @asterisk-labs/iris --help` lists the options (`--port`, `--host`, `--no-open`).
+Edit `my-project/project.json` ([guide](docs/config.md)), put each COG at `my-project/images/<id>/image.tif` and list the ids in `my-project/images.json`. IRIS only serves the files of the folder to your browser; the masks stay in the browser, and you download them from your profile. `npx @asterisk-labs/iris --help` lists the options (`--port`, `--host`, `--no-open`).
 
-The same page is published at https://asterisk.coop/iris/ for projects on the Hugging Face Hub.
+The same page is published at https://asterisk.coop/iris/. Its example projects live together in the public [asterisk-labs/iris-datasets](https://huggingface.co/datasets/asterisk-labs/iris-datasets) dataset.
 
 ## How a site is put together
 
@@ -45,10 +45,10 @@ The page reads `iris.json` next to it. It can contain a catalog so people choose
       "id": "clouds",
       "name": "Cloud segmentation",
       "description": "Label clouds in Sentinel-2 scenes.",
-      "thumbnail": "demo/images/coast/thumbnail.png",
+      "thumbnail": "https://huggingface.co/datasets/my-org/iris-datasets/resolve/main/clouds/images/coast/thumbnail.png",
       "tags": ["Sentinel-2"],
-      "project": "hf://datasets/<owner>/<dataset>/project.json",
-      "labels": "hf://buckets/<owner>/<bucket>",
+      "project": "hf://datasets/my-org/iris-datasets/clouds/project.json",
+      "labels": "hf://datasets/my-org/iris-datasets/clouds",
       "login": "huggingface",
       "guests": true,
       "admin": { "username": "admin", "password": "admin" }
@@ -70,7 +70,23 @@ The page reads `iris.json` next to it. It can contain a catalog so people choose
 | `credentials` | The accounts, see [Accounts](#accounts). Without it there are no accounts: whoever opens the page is the user `local`, an admin. |
 | `guests` | Whether people can enter without an account (default `true`). Their masks stay in their browser. |
 
-The paths in the project file are relative to the project file, so a project and its images can live together in a folder or a dataset. The ids of the images are listed in `images.json` next to the project file, or in the project file itself (see the [guide](docs/config.md#images)).
+The paths in the project file are relative to the project file, so a project and its images can live together in one folder. The ids of the images are listed in `images.json` next to the project file, or in the project file itself (see the [guide](docs/config.md#images)). A single Hugging Face dataset can contain many IRIS projects:
+
+```text
+iris-datasets/
+  cloud-demo/
+    project.json
+    images.json
+    images/<image-id>/...
+    segmentation/<image-id>/<user>_mask.tif
+  flood-mapping/
+    project.json
+    images.json
+    images/<image-id>/...
+    segmentation/<image-id>/<user>_mask.tif
+```
+
+Point both `project` and `labels` at the corresponding folder. Images are read there and signed-in users' results are committed back to that same folder. Guests still save only in their browser.
 
 The `iris.json` in [public](public) is published with the site. Edit it to point to your own project.
 
@@ -105,7 +121,7 @@ In a bucket each save simply replaces the files. In a dataset each save is a com
 
 ### Accounts
 
-The simplest shared setup uses `"login": "huggingface"`. Each person enters their own personal token; IRIS verifies it with Hugging Face, uses the corresponding HF account name on saved masks, and sends that token only to Hugging Face. A public bucket is readable without a token, but writing still requires the user's token to have write access to the bucket's organization.
+The simplest shared setup uses `"login": "huggingface"`. Each person enters their own personal token; IRIS verifies it with Hugging Face, uses the corresponding HF account name on saved masks, and sends that token only to Hugging Face. Public data is readable without a token, but writing still requires the user's token to have write access to the dataset or bucket and its organization.
 
 The default `iris.json` sets `"admin": { "username": "admin", "password": "admin" }`. Change it in your fork. The login page never shows it, but anyone can read it in `iris.json`, so it only opens the review and the project settings: it holds no Hugging Face token, and project edits are downloaded instead of written to the Hub.
 
@@ -130,7 +146,7 @@ Admins have a Review button: who annotated each image, their notes, how well the
 
 ## Publishing on GitHub Pages
 
-The workflow [pages.yml](.github/workflows/pages.yml) builds the site and publishes it on every push to `serverless` (or when run by hand). In the settings of the repository, under Pages, choose GitHub Actions as the source. The site is then `public/` (with `iris.json`, the demo and any `credentials.json`) plus the page built by Vite.
+The workflow [pages.yml](.github/workflows/pages.yml) builds the site and publishes it on every push to `serverless` (or when run by hand). In the settings of the repository, under Pages, choose GitHub Actions as the source. The site is then `public/` (with `iris.json`, brand assets and any `credentials.json`) plus the page built by Vite. The imagery remains on Hugging Face and is not copied into the deployment.
 
 When the repository is `asterisk-labs/iris`, the organization site's custom domain is inherited and the project is published at `https://asterisk.coop/iris/`. The project repository must not set its own `CNAME`; the domain remains owned by `asterisk-labs/asterisk-labs.github.io`.
 
@@ -164,7 +180,7 @@ npm run typecheck
 npm pack --dry-run
 ```
 
-The package contains the built page, the demo and the command line in `bin/`. It has no runtime dependencies. A root `.npmrc` is ignored so a developer's local npm credentials cannot be committed accidentally.
+The package contains the built page, a small empty-project template and the command line in `bin/`. The demo imagery stays on Hugging Face, so it is not duplicated in every npm download. The package has no runtime dependencies. A root `.npmrc` is ignored so a developer's local npm credentials cannot be committed accidentally.
 
 ## Development
 

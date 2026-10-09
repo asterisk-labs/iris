@@ -11,6 +11,7 @@
     "bin/iris.mjs",
     "bin/server.mjs",
     "dist",
+    "template",
     "scripts/credentials.mjs"
   ],
   "engines": {

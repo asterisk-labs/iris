@@ -4,46 +4,63 @@
   "projects": [
     {
       "id": "cloud-demo",
-      "name": "Cloud segmentation demo",
-      "description": "Two Sentinel-2 scenes, a coast and some mountains, with plenty of clouds to paint.",
-      "thumbnail": "demo/images/coast/thumbnail.png",
-      "tags": ["Sentinel-2", "Demo"],
-      "project": "demo/cloud-segmentation.json",
-      "labels": "hf://buckets/asterisk-labs/iris",
+      "name": "Cloud segmentation",
+      "description": "Mark clear sky, thick and thin clouds, and cloud shadows in Sentinel-2 imagery.",
+      "thumbnail": "https://huggingface.co/datasets/asterisk-labs/iris-datasets/resolve/main/cloud-demo/images/coast/thumbnail.png",
+      "tags": ["Sentinel-2", "Clouds"],
+      "project": "hf://datasets/asterisk-labs/iris-datasets/cloud-demo/project.json",
+      "labels": "hf://datasets/asterisk-labs/iris-datasets/cloud-demo",
       "login": "huggingface",
       "guests": true,
-      "admin": {
-        "username": "admin",
-        "password": "admin"
-      }
+      "admin": { "username": "admin", "password": "admin" }
     },
     {
       "id": "flood-mapping",
       "name": "Flood mapping",
-      "description": "Sentinel-1 flood extent labelling.",
-      "project": "coming-soon/flood-mapping.json",
-      "coming_soon": true
+      "description": "Separate temporary flood water, permanent water and dry land in Sentinel-2 scenes.",
+      "thumbnail": "https://huggingface.co/datasets/asterisk-labs/iris-datasets/resolve/main/flood-mapping/images/pakistan/thumbnail.png",
+      "tags": ["Sentinel-2", "Floods"],
+      "project": "hf://datasets/asterisk-labs/iris-datasets/flood-mapping/project.json",
+      "labels": "hf://datasets/asterisk-labs/iris-datasets/flood-mapping",
+      "login": "huggingface",
+      "guests": true,
+      "admin": { "username": "admin", "password": "admin" }
     },
     {
       "id": "burn-scars",
       "name": "Burn scars",
-      "description": "Sentinel-2 burned area labelling.",
-      "project": "coming-soon/burn-scars.json",
-      "coming_soon": true
+      "description": "Identify recently burned vegetation and distinguish it from bare or built surfaces.",
+      "thumbnail": "https://huggingface.co/datasets/asterisk-labs/iris-datasets/resolve/main/burn-scars/images/lahaina/thumbnail.png",
+      "tags": ["Sentinel-2", "Wildfire"],
+      "project": "hf://datasets/asterisk-labs/iris-datasets/burn-scars/project.json",
+      "labels": "hf://datasets/asterisk-labs/iris-datasets/burn-scars",
+      "login": "huggingface",
+      "guests": true,
+      "admin": { "username": "admin", "password": "admin" }
     },
     {
       "id": "land-cover",
       "name": "Land cover",
-      "description": "Multi-class land-cover labelling.",
-      "project": "coming-soon/land-cover.json",
-      "coming_soon": true
+      "description": "Label water, trees, low vegetation, bare ground and built-up areas.",
+      "thumbnail": "https://huggingface.co/datasets/asterisk-labs/iris-datasets/resolve/main/land-cover/images/rotterdam/thumbnail.png",
+      "tags": ["Sentinel-2", "Land cover"],
+      "project": "hf://datasets/asterisk-labs/iris-datasets/land-cover/project.json",
+      "labels": "hf://datasets/asterisk-labs/iris-datasets/land-cover",
+      "login": "huggingface",
+      "guests": true,
+      "admin": { "username": "admin", "password": "admin" }
     },
     {
       "id": "urban-change",
       "name": "Urban change",
-      "description": "Building and infrastructure change labelling.",
-      "project": "coming-soon/urban-change.json",
-      "coming_soon": true
+      "description": "Compare 2018 and 2025 imagery to map new and removed built-up surfaces.",
+      "thumbnail": "https://huggingface.co/datasets/asterisk-labs/iris-datasets/resolve/main/urban-change/images/cairo/thumbnail.png",
+      "tags": ["Sentinel-2", "Change detection"],
+      "project": "hf://datasets/asterisk-labs/iris-datasets/urban-change/project.json",
+      "labels": "hf://datasets/asterisk-labs/iris-datasets/urban-change",
+      "login": "huggingface",
+      "guests": true,
+      "admin": { "username": "admin", "password": "admin" }
     }
   ]
 }

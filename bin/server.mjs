@@ -1,5 +1,5 @@
-// Serves IRIS and one project from this computer: the built page from dist/,
-// the folder of the project under /project/, and an iris.json that opens it.
+// Serves the built IRIS page with either one project from this computer or a
+// supplied iris.json configuration. Local project files live under /project/.
 // Only files are served, with byte ranges for the COGs; nothing is written.
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -104,14 +104,17 @@ const sendFile = async (request, response, file, cache) => {
 };
 
 /**
- * A server for the page in dist and the project file projectFile. The page
- * reads the project at /project/<file>, so its relative paths resolve in its
- * own folder.
+ * A server for the page in dist and either projectFile or a complete site
+ * configuration. A local project is read at /project/<file>, so its relative
+ * paths resolve in its own folder.
  */
-export const createIrisServer = ({ dist, projectFile }) => {
+export const createIrisServer = ({ dist, projectFile, site: siteConfig }) => {
   const page = resolve(dist);
-  const projectRoot = dirname(resolve(projectFile));
-  const site = JSON.stringify({ project: `project/${encodeURIComponent(basename(projectFile))}` });
+  if (!projectFile && !siteConfig) throw new Error('A project file or site configuration is required');
+  const projectRoot = projectFile ? dirname(resolve(projectFile)) : null;
+  const site = JSON.stringify(siteConfig ?? {
+    project: `project/${encodeURIComponent(basename(projectFile))}`,
+  });
 
   return createServer((request, response) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -124,7 +127,9 @@ export const createIrisServer = ({ dist, projectFile }) => {
       return;
     }
     if (pathname === '/project' || pathname.startsWith('/project/')) {
-      const file = fileUnder(projectRoot, pathname.slice('/project'.length) || '/');
+      const file = projectRoot
+        ? fileUnder(projectRoot, pathname.slice('/project'.length) || '/')
+        : null;
       if (file) sendFile(request, response, file, 'no-store');
       else send(response, 404, 'Not found');
       return;

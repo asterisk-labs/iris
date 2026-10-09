@@ -141,7 +141,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   >
                     Get a Hugging Face token
                   </a>
-                  {' '}with the Write role, or fine-grained write access to this bucket. Your HF account must also
+                  {' '}with the Write role, or fine-grained write access to this dataset or bucket. Your HF account must also
                   have write access to its organization. The token remains in this tab's session.
                 </small>}
               </div>

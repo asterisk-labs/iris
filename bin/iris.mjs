@@ -3,28 +3,34 @@
 //
 //   npx @asterisk-labs/iris demo                 the cloud segmentation demo
 //   npx @asterisk-labs/iris <project.json>       a project of yours
-//   npx @asterisk-labs/iris init [folder]        a new project, copied from the demo
+//   npx @asterisk-labs/iris init [folder]        a new local project
 //   npx @asterisk-labs/iris credentials add|remove <user> [--role admin|annotator] [--file credentials.json]
 //
 // The masks stay in the browser, unless the project is on the Hugging Face Hub.
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { cp, rename } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createIrisServer, listen } from './server.mjs';
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
-const DEMO = join(DIST, 'demo');
-const DEMO_FILE = 'cloud-segmentation.json';
+const TEMPLATE = fileURLToPath(new URL('../template/', import.meta.url));
 const DEFAULT_PORT = 4173;
+const DEMO_SITE = {
+  project: 'hf://datasets/asterisk-labs/iris-datasets/cloud-demo/project.json',
+  labels: 'hf://datasets/asterisk-labs/iris-datasets/cloud-demo',
+  login: 'huggingface',
+  guests: true,
+  admin: { username: 'admin', password: 'admin' },
+};
 
 const USAGE = `IRIS: segmentation of satellite images in the browser
 
 Usage:
   npx @asterisk-labs/iris demo                  open the cloud segmentation demo
   npx @asterisk-labs/iris <project.json>        open a project from this computer
-  npx @asterisk-labs/iris init [folder]         start a project from a copy of the demo
+  npx @asterisk-labs/iris init [folder]         create an empty local project
   npx @asterisk-labs/iris credentials add|remove <user> [--role admin|annotator] [--file credentials.json]
 
 Options:
@@ -66,13 +72,13 @@ const openBrowser = (url) => {
   }
 };
 
-const serve = async (projectFile, label) => {
+const serve = async ({ projectFile, site }, label) => {
   if (!existsSync(join(DIST, 'index.html'))) fail('IRIS is not built: run npm run build first');
   const host = hostOption ?? '127.0.0.1';
   const port = portOption === undefined ? DEFAULT_PORT : Number(portOption);
   if (!Number.isInteger(port) || port < 0 || port > 65535) fail(`Invalid port: ${portOption}`);
 
-  const server = createIrisServer({ dist: DIST, projectFile });
+  const server = createIrisServer({ dist: DIST, projectFile, site });
   let actual;
   try {
     actual = await listen(server, { port, host, tries: portOption === undefined ? 20 : 1 });
@@ -94,15 +100,20 @@ const projectFileOf = (target) => {
 };
 
 const init = async (folder = 'iris-project') => {
-  if (!existsSync(DEMO)) fail('IRIS is not built: run npm run build first');
+  if (!existsSync(TEMPLATE)) fail('The IRIS project template is missing');
   if (existsSync(folder) && readdirSync(folder).length) fail(`${folder} already exists and is not empty`);
-  await cp(DEMO, folder, { recursive: true });
-  await rename(join(folder, DEMO_FILE), join(folder, 'project.json'));
+  await cp(TEMPLATE, folder, { recursive: true });
+  await mkdir(join(folder, 'images'), { recursive: true });
+  await mkdir(join(folder, 'segmentation'), { recursive: true });
+  const projectPath = join(folder, 'project.json');
+  const project = JSON.parse(await readFile(projectPath, 'utf8'));
+  project.name = basename(resolve(folder));
+  await writeFile(projectPath, `${JSON.stringify(project, null, 2)}\n`);
   const where = relative(process.cwd(), folder) || '.';
-  console.log(`Created ${where}/ from the demo: project.json, images.json and two Sentinel-2 scenes.
+  console.log(`Created ${where}/ with project.json, images.json, images/ and segmentation/.
 
 Edit ${where}/project.json (see https://github.com/asterisk-labs/iris/blob/serverless/docs/config.md),
-put your COGs in ${where}/images/ and list their ids in ${where}/images.json, then run:
+put each COG in ${where}/images/<id>/image.tif and list the ids in ${where}/images.json, then run:
 
   npx @asterisk-labs/iris ${where}
 `);
@@ -112,7 +123,7 @@ const [command, ...rest] = args;
 if (!command || command === 'help' || command === '--help' || command === '-h') {
   console.log(USAGE);
 } else if (command === 'demo') {
-  await serve(join(DEMO, DEMO_FILE), 'the demo');
+  await serve({ site: DEMO_SITE }, 'the cloud demo from Hugging Face');
 } else if (command === 'init') {
   await init(rest[0]);
 } else if (command === 'credentials') {
@@ -123,5 +134,5 @@ if (!command || command === 'help' || command === '--help' || command === '-h') 
   fail(USAGE);
 } else {
   const file = projectFileOf(command);
-  await serve(file, file);
+  await serve({ projectFile: file }, file);
 }

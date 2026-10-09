@@ -1,0 +1,22 @@
+{
+  "name": "my-project",
+  "images": {
+    "path": { "S2": "images/{id}/image.tif" },
+    "thumbnails": "images/{id}/thumbnail.png",
+    "metadata": "images/{id}/metadata.json"
+  },
+  "classes": [
+    { "name": "Background", "colour": [0, 150, 255, 70], "description": "Pixels outside the class of interest." },
+    { "name": "Target", "colour": [255, 80, 60, 90], "description": "Pixels that belong to the class of interest." }
+  ],
+  "views": {
+    "RGB": {
+      "type": "image",
+      "description": "Natural colour image.",
+      "data": ["$S2.B3", "$S2.B2", "$S2.B1"],
+      "clip": 1
+    }
+  },
+  "view_groups": { "default": ["RGB"] },
+  "segmentation": { "score": "f1", "unverified_threshold": 1 }
+}
