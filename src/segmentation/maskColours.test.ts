@@ -7,7 +7,7 @@ const classes: ClassConfig[] = [
   { name: 'Cloud', colour: [255, 255, 0, 70], user_colour: [255, 255, 0, 255] },
 ];
 const layers = {
-  mask: Uint8Array.from([0, 1, 1, 5]),
+  mask: Uint8Array.from([0, 1, 1, 255]),
   userMask: Uint8Array.from([1, 0, 1, 0]),
   errorsMask: Uint8Array.from([0, 1, 2, 0]),
 };
@@ -15,9 +15,9 @@ const pixels = (type: 'final' | 'user' | 'errors') =>
   Array.from(maskPixels(layers, type, classes, 2, [0, 0, 2, 2]));
 
 describe('maskPixels', () => {
-  it('keeps the base class transparent in the final mask', () => {
+  it('colours every labelled pixel by its class in the final mask', () => {
     expect(pixels('final')).toEqual([
-      255, 255, 255, 0, 255, 255, 0, 70, 255, 255, 0, 70, 0, 0, 0, 0,
+      0, 150, 255, 70, 255, 255, 0, 70, 255, 255, 0, 70, 0, 0, 0, 0,
     ]);
   });
 

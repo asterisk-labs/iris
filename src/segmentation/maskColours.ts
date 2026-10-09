@@ -1,7 +1,7 @@
 /**
  * Colours of the mask on the map
  *
- * - final: predicted classes, while the base value (0) stays transparent
+ * - final: every pixel with a class uses that class's colour
  * - user: only the pixels the user drew, in the user colour of their class
  * - errors: the test pixels of the AI, green where it was right and red where
  *   it was wrong
@@ -27,11 +27,7 @@ const palette = (type: MaskType, classes: ClassConfig[]): Uint8Array => {
     ? ERROR_COLOURS
     : type === 'user'
       ? [TRANSPARENT, ...classes.map((c) => c.user_colour ?? c.colour)]
-      // A new mask is filled with zeroes.  Zero is the background/no-label
-      // value, so it must never obscure the image just because a project
-      // happens to give its first class an opaque display colour.  Manual
-      // class-zero pixels remain visible in the dedicated user-mask view.
-      : [TRANSPARENT, ...classes.slice(1).map((c) => c.colour)];
+      : classes.map((c) => c.colour);
   // Values without a class stay transparent
   const bytes = new Uint8Array(256 * 4);
   colours.forEach((colour, value) => bytes.set(colour.slice(0, 4), 4 * value));

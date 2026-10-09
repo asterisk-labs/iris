@@ -72,6 +72,7 @@ describe('segmentationStore', () => {
 
   it('starts with an empty mask and a step to undo to', () => {
     expect(store().maskData).toHaveLength(80);
+    expect(store().maskData).toEqual(new Uint8Array(80).fill(255));
     expect(store().maskHistory).toHaveLength(1);
     expect(store().userPixelCounts).toEqual({ 0: 0, 1: 0, 2: 0, total: 0 });
     expect(store().maskChanged).toBe(false);
@@ -95,14 +96,14 @@ describe('segmentationStore', () => {
     useSegmentationStore.setState({ toolSize: 3 });
     stroke([100.5, 200.5]);
     expect(store().userPixelCounts.total).toBe(4);
-    expect([maskAt(100, 200), maskAt(101, 201), maskAt(102, 202)]).toEqual([1, 1, 0]);
+    expect([maskAt(100, 200), maskAt(101, 201), maskAt(102, 202)]).toEqual([1, 1, 255]);
   });
 
-  it('erases back to the first class and undrawn', () => {
+  it('erases back to unlabelled and undrawn', () => {
     stroke([103.5, 203.5]);
     store().setCurrentTool('eraser');
     stroke([103.5, 203.5]);
-    expect(maskAt(103, 203)).toBe(0);
+    expect(maskAt(103, 203)).toBe(255);
     expect(drawnAt(103, 203)).toBe(0);
   });
 

@@ -37,6 +37,8 @@ export interface ImageInfo {
 
 /** Steps of undo and redo kept */
 const HISTORY_LENGTH = 30;
+/** Reserved mask value for a pixel that has not been labelled yet. */
+const NO_LABEL = 255;
 
 const countUserPixels = (
   mask: Uint8Array | null,
@@ -188,7 +190,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => {
       const rect = brushMaskRect(position, toolSize, maskArea);
       if (!rect) continue;
       if (currentTool === 'eraser') {
-        fillRect(maskData, userMaskData, maskDimensions.width, rect, 0, 0);
+        fillRect(maskData, userMaskData, maskDimensions.width, rect, NO_LABEL, 0);
       } else {
         fillRect(maskData, userMaskData, maskDimensions.width, rect, currentClass, 1);
       }
@@ -286,8 +288,13 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => {
       const { maskDimensions, classes } = get();
       if (!maskDimensions) throw new Error('The mask area is not known yet');
       const { width, height } = maskDimensions;
-      const maskData = mask ? new Uint8Array(mask) : new Uint8Array(width * height);
+      const maskData = mask ? new Uint8Array(mask) : new Uint8Array(width * height).fill(NO_LABEL);
       const userMaskData = userMask ? new Uint8Array(userMask) : new Uint8Array(width * height);
+      // Older blank masks used zero, which is now a real class. Migrate only
+      // an entirely untouched mask; labelled and AI-produced masks are kept.
+      if (mask && !userMaskData.some(Boolean) && maskData.every((value) => value === 0)) {
+        maskData.fill(NO_LABEL);
+      }
 
       let hiddenMaskCanvas = get().hiddenMaskCanvas;
       if (!hiddenMaskCanvas || hiddenMaskCanvas.width !== width || hiddenMaskCanvas.height !== height) {
@@ -410,7 +417,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => {
     resetMask: () => {
       const { maskData, userMaskData } = get();
       if (!maskData || !userMaskData) return;
-      maskData.fill(0);
+      maskData.fill(NO_LABEL);
       userMaskData.fill(0);
       const counts = countUserPixels(maskData, userMaskData, get().classes.length);
       set({
