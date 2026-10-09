@@ -41,12 +41,24 @@ const ToastCat: React.FC = () => (
   </svg>
 );
 
+const Command: React.FC<{ children: string; prominent?: boolean }> = ({ children, prominent = false }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(children);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return <div className={`local-command ${prominent ? 'prominent' : ''}`}>
+    <code><span aria-hidden="true">$</span>{children}</code>
+    <button type="button" onClick={copy} aria-label={`Copy ${children}`}>{copied ? 'Copied' : 'Copy'}</button>
+  </div>;
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ catalog, onOpen, onOpenCustom }) => {
   const [mode, setMode] = useState<'remote' | 'local'>('remote');
   const [remoteProject, setRemoteProject] = useState('');
-  const [localProject, setLocalProject] = useState('/project.json');
   const [error, setError] = useState<string | null>(null);
-  const localHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
   const selectMode = (next: 'remote' | 'local') => {
     setMode(next);
@@ -61,16 +73,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ catalog, onOpen, onOpe
       return;
     }
     onOpenCustom({ id: 'custom', name: projectName(project), project, login: 'huggingface', guests: true });
-  };
-
-  const openLocal = (event: FormEvent) => {
-    event.preventDefault();
-    const project = localProject.trim();
-    if (!project) {
-      setError('Enter the path to project.json.');
-      return;
-    }
-    onOpenCustom({ id: 'custom', name: projectName(project), project, guests: false });
   };
 
   return (
@@ -148,20 +150,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ catalog, onOpen, onOpe
             </form>}
           </> : <>
             <header className="workspace-heading">
-              <div><span>Local mode</span><h2>Open a project from this computer</h2></div>
-              <small>No account needed</small>
+              <div><span>Local mode</span><h2>Run IRIS on your computer</h2></div>
+              <small>Node.js 22.22.2+</small>
             </header>
 
-            <div className="local-guide">
-              <div><span>1</span><p><strong>Try the demo</strong>Two Sentinel-2 scenes, opened in your browser.<code>npx @asterisk-labs/iris demo</code></p></div>
-              <div><span>2</span><p><strong>Start a project</strong>A copy of the demo to edit: project file, image list and COGs.<code>npx @asterisk-labs/iris init my-project</code></p></div>
-              <div><span>3</span><p><strong>Open it</strong>IRIS serves the folder and opens it. Your masks stay in the browser.<code>npx @asterisk-labs/iris my-project</code></p></div>
-            </div>
+            <div className="local-overview">
+              <section className="local-demo-card">
+                <span className="local-kicker">No setup required</span>
+                <h3>Try the demo</h3>
+                <p><code>npx</code> downloads and caches IRIS when needed, starts a local server and opens two Sentinel-2 scenes. The first run may ask you to confirm the download.</p>
+                <Command prominent>npx @asterisk-labs/iris demo</Command>
+                <small>No account or global install. Stop it with <kbd>Ctrl</kbd> + <kbd>C</kbd>.</small>
+              </section>
 
-            {localHost && <form className="local-connect" onSubmit={openLocal}>
-              <label><span>Project file served here</span><input aria-label="Local project file" value={localProject} onChange={(event) => setLocalProject(event.target.value)} spellCheck={false} /></label>
-              <button type="submit">Open project</button>
-            </form>}
+              <section className="local-project-card">
+                <header>
+                  <span className="local-kicker">Your own imagery</span>
+                  <h3>Create a project</h3>
+                  <p>Start from the included example, then replace its images and configuration with yours.</p>
+                </header>
+                <ol className="local-steps">
+                  <li>
+                    <span>1</span>
+                    <div><strong>Create the folder</strong><small>Copies the editable project file, image list and demo COGs.</small></div>
+                    <Command>npx @asterisk-labs/iris init my-project</Command>
+                  </li>
+                  <li>
+                    <span>2</span>
+                    <div><strong>Add your data</strong><small>Edit <code>project.json</code> and list your COGs in <code>images.json</code>.</small></div>
+                  </li>
+                  <li>
+                    <span>3</span>
+                    <div><strong>Open the project</strong><small>IRIS serves only this folder. Masks remain in this browser.</small></div>
+                    <Command>npx @asterisk-labs/iris my-project</Command>
+                  </li>
+                </ol>
+              </section>
+            </div>
           </>}
 
           {error && <div className="launcher-error" role="alert">{error}</div>}
