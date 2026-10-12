@@ -1,13 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSegmentationStore } from './segmentationStore';
 
-// Mock window object
-const mockViewManager = {
-  filters: { brightness: 100, saturation: 100, contrast: false, invert: false },
-  render: vi.fn(),
-  getLayers: vi.fn(() => []),
-};
-
 const mockWindow = {
   vars: {
     tool: { size: 5, type: 'draw', resizing_mode: false },
@@ -15,12 +8,10 @@ const mockWindow = {
     drag_start: null,
   },
   render_preview: vi.fn(),
-  getViewManagerFromStore: vi.fn(() => mockViewManager),
 };
 
 Object.defineProperty(window, 'vars', { value: mockWindow.vars, writable: true });
 Object.defineProperty(window, 'render_preview', { value: mockWindow.render_preview, writable: true });
-Object.defineProperty(window, 'getViewManagerFromStore', { value: mockWindow.getViewManagerFromStore, writable: true });
 
 describe('segmentationStore - Navigation Dialog Bug Fix', () => {
   beforeEach(() => {
@@ -45,18 +36,38 @@ describe('segmentationStore - Filter Functions', () => {
     vi.clearAllMocks();
   });
 
-  it('manages filter values with clamping and legacy sync', () => {
+  it('manages filter values with clamping', () => {
     const store = useSegmentationStore.getState();
     
     store.setBrightness(150);
     expect(useSegmentationStore.getState().brightness).toBe(150);
-    expect(mockViewManager.filters.brightness).toBe(150);
     
     store.setBrightness(1000); // Should clamp to 800
     expect(useSegmentationStore.getState().brightness).toBe(800);
     
     store.changeBrightness(false); // Should decrease by 10
     expect(useSegmentationStore.getState().brightness).toBe(790);
+  });
+
+  it('applies filters as CSS to RGB canvases only, and reset clears them', () => {
+    const rgb = document.createElement('canvas');
+    rgb.className = 'view-canvas';
+    const mask = document.createElement('canvas');
+    mask.className = 'view-canvas mask-canvas';
+    document.body.append(rgb, mask);
+
+    const store = useSegmentationStore.getState();
+    store.setBrightness(150);
+    store.setContrast(true);
+    store.setInvert(true);
+    expect(rgb.style.filter).toBe('invert(1) brightness(150%) contrast(200%) saturate(100%)');
+    expect(mask.style.filter).toBe('');
+
+    store.resetFilters();
+    expect(rgb.style.filter).toBe('brightness(100%) saturate(100%)');
+
+    rgb.remove();
+    mask.remove();
   });
 
   it('handles slider expansion', () => {

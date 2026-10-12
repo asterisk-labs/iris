@@ -483,18 +483,6 @@ if (typeof window !== 'undefined') {
     triggerReactMaskRender(reactBbox);
   };
   
-  // Override legacy render_preview function
-  const originalRenderPreview = w.render_preview;
-  w.render_preview = () => {
-    // Call original legacy function
-    if (originalRenderPreview) {
-      originalRenderPreview();
-    }
-    
-    // Also trigger React preview renders
-    triggerReactPreviewRender();
-  };
-  
   // Override legacy zoom function to trigger React re-renders
   const originalZoom = w.zoom;
   w.zoom = (delta: number) => {
@@ -524,23 +512,6 @@ if (typeof window !== 'undefined') {
       window.dispatchEvent(event);
     }, 0);
   };
-  
-  // Add React layer management to ViewManager via store
-  const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-  if (viewManager) {
-    const originalGetLayers = viewManager.getLayers;
-    viewManager.getReactLayers = getReactLayers;
-    viewManager.renderReactLayers = renderAllReactLayers;
-    
-    // Override getLayers to include React layers
-    viewManager.getLayers = (type?: string, exclude = false) => {
-      const legacyLayers = originalGetLayers ? originalGetLayers(type, exclude) : [];
-      const reactLayers = getReactLayers(type);
-      return [...legacyLayers, ...reactLayers];
-    };
-  } else {
-    console.warn('[IRIS Migration] ⚠️ ViewManager not available for React layer integration');
-  }
   
   // Expose bridge functions globally for debugging
   w.reactBridge = {

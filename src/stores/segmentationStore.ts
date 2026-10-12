@@ -740,83 +740,23 @@ const createConfusionMatrixFromStore = (
   return store.createConfusionMatrix(matrix, truePositives, userClasses, classNames);
 };
 
-// Helper function to trigger legacy rendering
-const triggerLegacyRender = () => {
-  // Use React store ViewManager for rendering
-  const w = window as any;
-  if (w.renderFromStore) {
-    w.renderFromStore();
-  } else {
-    console.warn('[IRIS Migration] ⚠️ renderFromStore not available - React store ViewManager required');
-  }
-};
-
-// Helper function to apply CSS filters without full re-render
-const applyFiltersToLayers = (viewManager: any) => {
-  // Check if we're using React ViewManager (via viewManagerStore)
-  const w = window as any;
-  if (w.viewManagerStore) {
-    // Use React ViewManager - apply filters via CSS to canvas elements
-    // IMPORTANT: Only apply to RGB canvases, not mask or preview canvases
-    const canvases = document.querySelectorAll('.view-canvas:not(.mask-canvas):not(.preview-canvas)');
-    
-    const filters = viewManager?.filters || {
-      contrast: false,
-      invert: false,
-      brightness: 100,
-      saturation: 100
-    };
-    
-    // Build CSS filter string
-    let filterString = [];
-    if (filters.invert) {
-      filterString.push("invert(1)");
-    }
-    filterString.push(`brightness(${filters.brightness}%)`);
-    if (filters.contrast) {
-      filterString.push("contrast(200%)");
-    }
-    filterString.push(`saturate(${filters.saturation}%)`);
-    
-    const filterValue = filterString.join(" ");
-    
-    // Apply to RGB canvas elements only
-    canvases.forEach((canvas: any) => {
-      if (canvas.style) {
-        canvas.style.filter = filterValue;
-      }
-    });
-    
-    return;
-  }
-  
-  // Legacy ViewManager path (for backward compatibility)
-  if (!viewManager || !viewManager.layers) {
-    return;
-  }
-  
-  const filters = viewManager.filters;
-  if (!filters) {
-    return;
-  }
-  
-  // Build CSS filter string
-  let filterString = [];
-  if (filters.invert) {
+// Apply the current filter state as CSS on the RGB canvases (not mask or preview)
+const applyFiltersToLayers = () => {
+  const { brightness, saturation, contrast, invert } = useSegmentationStore.getState();
+  const filterString = [];
+  if (invert) {
     filterString.push("invert(1)");
   }
-  filterString.push(`brightness(${filters.brightness}%)`);
-  if (filters.contrast) {
+  filterString.push(`brightness(${brightness}%)`);
+  if (contrast) {
     filterString.push("contrast(200%)");
   }
-  filterString.push(`saturate(${filters.saturation}%)`);
-  
-  // Apply to all image layers
-  for (let layer of viewManager.layers) {
-    if (layer.container && layer.container.style) {
-      layer.container.style.filter = filterString.join(" ");
-    }
-  }
+  filterString.push(`saturate(${saturation}%)`);
+  const filterValue = filterString.join(" ");
+
+  document.querySelectorAll('.view-canvas:not(.mask-canvas):not(.preview-canvas)').forEach((canvas: any) => {
+    canvas.style.filter = filterValue;
+  });
 };
 
 export const useSegmentationStore = create<SegmentationState>((set, get) => ({
@@ -1354,117 +1294,33 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   lastSaveTime: null, // Track last save time
 
   setBrightness: (value: number) => {
-    const clampedValue = Math.max(0, Math.min(800, value));
-    set({ brightness: clampedValue });
-    
-    // Sync with legacy ViewManager instance via store
-    const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager) {
-      // Initialize filters object if it doesn't exist
-      if (!viewManager.filters) {
-        viewManager.filters = {
-          contrast: false,
-          invert: false,
-          brightness: 100,
-          saturation: 100
-        };
-      }
-      viewManager.filters.brightness = clampedValue;
-      // Apply CSS filter directly without triggering full render
-      applyFiltersToLayers(viewManager);
-    }
+    set({ brightness: Math.max(0, Math.min(800, value)) });
+    applyFiltersToLayers();
   },
 
   setSaturation: (value: number) => {
-    const clampedValue = Math.max(0, Math.min(800, value));
-    set({ saturation: clampedValue });
-    
-    // Sync with legacy ViewManager instance via store
-    const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager) {
-      // Initialize filters object if it doesn't exist
-      if (!viewManager.filters) {
-        viewManager.filters = {
-          contrast: false,
-          invert: false,
-          brightness: 100,
-          saturation: 100
-        };
-      }
-      viewManager.filters.saturation = clampedValue;
-      // Apply CSS filter directly without triggering full render
-      applyFiltersToLayers(viewManager);
-    }
+    set({ saturation: Math.max(0, Math.min(800, value)) });
+    applyFiltersToLayers();
   },
 
   setContrast: (enabled: boolean) => {
     set({ contrast: enabled });
-    
-    // Sync with legacy ViewManager instance via store
-    const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    
-    if (viewManager) {
-      // Initialize filters object if it doesn't exist
-      if (!viewManager.filters) {
-        viewManager.filters = {
-          contrast: false,
-          invert: false,
-          brightness: 100,
-          saturation: 100
-        };
-      }
-      
-      viewManager.filters.contrast = enabled;
-      // Apply CSS filter directly without triggering full render
-      applyFiltersToLayers(viewManager);
-    }
+    applyFiltersToLayers();
   },
 
   setInvert: (enabled: boolean) => {
     set({ invert: enabled });
-    
-    // Sync with legacy ViewManager instance via store
-    const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    
-    if (viewManager) {
-      // Initialize filters object if it doesn't exist
-      if (!viewManager.filters) {
-        viewManager.filters = {
-          contrast: false,
-          invert: false,
-          brightness: 100,
-          saturation: 100
-        };
-      }
-      
-      viewManager.filters.invert = enabled;
-      // Apply CSS filter directly without triggering full render
-      applyFiltersToLayers(viewManager);
-    }
+    applyFiltersToLayers();
   },
 
   resetFilters: () => {
-    set({ 
-      brightness: 100, 
-      saturation: 100, 
-      contrast: false, 
-      invert: false 
+    set({
+      brightness: 100,
+      saturation: 100,
+      contrast: false,
+      invert: false
     });
-    
-    // Sync with legacy ViewManager instance via store
-    const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager?.filters) {
-      viewManager.filters.brightness = 100;
-      viewManager.filters.saturation = 100;
-      viewManager.filters.contrast = false;
-      viewManager.filters.invert = false;
-    }
-    triggerLegacyRender();
+    applyFiltersToLayers();
   },
 
   changeBrightness: (up: boolean) => {
@@ -1609,9 +1465,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       if (currentBtn) currentBtn.classList.add('checked');
     }
     
-    // Trigger legacy preview render via store ViewManager
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager?.getLayers && w.render_preview) {
+    if (w.render_preview) {
       w.render_preview();
     }
   },
@@ -1620,10 +1474,8 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     const clampedSize = Math.max(1, Math.min(size, 100)); // Reasonable bounds: 1-100 pixels
     set({ toolSize: clampedSize });
     
-    // Trigger legacy preview render via store ViewManager
     const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager?.getLayers && w.render_preview) {
+    if (w.render_preview) {
       w.render_preview();
     }
     
@@ -1645,10 +1497,8 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     
     set({ toolShape: shape });
     
-    // Trigger legacy preview render via store ViewManager
     const w = window as any;
-    const viewManager = w.getViewManagerFromStore ? w.getViewManagerFromStore() : null;
-    if (viewManager?.getLayers && w.render_preview) {
+    if (w.render_preview) {
       w.render_preview();
     }
     

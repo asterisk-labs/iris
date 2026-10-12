@@ -121,20 +121,6 @@ describe('canvasMousePosition', () => {
     consoleSpy.mockRestore();
   });
 
-  test('initializes from legacy vars during store initialization', () => {
-    // Set up legacy vars
-    mockWindow.vars.cursor_canvas = [500, 600];
-    mockWindow.vars.config = { views: {} };
-    mockWindow.vars.image_id = 'test-image';
-    
-    const store = useViewManagerStore.getState();
-    
-    // Simulate initialization
-    return store.initializeFromLegacy().then(() => {
-      const state = useViewManagerStore.getState();
-      expect(state.canvasMousePosition).toEqual([500, 600]);
-    });
-  });
 
   test('legacy bridge functions work correctly', () => {
     const reactViewManager = (window as any).reactViewManager;

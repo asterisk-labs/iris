@@ -14,8 +14,6 @@
     <!-- Load all existing CSS and JavaScript exactly as before -->
     <link rel="stylesheet" href="{{ url_for('segmentation.static', filename='css/segmentation.css') }}">
 
-    <script type="text/javascript" src="{{ url_for('main.static', filename='javascripts/views.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('segmentation.static', filename='javascripts/segmentation/views.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('segmentation.static', filename='javascripts/segmentation.js') }}"></script>
     
     <!-- CRITICAL: Signal that legacy scripts are fully loaded -->
@@ -97,16 +95,6 @@
     <script type="text/javascript">
         // Bridge functions must be available immediately when legacy scripts run
         // This prevents the timing issue where init_segmentation runs before React finishes loading
-        
-        window.setViewManagerInStore = function(instance) {
-            window._pendingViewManagerInstance = instance;
-            
-            // Try to set in React store if available
-            if (window.viewManagerStore) {
-                window.viewManagerStore.getState().setLegacyViewManagerInstance(instance);
-                window._pendingViewManagerInstance = null;
-            }
-        };
         
         window.setCurrentImageIdInStore = function(imageId) {
             window._pendingImageId = imageId;

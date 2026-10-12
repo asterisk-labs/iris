@@ -11,8 +11,6 @@ import { useViewManagerStore } from '../../../stores/viewManagerStore';
 
 interface ReactBingLayerProps extends Omit<ReactBaseLayerProps, 'children'> {
   onLocationChange?: (location: [number, number]) => void;
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
 }
 
 const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
@@ -22,8 +20,6 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
   zIndex,
   className = '',
   style = {},
-  zoomLevel: _zoomLevel = 1.0,
-  panOffset: _panOffset = { x: 0, y: 0 },
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   

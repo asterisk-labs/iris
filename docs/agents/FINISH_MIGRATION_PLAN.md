@@ -138,6 +138,13 @@ description. Below, **[port]** marks bugs fixed by the rewrite and
     handling (S2) stamps along the segment between positions.
 12. `HelpModal` and `PreferencesModal` disable shortcuts by swapping
     `document.body.onkeydown`.
+13. **[port] Reset is not in the undo history.** `reset_mask` replaces the
+    masks without pushing a history entry, so undoing the first stroke
+    after a reset jumps back to the mask from before the reset. S3's
+    `reset()` pushes history.
+14. **[port] Filter reset leaves the image filtered.** `resetFilters`
+    zeroed the state but never re-applied the CSS. Fixed in S0, where the
+    filter code had to change to drop the mock ViewManager.
 
 ---
 

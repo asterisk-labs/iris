@@ -13,9 +13,6 @@ import { useViewManagerStore } from '../../../stores/viewManagerStore';
 import { useSegmentationStore } from '../../../stores/segmentationStore';
 
 interface ReactPreviewLayerProps extends Omit<ReactBaseLayerProps, 'children'> {
-  // Additional props specific to preview layer
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
 }
 
 const ReactPreviewLayer: React.FC<ReactPreviewLayerProps> = ({
@@ -25,8 +22,6 @@ const ReactPreviewLayer: React.FC<ReactPreviewLayerProps> = ({
   zIndex,
   className = '',
   style = {},
-  zoomLevel: _zoomLevel = 1.0,
-  panOffset: _panOffset = { x: 0, y: 0 },
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [transform, setTransform] = useState<CoordinateTransform | null>(null);

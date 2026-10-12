@@ -17,8 +17,6 @@ import { useViewManagerStore } from '../../../stores/viewManagerStore';
 import ReactBaseLayer, { ReactBaseLayerProps } from './ReactBaseLayer';
 
 interface ReactMaskLayerProps extends Omit<ReactBaseLayerProps, 'children'> {
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
 }
 
 const ReactMaskLayer: React.FC<ReactMaskLayerProps> = ({
@@ -28,8 +26,6 @@ const ReactMaskLayer: React.FC<ReactMaskLayerProps> = ({
   zIndex,
   className = '',
   style = {},
-  zoomLevel: _zoomLevel = 1.0,
-  panOffset: _panOffset = { x: 0, y: 0 },
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   

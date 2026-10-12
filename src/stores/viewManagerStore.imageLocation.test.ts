@@ -38,10 +38,6 @@ beforeEach(() => {
   (global.window as any).validateImageLocation = (location: [number, number]) => {
     return useViewManagerStore.getState().validateImageLocation(location);
   };
-  
-  (global.window as any).getImageLocationDebugInfo = () => {
-    return useViewManagerStore.getState().getImageLocationDebugInfo();
-  };
 });
 
 describe('imageLocation', () => {
@@ -149,44 +145,7 @@ describe('imageLocation', () => {
     expect(store.validateImageLocation('invalid' as any)).toBe(false); // not array
   });
 
-  test('getImageLocationDebugInfo returns correct information', () => {
-    const store = useViewManagerStore.getState();
-    
-    // Set valid coordinates
-    store.setImageLocation([52.5200, 13.4050]); // Berlin
-    
-    const debugInfo = store.getImageLocationDebugInfo();
-    expect(debugInfo).toEqual({
-      lat: 52.5200,
-      lon: 13.4050,
-      valid: true
-    });
-    
-    // Set invalid coordinates directly in state (bypassing validation)
-    useViewManagerStore.setState({ imageLocation: [95, 0] });
-    
-    const invalidDebugInfo = store.getImageLocationDebugInfo();
-    expect(invalidDebugInfo).toEqual({
-      lat: 95,
-      lon: 0,
-      valid: false
-    });
-  });
 
-  test('initializes from legacy vars during store initialization', () => {
-    // Set up legacy vars
-    mockWindow.vars.image_location = [41.9028, 12.4964]; // Rome
-    mockWindow.vars.config = { views: {} };
-    mockWindow.vars.image_id = 'test-image';
-    
-    const store = useViewManagerStore.getState();
-    
-    // Simulate initialization
-    return store.initializeFromLegacy().then(() => {
-      const state = useViewManagerStore.getState();
-      expect(state.imageLocation).toEqual([41.9028, 12.4964]);
-    });
-  });
 
   test('legacy bridge functions work correctly', () => {
     // Test setImageLocationInStore
@@ -202,12 +161,5 @@ describe('imageLocation', () => {
     const validateImageLocation = (window as any).validateImageLocation;
     expect(validateImageLocation([45.4642, 9.1900])).toBe(true); // Milan
     expect(validateImageLocation([95, 0])).toBe(false); // Invalid
-    
-    // Test getImageLocationDebugInfo
-    const getImageLocationDebugInfo = (window as any).getImageLocationDebugInfo;
-    const debugInfo = getImageLocationDebugInfo();
-    expect(debugInfo.lat).toBe(59.9311);
-    expect(debugInfo.lon).toBe(30.3609);
-    expect(debugInfo.valid).toBe(true);
   });
 });

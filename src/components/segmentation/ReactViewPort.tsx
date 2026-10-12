@@ -22,9 +22,6 @@ interface ReactViewPortProps {
   showControls: boolean;
   imageId: string;
   onImageLocationChange: (location: [number, number]) => void;
-  // PHASE 3A: New zoom/pan/interaction props
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
   isActive?: boolean;
   onViewActivate?: () => void;
 }
@@ -37,9 +34,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
   showControls,
   imageId,
   onImageLocationChange,
-  // PHASE 3A: New props with defaults
-  zoomLevel = 1.0,
-  panOffset = { x: 0, y: 0 },
   isActive = false,
   onViewActivate,
 }) => {
@@ -213,8 +207,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             height={height}
             imageId={imageId}
             zIndex={1}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
           />
         )}
 
@@ -226,8 +218,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             height={height}
             onLocationChange={onImageLocationChange}
             zIndex={1}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
           />
         )}
 
@@ -238,8 +228,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             width={width}
             height={height}
             zIndex={2}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
           />
         )}
 
@@ -250,8 +238,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             width={width}
             height={height}
             zIndex={3}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
           />
         )}
       </div>

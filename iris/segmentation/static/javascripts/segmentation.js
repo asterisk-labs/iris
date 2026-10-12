@@ -133,69 +133,6 @@ function newuser_help_popup(){
 async function init_views(){
     show_loader("Loading views...");
     
-    // Check if views-container exists (React ViewManager migration)
-    const viewsContainer = get_object('views-container');
-    const useLegacyViewManager = !!viewsContainer;
-    
-    // Use React store as primary source, fallback to legacy vars
-    const mainUrl = window.getApiUrlFromStore ? window.getApiUrlFromStore('main') : '/';
-
-    // Only create legacy ViewManager if container exists
-    if (useLegacyViewManager) {
-        const viewManager = new ViewManager(
-            viewsContainer,
-            window.getConfigSectionFromStore ? window.getConfigSectionFromStore('views') : [],
-            window.getConfigSectionFromStore ? window.getConfigSectionFromStore('view_groups') : [],
-            mainUrl+"image/",
-            image_aspect_ratio = window.getImageAspectRatioFromStore ? window.getImageAspectRatioFromStore() : 1
-        );
-
-        // Store ViewManager instance in React store (only source)
-        if (window.setViewManagerInStore) {
-            window.setViewManagerInStore(viewManager);
-        } else {
-            console.error('[IRIS Migration] ❌ CRITICAL: setViewManagerInStore not available - React store required');
-            throw new Error('React store not available for ViewManager - initialization failed');
-        }
-
-        // Add standard layers to all view ports if the view type is not "bingmap":
-        viewManager.addStandardLayer(
-            MaskLayer,
-            (view) => view.type != "bingmap"
-        );
-        viewManager.addStandardLayer(
-            PreviewLayer,
-            (view) => view.type != "bingmap"
-        );
-    } else {
-        // Create a minimal mock ViewManager for compatibility
-        const mockViewManager = {
-            setImage: () => {},
-            showGroup: () => {},
-            getLayers: () => [],
-            updateViewDimensions: () => {},
-            updateSize: () => {},
-            render: () => {
-                // Mock render - React ViewManager handles rendering
-            },
-            // Add filters property to match real ViewManager
-            filters: {
-                contrast: false,
-                invert: false,
-                brightness: 100,
-                saturation: 100
-            }
-        };
-        
-        // Store mock ViewManager in React store (only source)
-        if (window.setViewManagerInStore) {
-            window.setViewManagerInStore(mockViewManager);
-        } else {
-            console.error('[IRIS Migration] ❌ CRITICAL: setViewManagerInStore not available - React store required');
-            throw new Error('React store not available for ViewManager - initialization failed');
-        }
-    }
-
     // It much faster to change some pixel values on a sprite and draw it then
     // to the canvas once than redrawing each pixel to the canvas directly.
     // Hence, we use a hidden canvas for the mask:
@@ -215,18 +152,6 @@ async function init_views(){
 
     // Load mask (now properly awaited):
     await load_mask();
-
-    // Get ViewManager from React store (only source)
-    const viewManager = window.getViewManagerFromStore ? window.getViewManagerFromStore() : (() => {
-        console.error('[IRIS Migration] ❌ CRITICAL: getViewManagerFromStore not available - React store required');
-        throw new Error('React store not available for ViewManager');
-    })();
-
-    viewManager.setImage(
-        window.getCurrentImageIdFromStore(), 
-        window.getImageLocationFromStore()
-    );
-    viewManager.showGroup();
 
     set_tool(window.getCurrentToolFromStore ? window.getCurrentToolFromStore() : 'draw');
     const currentClass = window.getCurrentClassFromStore ? window.getCurrentClassFromStore() : 0;
@@ -412,27 +337,7 @@ function change_brightness(up){
         return;
     }
     
-    console.log('[IRIS] Using brightness fallback, store not available');
-    
-    const viewManager = window.getViewManagerFromStore ? window.getViewManagerFromStore() : (() => {
-        console.error('[IRIS Migration] ❌ CRITICAL: getViewManagerFromStore not available for brightness');
-        throw new Error('React store not available for ViewManager');
-    })();
-    
-    // Safety check: only proceed if ViewManager is initialized
-    if (!viewManager || !viewManager.filters) {
-        console.log('[IRIS] ViewManager not initialized, skipping brightness change');
-        return;
-    }
-    
-    if (up){
-        viewManager.filters.brightness += 10;
-        viewManager.filters.brightness = Math.min(800, viewManager.filters.brightness);
-    } else {
-        viewManager.filters.brightness -= 10;
-        viewManager.filters.brightness = Math.max(0, viewManager.filters.brightness);
-    }
-    viewManager.render();
+    console.error('segmentationStore not available for change_brightness');
 }
 function change_saturation(up){
     if (window.segmentationStore) {
@@ -457,64 +362,6 @@ function set_current_class(class_id){
 
     // Convenience - automatically change to drawing tool after selecting class:
     set_tool("draw");
-}
-
-function set_contrast(visible){
-    // Use React store if available (new source of truth)
-    if (window.segmentationStore) {
-        window.segmentationStore.getState().setContrast(visible);
-        return;
-    }
-        
-    const viewManager = window.getViewManagerFromStore ? window.getViewManagerFromStore() : (() => {
-        console.error('[IRIS Migration] ❌ CRITICAL: getViewManagerFromStore not available for contrast');
-        throw new Error('React store not available for ViewManager');
-    })();
-    
-    // Safety check: only proceed if ViewManager is initialized
-    if (!viewManager || !viewManager.filters) {
-        console.log('[IRIS] ViewManager not initialized, skipping contrast change');
-        return;
-    }
-    
-    viewManager.filters.contrast = visible;
-
-    if (viewManager.filters.contrast){
-        get_object("tb_toggle_contrast").classList.add("checked");
-    } else {
-        get_object("tb_toggle_contrast").classList.remove("checked");
-    }
-
-    viewManager.render();
-}
-
-function set_invert(visible){
-    // Use React store if available (new source of truth)
-    if (window.segmentationStore) {
-        window.segmentationStore.getState().setInvert(visible);
-        return;
-    }
-    
-    const viewManager = window.getViewManagerFromStore ? window.getViewManagerFromStore() : (() => {
-        console.error('[IRIS Migration] ❌ CRITICAL: getViewManagerFromStore not available for invert');
-        throw new Error('React store not available for ViewManager');
-    })();
-    
-    // Safety check: only proceed if ViewManager is initialized
-    if (!viewManager || !viewManager.filters) {
-        console.log('[IRIS] ViewManager not initialized, skipping invert change');
-        return;
-    }
-    
-    viewManager.filters.invert = visible;
-
-    if (viewManager.filters.invert){
-        get_object("tb_toggle_invert").classList.add("checked");
-    } else {
-        get_object("tb_toggle_invert").classList.remove("checked");
-    }
-
-    viewManager.render();
 }
 
 function set_tool(tool){
@@ -917,88 +764,6 @@ function update_history(){
     }
     
     window.updateHistoryInStore();
-}
-
-// CRITICAL: Render the entire mask to the hidden canvas
-// This is needed after loading a mask from the server
-function render_mask_to_hidden_canvas() {
-    console.log('[IRIS] Rendering loaded mask to hidden canvas...');
-    
-    // Get hidden mask canvas from store (ONLY SOURCE)
-    if (!window.getHiddenMaskContextFromStore) {
-        console.error('[IRIS] ❌ CRITICAL: getHiddenMaskContextFromStore not available');
-        throw new Error('React store required for hidden mask context');
-    }
-    
-    const hidden_ctx = window.getHiddenMaskContextFromStore();
-    if (!hidden_ctx) {
-        console.error('[IRIS] Hidden mask context not available for rendering');
-        throw new Error('Hidden mask context not available');
-    }
-    
-    // Get mask shape from store (ONLY SOURCE)
-    if (!window.getMaskShapeFromStore) {
-        console.error('[IRIS] ❌ CRITICAL: getMaskShapeFromStore not available');
-        throw new Error('React store required for mask shape');
-    }
-    
-    const maskShape = window.getMaskShapeFromStore();
-    if (!maskShape) {
-        console.error('[IRIS] No mask shape available for rendering');
-        throw new Error('Mask shape not available');
-    }
-    
-    // Get mask data from store (ONLY SOURCE)
-    if (!window.getMaskDataFromStore || !window.getUserMaskDataFromStore) {
-        console.error('[IRIS] ❌ CRITICAL: Mask data accessors not available');
-        throw new Error('React store required for mask data');
-    }
-    
-    const maskData = window.getMaskDataFromStore();
-    const userMaskData = window.getUserMaskDataFromStore();
-    
-    if (!maskData || !userMaskData) {
-        console.error('[IRIS] No mask data available for rendering');
-        throw new Error('Mask data not available');
-    }
-    
-    // Get classes for colors from store (ONLY SOURCE)
-    if (!window.getClassesFromStore) {
-        console.error('[IRIS] ❌ CRITICAL: getClassesFromStore not available');
-        throw new Error('React store required for classes');
-    }
-    
-    const classes = window.getClassesFromStore();
-    if (!classes) {
-        console.error('[IRIS] No classes available for rendering');
-        throw new Error('Classes not available');
-    }
-    
-    // Clear the hidden canvas first
-    hidden_ctx.clearRect(0, 0, maskShape[0], maskShape[1]);
-    
-    // Render each pixel that has been drawn by the user
-    let pixelsRendered = 0;
-    for (let y = 0; y < maskShape[1]; y++) {
-        for (let x = 0; x < maskShape[0]; x++) {
-            const index = y * maskShape[0] + x;
-            
-            // Only render pixels that the user has drawn (userMaskData[index] === 1)
-            if (userMaskData[index] === 1) {
-                const classId = maskData[index];
-                
-                // Get the color for this class
-                if (classId >= 0 && classId < classes.length) {
-                    const color = classes[classId].colour;
-                    hidden_ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3] / 255})`;
-                    hidden_ctx.fillRect(x, y, 1, 1);
-                    pixelsRendered++;
-                }
-            }
-        }
-    }
-    
-    console.log(`[IRIS] ✅ Mask rendered to hidden canvas: ${pixelsRendered} pixels`);
 }
 
 function undo(){
@@ -1990,34 +1755,6 @@ function show_mask(visible){
     
     // FALLBACK: Should never reach here if React loaded properly
     console.warn('show_mask() called but React store not available yet');
-}
-
-function login_finished(){
-    // REMOVED: fetch_server_update call - React now handles config loading directly
-    console.log('🔧 login_finished called - React will handle reinitialization');
-}
-
-function logout_finished(){
-    save_mask();
-    
-    // Get segmentation URL from React store (ONLY source)
-    if (!window.getApiUrlFromStore) {
-        console.error('[IRIS] ❌ API URL store not available for logout_finished');
-        return;
-    }
-    
-    const segmentationUrl = window.getApiUrlFromStore('segmentation');
-    if (!segmentationUrl) {
-        console.error('[IRIS] ❌ No segmentation URL available for logout_finished');
-        return;
-    }
-
-    const currentImageId = window.getCurrentImageIdFromStore();
-    if (!currentImageId) {
-        console.error('[IRIS] ❌ No current image ID available for logout_finished');
-        return;
-    }
-    goto_url(segmentationUrl + '?image_id=' + currentImageId);
 }
 
 // REMOVED: async function fetch_server_update - React now handles config loading directly

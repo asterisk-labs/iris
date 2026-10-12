@@ -13,7 +13,6 @@ beforeEach(() => {
     imageDimensions: null,
     imageAspectRatio: 1,
     isInitialized: false,
-    initializationError: null,
   });
 
   // Reset window mock
@@ -126,51 +125,11 @@ describe('ViewManagerStore Image Dimensions', () => {
       
       // Test fallback to imageAspectRatio
       useViewManagerStore.setState({ imageDimensions: null });
-      store.setImageAspectRatio(4/3);
+      useViewManagerStore.setState({ imageAspectRatio: 4/3 });
       const [width2, height2] = store.calculateViewDimensions();
       expect(width2 / height2).toBeCloseTo(4/3, 1);
     });
 
-    test('initializes from legacy vars correctly', async () => {
-      // Mock legacy vars
-      (global.window as any).vars = {
-        image_shape: [2048, 1536],
-        config: {
-          views: { rgb: { name: 'rgb', type: 'image' } },
-          view_groups: { default: ['rgb'] }
-        },
-        image_id: 'test-image'
-      };
-      
-      const store = useViewManagerStore.getState();
-      await store.initializeFromLegacy();
-      
-      const state = useViewManagerStore.getState();
-      expect(state.imageDimensions).toEqual({ width: 2048, height: 1536 });
-      expect(state.imageAspectRatio).toBeCloseTo(2048 / 1536);
-      expect(state.isInitialized).toBe(true);
-    });
 
-    test('handles missing image_shape during initialization', async () => {
-      // Mock legacy vars without image_shape
-      (global.window as any).vars = {
-        config: {
-          views: { rgb: { name: 'rgb', type: 'image' } },
-          view_groups: { default: ['rgb'] }
-        },
-        image_id: 'test-image'
-      };
-      
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      
-      const store = useViewManagerStore.getState();
-      await store.initializeFromLegacy();
-      
-      const state = useViewManagerStore.getState();
-      expect(state.imageDimensions).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('⚠️ ViewManager: No image shape found in legacy vars');
-      
-      consoleSpy.mockRestore();
-    });
   });
 });

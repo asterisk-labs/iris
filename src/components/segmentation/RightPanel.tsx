@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -38,33 +38,6 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
   const iconFilter = actualThemeName === 'dark'
     ? 'invert(1) brightness(0.9)' 
     : 'none';
-
-  // Watch for showMask changes and trigger canvas update
-  // Note: maskType changes are handled in the store's setMaskType function
-  useEffect(() => {
-    const w = window as any;
-    // Only call if function exists and vars is initialized
-    if (w.vars && w.show_mask) {
-      if (w.IRIS_DEBUG) console.log('[RightPanel] showMask changed to:', showMask);
-      try {
-        w.show_mask(showMask);
-      } catch (error) {
-        console.error('[RightPanel] Error toggling mask visibility:', error);
-      }
-    }
-  }, [showMask]);
-
-  // Watch for filter changes and apply to canvas
-  useEffect(() => {
-    const w = window as any;
-    if (w.renderFromStore) {
-      try {
-        w.renderFromStore();
-      } catch (error) {
-        console.error('[RightPanel] Error applying filters:', error);
-      }
-    }
-  }, [brightness, saturation, contrast, invert]);
 
   // Modern card section wrapper
   const SectionCard: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
