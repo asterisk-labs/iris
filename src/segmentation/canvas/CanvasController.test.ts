@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CanvasController, ViewportCanvases } from './CanvasController';
 import { useSegmentationStore } from '../../stores/segmentationStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
+import { MaskHistory } from '../mask/history';
 
 /** A 2D context that records calls, enough for the controller's drawing. */
 function recordingContext() {
@@ -35,21 +35,19 @@ function makeViewport() {
 const pointer = (type: string, x: number, y: number, buttons: number) =>
   new MouseEvent(type, { clientX: x, clientY: y, buttons, bubbles: true });
 
-const userPixels = () => {
-  const u = useSegmentationStore.getState().userMaskData!;
-  return Array.from(u).reduce((n, v) => n + v, 0);
-};
+const userPixels = () => useSegmentationStore.getState().userPixelCounts.total;
+const doc = () => useSegmentationStore.getState().maskDocument!;
 
 describe('CanvasController', () => {
   let controller: CanvasController;
   let vp: ReturnType<typeof makeViewport>;
 
   beforeEach(() => {
-    useViewManagerStore.setState({ viewTransform: null, views: { rgb: { name: 'rgb', type: 'image', description: '' } } });
-    useViewManagerStore.getState().setImageDimensions(100, 100);
+    useSegmentationStore.setState({ viewTransform: null, views: { rgb: { name: 'rgb', type: 'image', description: '' } } });
+    useSegmentationStore.getState().setImageDimensions(100, 100);
     useSegmentationStore.setState({
-      maskDocument: null, maskData: null, userMaskData: null, maskDimensions: null,
-      maskHistory: [], userMaskHistory: [], historyCurrentEpoch: 0,
+      maskDocument: null, maskDimensions: null,
+      maskHistory: new MaskHistory(), canUndo: false, canRedo: false,
       currentTool: 'draw', toolSize: 1, toolShape: 'square', currentClass: 1,
       showMask: true, maskType: 'final',
     });
@@ -59,9 +57,9 @@ describe('CanvasController', () => {
       { name: 'cloud', colour: [255, 255, 255, 255] },
     ]);
     s.setMaskArea([0, 0, 100, 100]);
-    s.setMaskData(new Uint8Array(100 * 100), 100, 100);
-    s.setUserMaskData(new Uint8Array(100 * 100));
-    s.updateHistory();
+    s.setMaskDimensions({ width: 100, height: 100 });
+    s.setMasks(new Uint8Array(100 * 100), new Uint8Array(100 * 100));
+    s.recordHistory();
 
     controller = new CanvasController();
     vp = makeViewport();
@@ -79,17 +77,15 @@ describe('CanvasController', () => {
 
   it('paints the pixel under the pointer with the current class', () => {
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 50, 50, 1));
-    const { maskData, userMaskData } = useSegmentationStore.getState();
-    expect(maskData![25 * 100 + 25]).toBe(1);
-    expect(userMaskData![25 * 100 + 25]).toBe(1);
+    expect(doc().final[25 * 100 + 25]).toBe(1);
+    expect(doc().user[25 * 100 + 25]).toBe(1);
     expect(userPixels()).toBe(1);
   });
 
   it('fills the gap between pointer events in a fast stroke', () => {
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 50, 50, 1));
     vp.canvases.preview.dispatchEvent(pointer('pointermove', 90, 50, 1));
-    const { userMaskData } = useSegmentationStore.getState();
-    for (let x = 25; x <= 45; x++) expect(userMaskData![25 * 100 + x]).toBe(1);
+    for (let x = 25; x <= 45; x++) expect(doc().user[25 * 100 + x]).toBe(1);
     expect(userPixels()).toBe(21);
   });
 
@@ -104,18 +100,18 @@ describe('CanvasController', () => {
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 50, 50, 1));
     vp.canvases.preview.dispatchEvent(pointer('pointermove', 60, 50, 1));
     vp.canvases.preview.dispatchEvent(pointer('pointerup', 60, 50, 0));
-    expect(useSegmentationStore.getState().maskHistory).toHaveLength(2);
+    expect(useSegmentationStore.getState().canUndo).toBe(true);
     // Right-button click: pans, no paint, no history entry
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 50, 50, 2));
     vp.canvases.preview.dispatchEvent(pointer('pointerup', 50, 50, 0));
-    expect(useSegmentationStore.getState().maskHistory).toHaveLength(2);
     useSegmentationStore.getState().undo();
+    expect(useSegmentationStore.getState().canUndo).toBe(false);
     expect(userPixels()).toBe(0);
   });
 
   it('zooms about the cursor with the wheel', () => {
     vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 100 }));
-    const t = useViewManagerStore.getState().viewTransform!;
+    const t = useSegmentationStore.getState().viewTransform!;
     expect(t.zoom).toBeCloseTo(1.1);
     expect(t.originX).toBeCloseTo(50 + (0 - 50) / 1.1);
   });
@@ -124,17 +120,17 @@ describe('CanvasController', () => {
     useSegmentationStore.setState({ toolSize: 10 });
     vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaX: -100, shiftKey: true, clientX: 100, clientY: 100 }));
     expect(useSegmentationStore.getState().toolSize).toBe(15);
-    expect(useViewManagerStore.getState().viewTransform).toBeNull();
+    expect(useSegmentationStore.getState().viewTransform).toBeNull();
   });
 
   it('pans by dragging with the move tool', () => {
     vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 100 }));
     vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 100 }));
-    const before = useViewManagerStore.getState().viewTransform!;
+    const before = useSegmentationStore.getState().viewTransform!;
     useSegmentationStore.setState({ currentTool: 'move' });
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 100, 100, 1));
     vp.canvases.preview.dispatchEvent(pointer('pointermove', 80, 100, 1));
-    const after = useViewManagerStore.getState().viewTransform!;
+    const after = useSegmentationStore.getState().viewTransform!;
     expect(after.originX).toBeGreaterThan(before.originX);
     expect(after.originY).toBeCloseTo(before.originY);
     expect(userPixels()).toBe(0);
@@ -142,9 +138,9 @@ describe('CanvasController', () => {
 
   it('takes a reset of the stored transform as a reset of the view', () => {
     vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 100 }));
-    useViewManagerStore.getState().resetCanvas();
+    useSegmentationStore.getState().resetViews();
     vp.canvases.preview.dispatchEvent(pointer('pointerdown', 50, 50, 1));
-    expect(useSegmentationStore.getState().userMaskData![25 * 100 + 25]).toBe(1);
+    expect(doc().user[25 * 100 + 25]).toBe(1);
   });
 
   it('draws the image, mask and preview with the view transform', () => {

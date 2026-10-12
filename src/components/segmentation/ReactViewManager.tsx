@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
+import { useSegmentationStore } from '../../stores/segmentationStore';
 
 import ReactViewPort from './ReactViewPort';
 
@@ -22,9 +22,9 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const { currentGroup, viewWidth, viewHeight, showControls, imageId, currentView, updateViewDimensions, setImageLocation, setCurrentView } = useViewManagerStore(useShallow(s => ({ currentGroup: s.currentGroup, viewWidth: s.viewWidth, viewHeight: s.viewHeight, showControls: s.showControls, imageId: s.imageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setImageLocation: s.setImageLocation, setCurrentView: s.setCurrentView })));
+  const { currentGroup, viewWidth, viewHeight, showControls, currentImageId: imageId, currentView, updateViewDimensions, setImageLocation, setCurrentView } = useSegmentationStore(useShallow(s => ({ currentGroup: s.currentGroup, viewWidth: s.viewWidth, viewHeight: s.viewHeight, showControls: s.showControls, currentImageId: s.currentImageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setImageLocation: s.setImageLocation, setCurrentView: s.setCurrentView })));
   
-  const currentViews = useViewManagerStore(useShallow(s => s.getCurrentViews()));
+  const currentViews = useSegmentationStore(useShallow(s => s.getCurrentViews()));
   
   useEffect(() => {
     window.addEventListener('resize', updateViewDimensions);

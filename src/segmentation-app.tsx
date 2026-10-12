@@ -14,7 +14,6 @@ import ActionInfoModal from './components/segmentation/ActionInfoModal';
 import { useKeyboardShortcuts, useToolbarHints } from './hooks/useKeyboardShortcuts';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
-import { useViewManagerStore } from './stores/viewManagerStore';
 import { useConfigLoader } from './hooks/useConfigLoader';
 import { bootPage, bootUrls, exposeDebugHandle } from './boot';
 
@@ -64,8 +63,8 @@ const SegmentationApp: React.FC = () => {
   // Save unsaved changes when the page is closed or navigated away from
   useEffect(() => {
     const onPageHide = () => {
-      const { maskChanged, maskDocument, userMaskData, currentImageId } = useSegmentationStore.getState();
-      if (maskChanged && maskDocument && userMaskData && currentImageId) {
+      const { maskChanged, maskDocument, currentImageId } = useSegmentationStore.getState();
+      if (maskChanged && maskDocument && currentImageId) {
         saveMaskOnUnload(currentImageId, maskDocument.final, maskDocument.user);
       }
     };
@@ -153,9 +152,7 @@ const SegmentationApp: React.FC = () => {
     const currentImageId = useSegmentationStore.getState().currentImageId;
     if (!currentImageId) return;
     await useSegmentationStore.getState().loadMaskForImage(currentImageId);
-    const viewStore = useViewManagerStore.getState();
-    viewStore.resetCanvas();
-    viewStore.setImage(currentImageId, viewStore.imageLocation || [0, 0]);
+    useSegmentationStore.getState().resetViews();
   };
 
   // Memoize callbacks to prevent unnecessary re-renders
@@ -318,12 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('react-segmentation-app');
     if (container) {
       // Page data from the template, before anything fetches
-      const urls = bootUrls();
-      if (urls) useSegmentationStore.getState().setApiUrls(urls);
-      const page = bootPage();
-      useSegmentationStore.getState().setDebugMode(page.debug);
-      useViewManagerStore.getState().setImageLocation(page.imageLocation);
-      exposeDebugHandle({ segmentationStore: useSegmentationStore, viewManagerStore: useViewManagerStore });
+      bootUrls();
+      useSegmentationStore.getState().setImageLocation(bootPage().imageLocation);
+      exposeDebugHandle({ store: useSegmentationStore });
 
       const root = createRoot(container);
       root.render(<SegmentationApp />);

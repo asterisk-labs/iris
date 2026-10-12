@@ -111,7 +111,6 @@ export interface ClassConfig {
   user_colour?: [number, number, number, number]; // Optional user-specific color
 }
 
-// PHASE 2: Navigation & Actions Types
 export interface ProjectConfig {
   name: string;
   host: string;
@@ -200,7 +199,7 @@ export interface SegmentationMask {
   time_spent: string;
 }
 
-// User Pixel Counts Interface (replaces vars.n_user_pixels)
+// User pixel counts per class
 export interface UserPixelCounts {
   total: number;
   [classId: number]: number; // Per-class pixel counts

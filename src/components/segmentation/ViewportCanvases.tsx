@@ -6,8 +6,8 @@
  */
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import type { ViewConfig } from '../../stores/viewManagerStore';
-import { useSegmentationStore } from '../../stores/segmentationStore';
+import type { ViewConfig } from '../../stores/segmentationStore';
+import { appUrls } from '../../services/http';
 import { canvasController } from '../../segmentation/canvas/CanvasController';
 
 interface ViewportCanvasesProps {
@@ -43,7 +43,6 @@ const ViewportCanvases: React.FC<ViewportCanvasesProps> = ({ view, imageId }) =>
   const maskRef = useRef<HTMLCanvasElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const mainUrl = useSegmentationStore(s => s.apiUrls?.main ?? '/');
 
   useEffect(() => {
     const container = containerRef.current;
@@ -67,12 +66,12 @@ const ViewportCanvases: React.FC<ViewportCanvasesProps> = ({ view, imageId }) =>
     image.onerror = () => {
       if (!cancelled) setStatus('error');
     };
-    image.src = `${mainUrl}image/${imageId}/${view.name}`;
+    image.src = `${appUrls().main}image/${imageId}/${view.name}`;
     return () => {
       cancelled = true;
       canvasController.setImage(id, null);
     };
-  }, [id, imageId, view.name, mainUrl]);
+  }, [id, imageId, view.name]);
 
   return (
     <div

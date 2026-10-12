@@ -7,8 +7,8 @@
 
 import React, { useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { ViewConfig } from '../../stores/viewManagerStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
+import type { ViewConfig } from '../../stores/segmentationStore';
+import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import ReactBingLayer from './layers/ReactBingLayer';
 import ViewportCanvases from './ViewportCanvases';
@@ -40,9 +40,9 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
   const [selectedViewName, setSelectedViewName] = useState(view.name);
   const { theme } = useTheme();
 
-  const { views, addView, removeView, replaceView } = useViewManagerStore(useShallow(s => ({ views: s.views, addView: s.addView, removeView: s.removeView, replaceView: s.replaceView })));
+  const { views, addView, removeView, replaceView } = useSegmentationStore(useShallow(s => ({ views: s.views, addView: s.addView, removeView: s.removeView, replaceView: s.replaceView })));
 
-  const canRemove = useViewManagerStore(s => s.getCurrentViews().length > 1);
+  const canRemove = useSegmentationStore(s => s.getCurrentViews().length > 1);
 
   // Handle view selection change
   const handleViewChange = (newViewName: string) => {

@@ -3,7 +3,6 @@ import { renderHook } from '@testing-library/react';
 import { handleShortcut, shortcutForButton } from './shortcuts';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useSegmentationStore } from '../../stores/segmentationStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
 
 const classes = [
   { name: 'a', colour: [0, 0, 0, 255] as [number, number, number, number] },
@@ -17,7 +16,7 @@ describe('keyboard shortcuts', () => {
       classes, currentClass: 0, currentTool: 'draw', showMask: true, maskType: 'final',
       contrast: false, invert: false, brightness: 100, saturation: 100, resetMaskConfirmOpen: false,
     });
-    useViewManagerStore.setState({ viewTransform: { zoom: 2, originX: 1, originY: 1 }, showControls: false });
+    useSegmentationStore.setState({ viewTransform: { zoom: 2, originX: 1, originY: 1 }, showControls: false });
   });
 
   it('selects classes with digits, ignoring missing classes', () => {
@@ -40,7 +39,7 @@ describe('keyboard shortcuts', () => {
 
   it('Z resets the view', () => {
     handleShortcut('KeyZ');
-    expect(useViewManagerStore.getState().viewTransform).toBeNull();
+    expect(useSegmentationStore.getState().viewTransform).toBeNull();
   });
 
   it('C, I and X change the filters that are actually drawn', () => {

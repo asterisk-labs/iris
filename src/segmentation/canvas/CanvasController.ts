@@ -12,7 +12,6 @@
  */
 
 import { useSegmentationStore } from '../../stores/segmentationStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
 import { brushOffset, brushPixels, strokePoints, Size } from '../geometry/brush';
 import {
   ViewTransform, orFit, toMatrix, zoomAt, panBy, visibleRect,
@@ -103,7 +102,7 @@ export class CanvasController {
   // ---- Store wiring ---------------------------------------------------------
 
   private start() {
-    this.transform = useViewManagerStore.getState().viewTransform;
+    this.transform = useSegmentationStore.getState().viewTransform;
     this.bindDocument(useSegmentationStore.getState().maskDocument);
 
     this.unsubscribeStores.push(useSegmentationStore.subscribe((s, prev) => {
@@ -119,7 +118,7 @@ export class CanvasController {
       }
     }));
 
-    this.unsubscribeStores.push(useViewManagerStore.subscribe((s, prev) => {
+    this.unsubscribeStores.push(useSegmentationStore.subscribe((s, prev) => {
       if (s.viewTransform !== prev.viewTransform && s.viewTransform !== this.transform) {
         // Changed from outside (e.g. reset view)
         this.transform = s.viewTransform;
@@ -153,7 +152,7 @@ export class CanvasController {
   // ---- Geometry helpers ------------------------------------------------------
 
   private imageSize(): Size | null {
-    return useViewManagerStore.getState().imageDimensions;
+    return useSegmentationStore.getState().imageDimensions;
   }
 
   private canvasSize(v: Viewport): Size {
@@ -166,7 +165,7 @@ export class CanvasController {
 
   private setTransform(t: ViewTransform) {
     this.transform = t;
-    useViewManagerStore.getState().setViewTransform(t);
+    useSegmentationStore.getState().setViewTransform(t);
     this.invalidate({ rgb: true, mask: true, preview: true });
   }
 
@@ -276,7 +275,7 @@ export class CanvasController {
     this.lastStamp = null;
     if (this.strokeChanged) {
       // One undo entry per stroke
-      useSegmentationStore.getState().updateHistory();
+      useSegmentationStore.getState().recordHistory();
       this.strokeChanged = false;
     }
   }
@@ -442,7 +441,7 @@ export class CanvasController {
 
     // Boundary of the area that can be annotated
     if (s.maskArea && s.maskDimensions) {
-      const viewCount = Object.keys(useViewManagerStore.getState().views).length;
+      const viewCount = Object.keys(useSegmentationStore.getState().views).length;
       ctx.beginPath();
       ctx.lineWidth = viewCount < 2 ? 3 : 2;
       ctx.strokeStyle = 'red';

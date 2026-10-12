@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { ViewConfig } from '../../../stores/viewManagerStore';
+import type { ViewConfig } from '../../../stores/segmentationStore';
 
 export interface ReactBaseLayerProps {
   view: ViewConfig;

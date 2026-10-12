@@ -51,7 +51,7 @@ const mockStore = {
 };
 
 vi.mock('../../stores/viewManagerStore', () => ({
-  useViewManagerStore: (selector?: (state: typeof mockStore) => unknown) => (selector ? selector(mockStore) : mockStore),
+  useSegmentationStore: (selector?: (state: typeof mockStore) => unknown) => (selector ? selector(mockStore) : mockStore),
 }));
 
 describe('ReactViewManager', () => {

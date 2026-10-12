@@ -4,7 +4,6 @@
  */
 
 import { useSegmentationStore } from '../../stores/segmentationStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
 import { saveThenGo } from '../navigation';
 
 export interface Shortcut {
@@ -19,7 +18,7 @@ export interface Shortcut {
 }
 
 const store = () => useSegmentationStore.getState();
-const views = () => useViewManagerStore.getState();
+const views = () => useSegmentationStore.getState();
 
 function predict() {
   store().predictMask().catch((error: Error) => {
@@ -34,7 +33,7 @@ export const SHORTCUTS: Shortcut[] = [
   { key: 'U', command: 'undo', description: 'Undo last modification', codes: ['KeyU'], run: () => store().undo() },
   { key: 'R', command: 'redo', description: 'Redo modification', codes: ['KeyR'], run: () => store().redo() },
   { key: 'W', command: 'tool_move', description: 'Pan your current view by dragging and moving the cursor', codes: ['KeyW'], run: () => store().setCurrentTool('move') },
-  { key: 'Z', command: 'tool_reset_views', description: 'Reset the view in the canvases', codes: ['KeyZ'], run: () => views().resetCanvas() },
+  { key: 'Z', command: 'tool_reset_views', description: 'Reset the view in the canvases', codes: ['KeyZ'], run: () => views().resetViews() },
   { key: 'D', command: 'tool_draw', description: 'Draw pixels on the mask', codes: ['KeyD'], run: () => store().setCurrentTool('draw') },
   { key: 'E', command: 'tool_eraser', description: 'Erase previously drawn pixels', codes: ['KeyE'], run: () => store().setCurrentTool('eraser') },
   { key: 'N', command: 'reset_mask', description: 'Clear the whole mask', codes: ['KeyN'], run: () => store().requestResetMask() },

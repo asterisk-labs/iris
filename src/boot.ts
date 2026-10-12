@@ -46,8 +46,7 @@ export function bootPage(): PageBoot {
  * in the browser console. Nothing in the application reads it.
  */
 export interface DebugHandle {
-  segmentationStore: unknown;
-  viewManagerStore: unknown;
+  store: unknown;
 }
 
 declare global {

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useSegmentationStore } from './segmentationStore';
-import { encodeMasks } from '../segmentation/mask/codec';
-import type { ProjectConfig } from '../types/iris';
+import { useSegmentationStore } from './index';
+import { MaskHistory } from '../../segmentation/mask/history';
+import { encodeMasks } from '../../segmentation/mask/codec';
+import type { ProjectConfig } from '../../types/iris';
 
 const W = 4, H = 3, N = W * H;
 
@@ -10,9 +11,9 @@ const bytesResponse = (bytes: Uint8Array, status = 200) =>
 
 function setUp() {
   useSegmentationStore.setState({
-    maskDocument: null, maskData: null, userMaskData: null, errorsMaskData: null,
+    maskDocument: null,
     maskDimensions: { width: W, height: H },
-    maskHistory: [], userMaskHistory: [], historyCurrentEpoch: 0,
+    maskHistory: new MaskHistory(), canUndo: false, canRedo: false,
     isLoading: false, maskChanged: false, showDialogueBeforeNextImage: false,
     confusionMatrix: null, predictionRevision: null, loginRequired: false,
     loadingMessage: null, notice: null,
@@ -47,10 +48,10 @@ describe('mask store actions', () => {
     await useSegmentationStore.getState().loadMaskForImage('img');
     const s = useSegmentationStore.getState();
     expect(fetchMock.mock.calls[0][0]).toBe('/segmentation/load_mask/img');
-    expect(Array.from(s.maskData!)).toEqual(Array.from(final));
+    expect(Array.from(s.maskDocument!.final)).toEqual(Array.from(final));
     expect(s.userPixelCounts).toEqual({ 0: 0, 1: 1, total: 1 });
     expect(s.maskChanged).toBe(false);
-    expect(s.maskHistory).toHaveLength(1);
+    expect(s.canUndo).toBe(false);
     expect(s.loadingMessage).toBeNull();
   });
 
@@ -58,7 +59,7 @@ describe('mask store actions', () => {
     fetchMock.mockResolvedValue(new Response('No user mask available!', { status: 404 }));
     await useSegmentationStore.getState().loadMaskForImage('img');
     const s = useSegmentationStore.getState();
-    expect(Array.from(s.userMaskData!)).toEqual(new Array(N).fill(0));
+    expect(Array.from(s.maskDocument!.user)).toEqual(new Array(N).fill(0));
     expect(s.errorModal.isOpen).toBe(false);
   });
 
@@ -116,7 +117,7 @@ describe('mask store actions', () => {
       const s0 = useSegmentationStore.getState();
       s0.paintPixels(Array.from({ length: 15 }, (_, i) => i), 0);
       s0.paintPixels(Array.from({ length: 15 }, (_, i) => 20 + i), 1);
-      s0.updateHistory();
+      s0.recordHistory();
 
       const predicted = new Uint8Array(50).fill(1);
       fetchMock.mockResolvedValueOnce(bytesResponse(predicted));
@@ -127,25 +128,25 @@ describe('mask store actions', () => {
       const sent = JSON.parse(init.body as string);
       expect(sent.user_pixels).toHaveLength(16); // round(15 * 0.5) = 8 per class
       const s = useSegmentationStore.getState();
-      expect(s.maskData![0]).toBe(0); // user pixel kept
-      expect(s.maskData![40]).toBe(1); // unpainted pixel filled
-      expect(Array.from(s.errorsMaskData!).filter(v => v).length).toBe(14);
+      expect(s.maskDocument!.final[0]).toBe(0); // user pixel kept
+      expect(s.maskDocument!.final[40]).toBe(1); // unpainted pixel filled
+      expect(Array.from(s.maskDocument!.errors).filter(v => v).length).toBe(14);
       expect(s.confusionMatrix!.matrix[0][1]).toBe(7);
       expect(s.predictionRevision).toBe(s.maskRevision);
       expect(s.maskChanged).toBe(true);
 
       useSegmentationStore.getState().undo();
-      expect(useSegmentationStore.getState().maskData![40]).toBe(0);
+      expect(useSegmentationStore.getState().maskDocument!.final[40]).toBe(0);
     });
 
     it('reset clears the mask and can be undone', () => {
       const s = useSegmentationStore.getState();
       s.paintPixels([3], 1);
-      s.updateHistory();
+      s.recordHistory();
       s.resetMask();
       expect(useSegmentationStore.getState().userPixelCounts.total).toBe(0);
       useSegmentationStore.getState().undo();
-      expect(useSegmentationStore.getState().userMaskData![3]).toBe(1);
+      expect(useSegmentationStore.getState().maskDocument!.user[3]).toBe(1);
     });
   });
 });

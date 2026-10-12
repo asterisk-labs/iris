@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../stores/segmentationStore';
+import { appUrls } from '../services/http';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface ImageInfoModalProps {
@@ -24,13 +24,13 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
   
-  const { currentImageId, apiUrls } = useSegmentationStore(useShallow(s => ({ currentImageId: s.currentImageId, apiUrls: s.apiUrls })));
+  const currentImageId = useSegmentationStore(s => s.currentImageId);
 
   useEffect(() => {
     if (isOpen) {
       const fetchMetadata = async () => {
         const imageId = currentImageId;
-        const mainUrl = apiUrls?.main;
+        const mainUrl = appUrls().main;
 
         if (!imageId || !mainUrl) {
           setError('Image ID not available');
@@ -55,7 +55,7 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
       };
       fetchMetadata();
     }
-  }, [isOpen, currentImageId, apiUrls]);
+  }, [isOpen, currentImageId]);
 
   // Handle Escape key
   useEffect(() => {
@@ -75,7 +75,7 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const imageId = currentImageId || 'Unknown';
-  const mainUrl = apiUrls?.main || '';
+  const mainUrl = appUrls().main;
 
   return (
     <div

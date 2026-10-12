@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { useSegmentationStore } from '../stores/segmentationStore';
-import { useViewManagerStore } from '../stores/viewManagerStore';
 import { imageSizeFromShape } from '../segmentation/geometry/transform';
 import { bootPage } from '../boot';
 
@@ -36,7 +35,6 @@ export const useConfigLoader = (): ConfigLoaderResult => {
 
       // Get stores directly to avoid dependency issues
       const segmentationStore = useSegmentationStore.getState();
-      const viewManagerStore = useViewManagerStore.getState();
 
       // CRITICAL: Set current image ID from URL or initial vars (before other initialization)
       if (imageId) {
@@ -81,7 +79,7 @@ export const useConfigLoader = (): ConfigLoaderResult => {
           });
         }
         
-        viewManagerStore.setViews(views);
+        segmentationStore.setViews(views);
       }
 
       // Set view groups
@@ -94,25 +92,25 @@ export const useConfigLoader = (): ConfigLoaderResult => {
             config.view_groups.forEach((group: string[], index: number) => {
               viewGroupsObj[`group_${index}`] = group;
             });
-            viewManagerStore.setViewGroups(viewGroupsObj);
+            segmentationStore.setViewGroups(viewGroupsObj);
           } else {
             // Simple array - use as default group
-            viewManagerStore.setViewGroups({ default: config.view_groups as string[] });
+            segmentationStore.setViewGroups({ default: config.view_groups as string[] });
           }
         } else {
-          viewManagerStore.setViewGroups(config.view_groups);
+          segmentationStore.setViewGroups(config.view_groups);
         }
       } else {
         // Default group with available views - use the views object we just created
         const viewNames = Object.keys(views || {});
         if (viewNames.length > 0) {
-          viewManagerStore.setViewGroups({ default: viewNames.slice(0, 3) });
+          segmentationStore.setViewGroups({ default: viewNames.slice(0, 3) });
         }
       }
 
       const imageSize = imageSizeFromShape(config.images?.shape);
       if (imageSize) {
-        viewManagerStore.setImageDimensions(imageSize.width, imageSize.height);
+        segmentationStore.setImageDimensions(imageSize.width, imageSize.height);
       }
 
       // Set mask area and calculate mask dimensions
@@ -129,13 +127,6 @@ export const useConfigLoader = (): ConfigLoaderResult => {
         }
       }
 
-      // Set current image from URL params
-      const currentImageId = segmentationStore.currentImageId;
-      if (currentImageId) {
-        segmentationStore.setCurrentImage(currentImageId);
-        const imageLocation = viewManagerStore.imageLocation || [0, 0];
-        viewManagerStore.setImage(currentImageId, imageLocation);
-      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

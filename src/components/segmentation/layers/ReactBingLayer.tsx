@@ -7,7 +7,7 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import ReactBaseLayer, { ReactBaseLayerProps } from './ReactBaseLayer';
-import { useViewManagerStore } from '../../../stores/viewManagerStore';
+import { useSegmentationStore } from '../../../stores/segmentationStore';
 
 interface ReactBingLayerProps extends Omit<ReactBaseLayerProps, 'children'> {
   onLocationChange?: (location: [number, number]) => void;
@@ -24,19 +24,12 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
   // Get image location from React store
-  const imageLocation = useViewManagerStore(state => state.imageLocation);
-  const validateImageLocation = useViewManagerStore(state => state.validateImageLocation);
+  const imageLocation = useSegmentationStore(state => state.imageLocation);
   
   // Update Bing Maps URL
   const updateBingMap = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    
-    // Validate coordinates before using them
-    if (!validateImageLocation(imageLocation)) {
-      console.warn('[IRIS] ReactBingLayer: Invalid image location coordinates, skipping map update', imageLocation);
-      return;
-    }
     
     // Format location for Bing Maps
     const location = `${imageLocation[0]}~${imageLocation[1]}`;
@@ -48,7 +41,7 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
     url += "&lvl=12&typ=d&sty=a&src=SHELL&FORM=MBEDV8";
     
     iframe.src = url;
-  }, [imageLocation, width, height, validateImageLocation]);
+  }, [imageLocation, width, height]);
   
   // Update when size changes
   useEffect(() => {
