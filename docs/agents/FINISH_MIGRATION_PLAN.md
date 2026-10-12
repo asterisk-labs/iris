@@ -1,7 +1,13 @@
 # finish-migration: detailed plan for 0.2.A and 0.2.B
 
 Branch `finish-migration`, cut from `overhaul` (732f437) on
-`asterisk-labs/iris`. Draft for review; nothing implemented yet.
+`asterisk-labs/iris`.
+
+**Status (2026-10-12): S0 to S5 and the 0.2.B slice split are done**,
+PR asterisk-labs/iris#1. No legacy JavaScript is served; the gate test
+`src/test/no-legacy-globals.test.ts` keeps it that way. Not yet verified:
+a non-square project (decision 4), Cypress (needs Xvfb on cirrus), and
+browsers other than Chromium.
 
 Goal: the segmentation page is one TypeScript application. No legacy
 script tags, no `vars`, no `window.*FromStore` bridge, no custom-event
