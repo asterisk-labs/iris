@@ -80,41 +80,50 @@ Not imported by anything except their own tests:
 
 ### 1.3 Bugs found while reading
 
-These matter for the port: each one is either fixed by the new design or
-needs a decision (section 6).
+Policy for this branch (agreed 2026-10-12): the migration preserves
+current behaviour, bugs included, and bugs go to `docs/agents/bugs.md`
+for issues to be raised separately. The exception is a bug that lives
+only in code being deleted, where preserving it would mean rebuilding
+dead or broken code on purpose; there the port takes the natural
+behaviour and the PR description lists it. Below, **[port]** marks those
+exceptions and **[bugs.md]** marks preserved ones.
 
-1. **Keyboard filters do nothing.** `C`, `I`, `X` update
+1. **[port] Keyboard filters do nothing.** `C`, `I`, `X` update
    `viewManagerStore.filters`, which nothing renders. The sliders and
    arrow keys update `segmentationStore.brightness` etc., which
    `applyFiltersToLayers` writes into canvas CSS. Two filter states, one
    of them dead.
-2. **Reset-view key.** The handler binds `KeyY`; the command table and
+2. **[bugs.md] Reset-view key.** The handler binds `KeyY`; the command table and
    Help say `Z` (QWERTZ heritage).
-3. **Action-info dialogue is nearly unreachable.** `setMaskChanged(false)`
+3. **[bugs.md] Action-info dialogue is nearly unreachable.** `setMaskChanged(false)`
    after a save also clears `showDialogueBeforeNextImage`. So Enter
    (save, then `next_image`) and the TopBar Next button (save, then
    navigate) never show the difficulty/notes/complete dialogue. It only
    appears when navigating from the dropdown with unsaved changes.
-4. **Undefined functions.** `dialogue_help` (new-user popup) and
-   `dialogue_login` (on any 403 from `download`) do not exist; a 403
-   during mask load throws a `ReferenceError`.
-5. **BottomBar admin flag** reads `window.vars.is_admin`, which is never
+4. **Undefined functions.** `dialogue_login` (called on any 403 from
+   `download`) does not exist, so a 403 during mask load throws a
+   `ReferenceError`. **[port]**: the 403 path opens the login modal.
+   `dialogue_help` (new-user popup) does not exist either, but the popup
+   can never fire because `justLoggedIn` is never set true.
+   **[bugs.md]**: not ported.
+5. **[port] BottomBar admin flag** reads `window.vars.is_admin`, which is never
    set, so admin-only items never show there.
-6. **Cost per mouse move while painting:** `updateMaskPixels` copies both
+6. **[port] Cost per mouse move while painting:** `updateMaskPixels` copies both
    masks, `setMaskData`/`setUserMaskData` copy them again, then
    `calculatePixelCounts` scans the full mask and `setMaskChanged` fires.
    Every component that calls `useSegmentationStore()` without a
    selector (`RightPanel`, `TopBar`, `LeftToolbar`, `ReactMaskLayer`, ...)
    re-renders on each of those `set`s. With a 2000×2000 mask that is
    roughly 16 MB of copying and 4 M iterations per event.
-7. **Brush rendering is inconsistent by shape.** Square brushes paint the
+7. **[port] Brush rendering is inconsistent by shape.** Square brushes paint the
    hidden canvas with the class colour (class 0 gets its colour); round
    brushes *clear* pixels for class 0. Undo, reload and mask-type switch
    then redraw from data, so what you see while painting can differ from
    what you see after.
-8. **Tool size limits disagree.** Shift+wheel allows up to the larger mask
-   dimension; `setToolSize` clamps to 100.
-9. **Image shape convention is mixed.** `docs/config.md` says
+8. Not a bug: Shift+wheel computes up to the larger mask dimension but
+   goes through `setToolSize`, which clamps to 100, so 100 is the
+   effective limit everywhere. The port keeps one constant.
+9. **[bugs.md] Image shape convention is mixed.** `docs/config.md` says
    `images.shape` is `[width, height]`; `useConfigLoader` reads it as
    `[width, height]`; all three layers and `viewTransform.ts` index it as
    `[height, width]`; `constrain_view` uses `[0]` as x. The backend
@@ -123,8 +132,9 @@ needs a decision (section 6).
 10. The hidden mask canvas, drag start, cursor position and canvas mouse
     position all live in zustand. `cursorImage` changes on every mouse
     move and `ReactPreviewLayer` subscribes to it.
-11. `mouse_wheel` uses the deprecated `wheelDelta`; strokes are stamped
-    only at event positions, so fast strokes leave gaps.
+11. `mouse_wheel` uses the deprecated `wheelDelta` (the port reads
+    `deltaY`, same sign). **[bugs.md]** Strokes are stamped only at event
+    positions, so fast strokes leave gaps; the port keeps that.
 12. `HelpModal` and `PreferencesModal` disable shortcuts by swapping
     `document.body.onkeydown`.
 
@@ -136,13 +146,12 @@ needs a decision (section 6).
 src/segmentation/                  plain TS, no React, no window
   geometry/transform.ts            ViewTransform maths: fit, zoom about a point,
                                    pan, clamp to image, canvas<->image
-  geometry/brush.ts                brushFootprint(shape, size) -> offsets;
-                                   strokeSegment(a, b) for gap-free strokes
+  geometry/brush.ts                brushFootprint(shape, size) -> offsets
   mask/MaskDocument.ts             mutable final/user/errors Uint8Arrays,
                                    paint/erase/applyPrediction/reset,
                                    dirty rect, incremental per-class counts,
                                    revision counter
-  mask/history.ts                  undo/redo (see D3)
+  mask/history.ts                  undo/redo snapshots (see D3)
   mask/palette.ts                  maskType + classes -> RGBA lookup;
                                    renderToImageData(doc, rect)
   mask/codec.ts                    octet format: encode (254|final|user|254),
@@ -191,11 +200,9 @@ subscribe to summaries; the controller subscribes to the document's
 dirty-rect events. `maskChanged` becomes `revision !== savedRevision`
 instead of a flag set from five places.
 
-**D3. History.** Snapshot on stroke end, as now (30 entries of both
-masks). Recommendation: store the stroke's dirty rect before and after
-instead of whole masks, and full snapshots only for load, reset and
-predict. 30 full snapshots of a 2000×2000 mask are 240 MB. This is an
-improvement, not required for the port; it can be its own commit.
+**D3. History.** Unchanged: a full snapshot of both masks on stroke
+end, 30 entries. The memory cost on large masks is logged in `bugs.md`
+as a follow-up.
 
 **D4. Render from data, always.** The offscreen mask canvas is updated by
 `putImageData` of the dirty rect computed from `MaskDocument` +
@@ -221,11 +228,13 @@ image_location, debug, urls}</script>`; `src/boot.ts` parses it once. No
 `vars`, no `IRIS_DEBUG` global (a `debug` flag in the config slice), no
 `_pending*` handoffs, no `legacyScriptsReady` polling.
 
-**D8. Image shape.** Store image and mask sizes as `{width, height}`
-objects everywhere in the frontend, parsed once from `images.shape`
-following the documented `[width, height]`. Add a non-square fixture to
-the transform and controller tests. The backend `reshape(*shape)`
-inconsistency is noted for T0.6, not fixed here.
+**D8. Image shape.** Parse `images.shape` once into a
+`{width, height}` object, keeping the indexing the current layers and
+`viewTransform.ts` use (`shape[1]` is width, `shape[0]` is height), so
+behaviour on today's projects is unchanged. The conflicting conventions
+(docs, `useConfigLoader`, `constrain_view`, backend) are in `bugs.md`
+pending tests on a non-square project; with one parse point, changing
+the convention later is a one-line fix.
 
 ---
 
@@ -267,8 +276,7 @@ Tests that pin current behaviour:
 - Sampling: `RNG(42)` shuffle output and train/test split for a fixed
   input match the legacy implementation exactly.
 - Transform: zoom about cursor, pan, clamping (`constrain_view`
-  semantics: no zoom-out past fit, no panning off the image), round trips,
-  non-square images.
+  semantics: no zoom-out past fit, no panning off the image), round trips.
 - `MaskDocument`: paint/erase sets `user` and `final`, counts stay equal
   to a full recount after random operations (property-style test),
   `applyPrediction` only writes where `user == 0` (keeps 9b95570), dirty
@@ -301,15 +309,17 @@ pure modules so most logic is tested there.
 ### S3. Mask IO, prediction, navigation in TypeScript
 
 - `services/masks.ts`: load (404 → empty mask), save, `saveBeacon` on
-  `pagehide` when `maskChanged`. 403 opens the login modal (bug 4).
+  `pagehide` when `maskChanged`. 403 opens the login modal (bug 4,
+  [port]).
 - Store actions: `load(imageId)`, `save()`, `reset()`, `undo()`,
   `redo()`, `predict()`. `predict` ports `legacyPredictMask` on top of
   `sampling.ts` and `metrics.ts`, posts to the existing octet endpoint,
   applies the result, sets the errors mask and confusion matrix, and
   pushes history. `update_ai_box`'s recommendation text becomes derived
   state read by `AIRecommendation`.
-- Navigation: one `goTo(imageId)` flow (optionally show the action-info
-  modal, save, navigate) used by Enter, Backspace, TopBar
+- Navigation: one `goTo(imageId)` flow (save, then navigate; the
+  action-info modal shows under exactly today's conditions, bug 3), used
+  by Enter, Backspace, TopBar
   buttons and the dropdown. Replaces `next_image`/`prev_image` in the
   template, `dialogue_before_next_image`, `pendingNavigationImageId`,
   `goto_url`, `goto_image`, and the `save_mask` call in
@@ -352,8 +362,8 @@ This subsumes T1.3.3.
   `window.irisDebug` handle in debug mode only).
 
 Definition of done for 0.2.A: no legacy JS served, the grep gate passes,
-the smoke list in section 5 passes on the demo and on one non-square
-project, vitest and tsc green.
+the smoke list in section 5 passes on the demo, vitest and tsc green,
+and the PR description lists every [port] behaviour change.
 
 ---
 
@@ -425,21 +435,20 @@ Expect the vitest count to dip after S0 and climb with S1.
 Automated: vitest per step (pure modules carry most of it), `tsc`, the
 grep gate, and the Cypress preferences spec still passing.
 
-Manual smoke list, run on the demo and a non-square project after S2, S3
-and S5:
+Manual smoke list, run on the demo after S2, S3 and S5:
 
 - Paint square and round at sizes 1, 3, 5, 8; erase; class digits;
-  Shift+wheel resize; fast strokes.
+  Shift+wheel resize.
 - Wheel zoom stays anchored at the cursor; right/middle drag and move
   tool pan; reset view; switching view group (`B`) and adding/removing a
   view keep zoom and pan; reload keeps them.
 - Mask types `F`/`G`/`H`, Space toggle, filters by keys and sliders,
-  filter reset.
+  filter reset, `Y` resets the view.
 - Undo/redo across strokes, predict, reset.
 - Predict (`A`) fills only unpainted pixels; errors mask; confusion matrix
   modal; AI score and recommendation.
 - Save (`S`), Enter and Backspace, TopBar arrows, dropdown with unsaved
-  changes, action-info modal, reload shows the saved mask, closing the
+  changes (action-info modal), reload shows the saved mask, closing the
   tab with unsaved changes saves (beacon).
 - Session expiry during load or save opens the login modal.
 - Help modal: shortcuts disabled while open and inside text inputs.
@@ -450,30 +459,20 @@ this branch if S2 turns out fiddly.
 
 ---
 
-## 6. Decisions for review
+## 6. Decisions (settled 2026-10-12)
 
-1. **Order.** I recommend A first with state landing in B's slices as it
-   moves (S0–S5), then a final B sweep for config and navigation. The
-   alternative, B first, means re-pointing about 90 `window` exports at
-   the new slices only to delete them later. Settled: one store built
-   from flat slices, not several stores.
+1. **Order.** 0.2.A first, with state landing in its 0.2.B slice as it
+   moves (S0–S5), then a final sweep for config and navigation. One
+   store built from flat slices, not several stores.
 2. **PR shape.** One branch, one PR onto `overhaul`, reviewed commit by
-   commit; or two PRs (A, then B). One PR is less rebasing; two are
-   easier to review. I lean to one draft PR opened after S1.
-3. **Action-info dialogue (bug 3).** Restore it on every "next" after the
-   mask was modified this visit, show it only when leaving with unsaved
-   changes (today's accidental behaviour), or drop it.
-4. **Reset-view key (bug 2).** `Z` as documented, or keep `Y`.
-5. **Behaviour changes I would take** unless you object: gap-free strokes
-   (interpolate between pointer events), one tool-size limit (I'd use the
-   larger mask dimension, matching Shift+wheel), filters keys fixed, class
-   0 rendering made consistent (render from data), rect-based history
-   (D3).
-6. **Image shape.** Confirm `images.shape` is `[width, height]` in real
-   projects you have, or point me at a non-square one to test against.
-7. **Bing layer.** 0.2.F removes it. Keep `ReactBingLayer` working
-   through this branch, or delete it here and save porting
-   `imageLocation`.
+   commit; open it as a draft after S1.
+3. **Bugs.** Preserved and logged in `docs/agents/bugs.md` unless they
+   live only in deleted code (the [port] cases in 1.3). That covers the
+   action-info dialogue, the reset-view key (`Z` is correct, fix
+   separately), gap-free strokes and history memory.
+4. **Image shape.** Keep current indexing; test on a non-square project
+   and decide the convention separately.
+5. **Bing layer.** Keep it working through this branch.
 
 Out of scope here: server-side prediction (T1.1.2), the Pydantic config
 schema (0.2.C), the backend singleton (0.2.D), backend shape handling
