@@ -122,3 +122,19 @@ export function canvasPixelToImagePixel(t: ViewTransform, canvas: Size, image: S
   const [x, y] = canvasToImage(t, canvas, image, p);
   return [roundHalfUp(x), roundHalfUp(y)];
 }
+
+/**
+ * Image size from the project config's `images.shape`.
+ *
+ * The view code has always drawn `shape[1]` as the width and `shape[0]` as
+ * the height, while docs/config.md documents `[width, height]`. Every demo
+ * project is square, so this is untested on real non-square data; it is
+ * logged in docs/agents/bugs.md and kept in this one place so the
+ * convention can be changed with one edit.
+ */
+export function imageSizeFromShape(shape: unknown): Size | null {
+  if (!Array.isArray(shape) || shape.length < 2) return null;
+  const [height, width] = shape;
+  if (typeof width !== 'number' || typeof height !== 'number' || width <= 0 || height <= 0) return null;
+  return { width, height };
+}

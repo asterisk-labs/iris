@@ -27,6 +27,7 @@ import type {
   UserInfo, 
   ConfusionMatrix
 } from '../types/iris';
+import { MaskDocument } from '../segmentation/mask/MaskDocument';
 
 interface ImageInfo {
   image_id: string;
@@ -59,10 +60,6 @@ interface SegmentationDebugInfo {
   maskType: string;
   classesCount: number;
   totalUserPixels: number;
-  // Mouse & Canvas State debug info
-  cursorImage: [number, number];
-  dragStart: [number, number] | null;
-  isDragging: boolean;
   // PHASE 2: Navigation & Actions debug info
   hasConfig: boolean;
   hasUser: boolean;
@@ -97,7 +94,10 @@ interface SegmentationState {
   setApiUrls: (urls: ApiUrls) => void;
   getApiUrl: (endpoint: keyof ApiUrls) => string | null;
 
-  // CRITICAL: Core Mask Data (replaces vars.mask, vars.user_mask, vars.errors_mask)
+  // The mask being edited. maskData/userMaskData/errorsMaskData are its arrays
+  // (live, mutated in place); maskRevision changes whenever the mask does.
+  maskDocument: MaskDocument | null;
+  maskRevision: number;
   maskData: Uint8Array | null;
   userMaskData: Uint8Array | null;
   errorsMaskData: Uint8Array | null;
@@ -107,21 +107,15 @@ interface SegmentationState {
   setMaskData: (data: Uint8Array, width: number, height: number) => void;
   setUserMaskData: (data: Uint8Array) => void;
   setErrorsMaskData: (data: Uint8Array) => void;
-  getMaskPixel: (x: number, y: number) => number;
-  setMaskPixel: (x: number, y: number, classId: number) => void;
-  getUserMaskPixel: (x: number, y: number) => number;
-  setUserMaskPixel: (x: number, y: number, value: number) => void;
   clearMask: () => void;
+  /** Paint pixels (mask indices) with a class, or erase them when classId is null. */
+  paintPixels: (indices: number[], classId: number | null) => void;
   copyMask: () => Uint8Array | null;
   copyUserMask: () => Uint8Array | null;
   
   // Mask Shape Actions (replaces vars.mask_shape)
   setMaskDimensions: (dimensions: { width: number; height: number }) => void;
   getMaskShape: () => [number, number] | null;
-  
-  // Bulk operations for performance
-  updateMaskRegion: (pixels: Array<{x: number, y: number, classId: number}>) => void;
-  fillMaskRegion: (startX: number, startY: number, endX: number, endY: number, classId: number) => void;
   
   // History System (replaces vars.history)
   maskHistory: Uint8Array[];
@@ -155,20 +149,6 @@ interface SegmentationState {
   
   // Debug state
   debugMode: boolean;
-
-  // Cursor Image (replaces vars.cursor_image)
-  cursorImage: [number, number];
-  setCursorImage: (coords: [number, number]) => void;
-
-  // Drag State (replaces vars.drag_start)
-  dragStart: [number, number] | null;
-  setDragStart: (coords: [number, number] | null) => void;
-
-  // Hidden Mask Canvas (replaces vars.hidden_mask)
-  hiddenMaskCanvas: HTMLCanvasElement | null;
-  setHiddenMaskCanvas: (canvas: HTMLCanvasElement | null) => void;
-  createHiddenMaskCanvas: (width: number, height: number) => HTMLCanvasElement;
-  getHiddenMaskContext: () => CanvasRenderingContext2D | null;
 
   // Mask Area (replaces vars.mask_area)
   maskArea: [number, number, number, number] | null;
@@ -411,16 +391,6 @@ const getToolResizingModeFromStore = () => {
   return useSegmentationStore.getState().toolResizingMode;
 };
 
-// Helper function to get cursor image from React store (for legacy compatibility)
-const getCursorImageFromStore = () => {
-  return useSegmentationStore.getState().cursorImage;
-};
-
-// Helper function to set cursor image in React store (for legacy compatibility)
-const setCursorImageInStore = (x: number, y: number) => {
-  useSegmentationStore.getState().setCursorImage([x, y]);
-};
-
 // Helper function to get current tool from React store (for legacy compatibility)
 const getCurrentToolFromStore = () => {
   return useSegmentationStore.getState().currentTool;
@@ -431,16 +401,6 @@ const setCurrentToolInStore = (tool: 'move' | 'draw' | 'eraser') => {
   useSegmentationStore.getState().setCurrentTool(tool);
 };
 
-// Helper function to get drag start from React store (for legacy compatibility)
-const getDragStartFromStore = () => {
-  return useSegmentationStore.getState().dragStart;
-};
-
-// Helper function to set drag start in React store (for legacy compatibility)
-const setDragStartInStore = (coords: [number, number] | null) => {
-  useSegmentationStore.getState().setDragStart(coords);
-};
-
 // Helper function to get tool shape from React store (for legacy compatibility)
 const getToolShapeFromStore = () => {
   return useSegmentationStore.getState().toolShape;
@@ -449,21 +409,6 @@ const getToolShapeFromStore = () => {
 // Helper function to set tool shape in React store (for legacy compatibility)
 const setToolShapeInStore = (shape: 'square' | 'round') => {
   useSegmentationStore.getState().setToolShape(shape);
-};
-
-// Helper function to get hidden mask canvas from React store (for legacy compatibility)
-const getHiddenMaskCanvasFromStore = () => {
-  return useSegmentationStore.getState().hiddenMaskCanvas;
-};
-
-// Helper function to get hidden mask context from React store (for legacy compatibility)
-const getHiddenMaskContextFromStore = () => {
-  return useSegmentationStore.getState().getHiddenMaskContext();
-};
-
-// Helper function to create hidden mask canvas from React store (for legacy compatibility)
-const createHiddenMaskCanvasFromStore = (width: number, height: number) => {
-  return useSegmentationStore.getState().createHiddenMaskCanvas(width, height);
 };
 
 // CRITICAL: Helper functions for mask area legacy access during migration (vars.mask_area)
@@ -537,22 +482,6 @@ const getErrorsMaskDataFromStore = () => {
 
 const setErrorsMaskDataInStore = (data: Uint8Array) => {
   useSegmentationStore.getState().setErrorsMaskData(data);
-};
-
-const getMaskPixelFromStore = (x: number, y: number) => {
-  return useSegmentationStore.getState().getMaskPixel(x, y);
-};
-
-const setMaskPixelInStore = (x: number, y: number, classId: number) => {
-  useSegmentationStore.getState().setMaskPixel(x, y, classId);
-};
-
-const getUserMaskPixelFromStore = (x: number, y: number) => {
-  return useSegmentationStore.getState().getUserMaskPixel(x, y);
-};
-
-const setUserMaskPixelInStore = (x: number, y: number, value: number) => {
-  useSegmentationStore.getState().setUserMaskPixel(x, y, value);
 };
 
 const copyMaskFromStore = () => {
@@ -740,23 +669,15 @@ const createConfusionMatrixFromStore = (
   return store.createConfusionMatrix(matrix, truePositives, userClasses, classNames);
 };
 
-// Apply the current filter state as CSS on the RGB canvases (not mask or preview)
-const applyFiltersToLayers = () => {
-  const { brightness, saturation, contrast, invert } = useSegmentationStore.getState();
-  const filterString = [];
-  if (invert) {
-    filterString.push("invert(1)");
+/** The current mask document, replaced when the mask size changes. */
+const ensureMaskDocument = (width: number, height: number): MaskDocument => {
+  const { maskDocument, classes } = useSegmentationStore.getState();
+  if (maskDocument && maskDocument.width === width && maskDocument.height === height) {
+    return maskDocument;
   }
-  filterString.push(`brightness(${brightness}%)`);
-  if (contrast) {
-    filterString.push("contrast(200%)");
-  }
-  filterString.push(`saturate(${saturation}%)`);
-  const filterValue = filterString.join(" ");
-
-  document.querySelectorAll('.view-canvas:not(.mask-canvas):not(.preview-canvas)').forEach((canvas: any) => {
-    canvas.style.filter = filterValue;
-  });
+  const doc = new MaskDocument(width, height, Math.max(classes.length, 1));
+  useSegmentationStore.setState({ maskDocument: doc, userMaskData: null, errorsMaskData: null });
+  return doc;
 };
 
 export const useSegmentationStore = create<SegmentationState>((set, get) => ({
@@ -830,6 +751,8 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   },
 
   // CRITICAL: Core Mask Data State (replaces vars.mask, vars.user_mask, vars.errors_mask)
+  maskDocument: null,
+  maskRevision: 0,
   maskData: null,
   userMaskData: null,
   errorsMaskData: null,
@@ -846,9 +769,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   historyDebounceTimer: null,
   hasPendingHistoryUpdate: false,
 
-  // CRITICAL: Core Mask Data Actions (replaces vars.mask, vars.user_mask, vars.errors_mask)
   setMaskData: (data: Uint8Array, width: number, height: number) => {
-    // Validate input
     if (!(data instanceof Uint8Array)) {
       console.error('[IRIS] setMaskData: Invalid data type, expected Uint8Array');
       return;
@@ -865,14 +786,14 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       return;
     }
 
-    // Create a copy to ensure immutability
-    const dataCopy = new Uint8Array(data);
-    set({ 
-      maskData: dataCopy,
-      maskDimensions: { width, height }
+    const doc = ensureMaskDocument(width, height);
+    doc.replace(data, doc.user);
+    set({
+      maskData: doc.final,
+      maskDimensions: { width, height },
+      maskRevision: doc.revision,
     });
 
-    // Trigger mask-related updates (only if classes are set)
     const { classes } = get();
     if (classes && classes.length > 0) {
       get().updateUserPixelCounts(get().calculatePixelCounts());
@@ -885,7 +806,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       console.error('[IRIS] setUserMaskData: No mask dimensions set');
       return;
     }
-    
     if (!(data instanceof Uint8Array)) {
       console.error('[IRIS] setUserMaskData: Invalid data type, expected Uint8Array');
       return;
@@ -895,10 +815,10 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       return;
     }
 
-    const dataCopy = new Uint8Array(data);
-    set({ userMaskData: dataCopy });
+    const doc = ensureMaskDocument(maskDimensions.width, maskDimensions.height);
+    doc.replace(doc.final, data);
+    set({ userMaskData: doc.user, maskRevision: doc.revision });
 
-    // Update pixel counts when user mask changes (only if classes are set)
     const { classes } = get();
     if (classes && classes.length > 0) {
       get().updateUserPixelCounts(get().calculatePixelCounts());
@@ -911,7 +831,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       console.error('[IRIS] setErrorsMaskData: No mask dimensions set');
       return;
     }
-    
     if (!(data instanceof Uint8Array)) {
       console.error('[IRIS] setErrorsMaskData: Invalid data type, expected Uint8Array');
       return;
@@ -921,60 +840,26 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       return;
     }
 
-    const dataCopy = new Uint8Array(data);
-    set({ errorsMaskData: dataCopy });
+    const doc = ensureMaskDocument(maskDimensions.width, maskDimensions.height);
+    doc.setErrors(data);
+    set({ errorsMaskData: doc.errors, maskRevision: doc.revision });
   },
 
-  getMaskPixel: (x: number, y: number) => {
-    const { maskData, maskDimensions } = get();
-    if (!maskData || !maskDimensions) return 0;
-    if (x < 0 || x >= maskDimensions.width || y < 0 || y >= maskDimensions.height) {
-      return 0; // Out of bounds
-    }
-    const index = y * maskDimensions.width + x;
-    return maskData[index];
-  },
-
-  setMaskPixel: (x: number, y: number, classId: number) => {
-    const { maskData, maskDimensions } = get();
-    if (!maskData || !maskDimensions) return;
-    if (x < 0 || x >= maskDimensions.width || y < 0 || y >= maskDimensions.height) {
-      return; // Out of bounds
-    }
-    const index = y * maskDimensions.width + x;
-    
-    // Create new array to maintain immutability
-    const newMaskData = new Uint8Array(maskData);
-    newMaskData[index] = classId;
-    get().setMaskData(newMaskData, maskDimensions.width, maskDimensions.height);
-  },
-
-  getUserMaskPixel: (x: number, y: number) => {
-    const { userMaskData, maskDimensions } = get();
-    if (!userMaskData || !maskDimensions) return 0;
-    if (x < 0 || x >= maskDimensions.width || y < 0 || y >= maskDimensions.height) {
-      return 0; // Out of bounds
-    }
-    const index = y * maskDimensions.width + x;
-    return userMaskData[index];
-  },
-
-  setUserMaskPixel: (x: number, y: number, value: number) => {
-    const { userMaskData, maskDimensions } = get();
-    if (!userMaskData || !maskDimensions) return;
-    if (x < 0 || x >= maskDimensions.width || y < 0 || y >= maskDimensions.height) {
-      return; // Out of bounds
-    }
-    const index = y * maskDimensions.width + x;
-    
-    // Create new array to maintain immutability
-    const newUserMaskData = new Uint8Array(userMaskData);
-    newUserMaskData[index] = value;
-    get().setUserMaskData(newUserMaskData);
+  paintPixels: (indices: number[], classId: number | null) => {
+    const doc = get().maskDocument;
+    if (!doc) return;
+    if (classId === null) doc.erase(indices);
+    else doc.paint(indices, classId);
+    set({ maskRevision: doc.revision });
+    get().updateUserPixelCounts(doc.counts());
+    get().discardFuture();
+    get().setShowDialogueBeforeNextImage(true);
+    get().setMaskChanged(true);
   },
 
   clearMask: () => {
     set({ 
+      maskDocument: null,
       maskData: null,
       userMaskData: null,
       errorsMaskData: null,
@@ -1028,37 +913,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     const { userMaskData } = get();
     if (!userMaskData) return null;
     return new Uint8Array(userMaskData);
-  },
-
-  // Batch Updates for Performance
-  updateMaskRegion: (pixels: Array<{x: number, y: number, classId: number}>) => {
-    const { maskData, maskDimensions } = get();
-    if (!maskData || !maskDimensions) return;
-
-    const newMaskData = new Uint8Array(maskData);
-    pixels.forEach(({x, y, classId}) => {
-      if (x >= 0 && x < maskDimensions.width && y >= 0 && y < maskDimensions.height) {
-        const index = y * maskDimensions.width + x;
-        newMaskData[index] = classId;
-      }
-    });
-    get().setMaskData(newMaskData, maskDimensions.width, maskDimensions.height);
-  },
-
-  fillMaskRegion: (startX: number, startY: number, endX: number, endY: number, classId: number) => {
-    const { maskData, maskDimensions } = get();
-    if (!maskData || !maskDimensions) return;
-
-    const newMaskData = new Uint8Array(maskData);
-    for (let y = startY; y <= endY; y++) {
-      for (let x = startX; x <= endX; x++) {
-        if (x >= 0 && x < maskDimensions.width && y >= 0 && y < maskDimensions.height) {
-          const index = y * maskDimensions.width + x;
-          newMaskData[index] = classId;
-        }
-      }
-    }
-    get().setMaskData(newMaskData, maskDimensions.width, maskDimensions.height);
   },
 
   // History System Actions (replaces vars.history)
@@ -1172,11 +1026,14 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     const historicalMask = maskHistory[newEpoch];
     const historicalUserMask = userMaskHistory[newEpoch];
 
-    if (historicalMask && historicalUserMask) {
+    const doc = get().maskDocument;
+    if (historicalMask && historicalUserMask && doc) {
+      doc.replace(historicalMask, historicalUserMask);
       set({
-        maskData: new Uint8Array(historicalMask),
-        userMaskData: new Uint8Array(historicalUserMask),
-        historyCurrentEpoch: newEpoch
+        maskData: doc.final,
+        userMaskData: doc.user,
+        historyCurrentEpoch: newEpoch,
+        maskRevision: doc.revision,
       });
 
       // Update pixel counts and trigger re-render (only if classes are set)
@@ -1196,11 +1053,14 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     const historicalMask = maskHistory[newEpoch];
     const historicalUserMask = userMaskHistory[newEpoch];
 
-    if (historicalMask && historicalUserMask) {
+    const doc = get().maskDocument;
+    if (historicalMask && historicalUserMask && doc) {
+      doc.replace(historicalMask, historicalUserMask);
       set({
-        maskData: new Uint8Array(historicalMask),
-        userMaskData: new Uint8Array(historicalUserMask),
-        historyCurrentEpoch: newEpoch
+        maskData: doc.final,
+        userMaskData: doc.user,
+        historyCurrentEpoch: newEpoch,
+        maskRevision: doc.revision,
       });
 
       // Update pixel counts and trigger re-render (only if classes are set)
@@ -1261,15 +1121,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   // Debug state
   debugMode: false,
 
-  // Cursor Image State (replaces vars.cursor_image)
-  cursorImage: [0, 0], // Default cursor position
-
-  // Drag State (replaces vars.drag_start)
-  dragStart: null, // Default to no active drag
-
-  // Hidden Mask Canvas State (replaces vars.hidden_mask)
-  hiddenMaskCanvas: null, // Default to no canvas
-
   // Mask Area State (replaces vars.mask_area)
   maskArea: null, // Default to no mask area
 
@@ -1295,22 +1146,18 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
 
   setBrightness: (value: number) => {
     set({ brightness: Math.max(0, Math.min(800, value)) });
-    applyFiltersToLayers();
   },
 
   setSaturation: (value: number) => {
     set({ saturation: Math.max(0, Math.min(800, value)) });
-    applyFiltersToLayers();
   },
 
   setContrast: (enabled: boolean) => {
     set({ contrast: enabled });
-    applyFiltersToLayers();
   },
 
   setInvert: (enabled: boolean) => {
     set({ invert: enabled });
-    applyFiltersToLayers();
   },
 
   resetFilters: () => {
@@ -1320,7 +1167,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       contrast: false,
       invert: false
     });
-    applyFiltersToLayers();
   },
 
   changeBrightness: (up: boolean) => {
@@ -1337,89 +1183,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
 
   setExpandedFilterSlider: (sliderId: string | null) => {
     set({ expandedFilterSlider: sliderId });
-  },
-
-  setCursorImage: (coords: [number, number]) => {
-    // Validate coordinates are numbers
-    if (!Array.isArray(coords) || coords.length !== 2 || typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
-      console.warn('[IRIS] setCursorImage: Invalid coordinates provided', coords);
-      return;
-    }
-    
-    // Create a copy to ensure immutability
-    const coordsCopy: [number, number] = [coords[0], coords[1]];
-    set({ cursorImage: coordsCopy });
-  },
-
-  setDragStart: (coords: [number, number] | null) => {
-    // Validate coordinates if not null
-    if (coords !== null) {
-      if (!Array.isArray(coords) || coords.length !== 2 || 
-          typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
-        console.warn('[IRIS] setDragStart: Invalid coordinates provided', coords);
-        return;
-      }
-      // Create a copy to ensure immutability
-      const coordsCopy: [number, number] = [coords[0], coords[1]];
-      set({ dragStart: coordsCopy });
-    } else {
-      set({ dragStart: null });
-    }
-  },
-
-  // Hidden Mask Canvas Actions (replaces vars.hidden_mask)
-  setHiddenMaskCanvas: (canvas: HTMLCanvasElement | null) => {
-    set({ hiddenMaskCanvas: canvas });
-  },
-
-  createHiddenMaskCanvas: (width: number, height: number) => {
-    // Validate dimensions
-    if (typeof width !== 'number' || typeof height !== 'number' || width <= 0 || height <= 0) {
-      console.error('[IRIS] createHiddenMaskCanvas: Invalid dimensions provided', { width, height });
-      throw new Error(`Invalid canvas dimensions: ${width}x${height}`);
-    }
-    
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      
-      // Configure canvas for optimal mask rendering (same as legacy)
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'transparent';
-        ctx.imageSmoothingEnabled = false;
-      } else {
-        console.error('[IRIS] createHiddenMaskCanvas: Failed to get 2D context');
-        throw new Error('Failed to get 2D context for hidden mask canvas');
-      }
-      
-      // Set the canvas in the store
-      get().setHiddenMaskCanvas(canvas);
-      
-      return canvas;
-    } catch (error) {
-      console.error('[IRIS] createHiddenMaskCanvas failed:', error);
-      throw error;
-    }
-  },
-
-  getHiddenMaskContext: () => {
-    const canvas = get().hiddenMaskCanvas;
-    if (!canvas) {
-      console.warn('[IRIS] getHiddenMaskContext: No hidden mask canvas available');
-      return null;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.error('[IRIS] getHiddenMaskContext: Failed to get 2D context');
-    }
-    
-    return ctx;
   },
 
   // Mask Area Actions (replaces vars.mask_area)
@@ -1465,22 +1228,11 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       if (currentBtn) currentBtn.classList.add('checked');
     }
     
-    if (w.render_preview) {
-      w.render_preview();
-    }
   },
 
   setToolSize: (size: number) => {
     const clampedSize = Math.max(1, Math.min(size, 100)); // Reasonable bounds: 1-100 pixels
     set({ toolSize: clampedSize });
-    
-    const w = window as any;
-    if (w.render_preview) {
-      w.render_preview();
-    }
-    
-    // Trigger React preview layer re-render
-    window.dispatchEvent(new CustomEvent('react-preview-render'));
   },
 
   setToolResizingMode: (resizing: boolean) => {
@@ -1496,14 +1248,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     }
     
     set({ toolShape: shape });
-    
-    const w = window as any;
-    if (w.render_preview) {
-      w.render_preview();
-    }
-    
-    // Trigger React preview layer re-render
-    window.dispatchEvent(new CustomEvent('react-preview-render'));
   },
 
   setShowDrawToolDropdown: (show: boolean) => {
@@ -1567,22 +1311,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       const newBtn = w.get_object(`tb_mask_${type}`);
       if (newBtn) newBtn.classList.add('checked');
     }
-    
-    // Trigger legacy mask reload and render
-    if (w.reload_hidden_mask) {
-      try {
-        w.reload_hidden_mask();
-      } catch (e) {
-        console.error('[Store] Error in reload_hidden_mask:', e);
-      }
-    }
-    if (w.render_mask) {
-      try {
-        w.render_mask();
-      } catch (e) {
-        console.error('[Store] Error in render_mask:', e);
-      }
-    }
   },
 
   setClasses: (classes: ClassConfig[]) => {
@@ -1616,6 +1344,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     });
 
     set({ classes: validClasses });
+    get().maskDocument?.setClassCount(Math.max(validClasses.length, 1));
 
     // Update current class if it's now out of bounds
     const { currentClass } = get();
@@ -2354,10 +2083,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       maskType: state.maskType,
       classesCount: state.classes.length,
       totalUserPixels: state.userPixelCounts.total,
-      // Mouse & Canvas State debug info
-      cursorImage: state.cursorImage,
-      dragStart: state.dragStart,
-      isDragging: state.dragStart !== null,
       // PHASE 2: Navigation & Actions debug info
       hasConfig: state.config !== null,
       hasUser: state.user !== null,
@@ -2404,17 +2129,10 @@ if (typeof window !== 'undefined') {
   (window as any).setJustLoggedInInStore = setJustLoggedInInStore;
   (window as any).getToolSizeFromStore = getToolSizeFromStore;
   (window as any).getToolResizingModeFromStore = getToolResizingModeFromStore;
-  (window as any).getCursorImageFromStore = getCursorImageFromStore;
-  (window as any).setCursorImageInStore = setCursorImageInStore;
   (window as any).getCurrentToolFromStore = getCurrentToolFromStore;
   (window as any).setCurrentToolInStore = setCurrentToolInStore;
-  (window as any).getDragStartFromStore = getDragStartFromStore;
-  (window as any).setDragStartInStore = setDragStartInStore;
   (window as any).getToolShapeFromStore = getToolShapeFromStore;
   (window as any).setToolShapeInStore = setToolShapeInStore;
-  (window as any).getHiddenMaskCanvasFromStore = getHiddenMaskCanvasFromStore;
-  (window as any).getHiddenMaskContextFromStore = getHiddenMaskContextFromStore;
-  (window as any).createHiddenMaskCanvasFromStore = createHiddenMaskCanvasFromStore;
   
   // Export mask area helper functions for legacy JavaScript
   (window as any).getMaskAreaFromStore = getMaskAreaFromStore;
@@ -2427,10 +2145,6 @@ if (typeof window !== 'undefined') {
   (window as any).setUserMaskDataInStore = setUserMaskDataInStore;
   (window as any).getErrorsMaskDataFromStore = getErrorsMaskDataFromStore;
   (window as any).setErrorsMaskDataInStore = setErrorsMaskDataInStore;
-  (window as any).getMaskPixelFromStore = getMaskPixelFromStore;
-  (window as any).setMaskPixelInStore = setMaskPixelInStore;
-  (window as any).getUserMaskPixelFromStore = getUserMaskPixelFromStore;
-  (window as any).setUserMaskPixelInStore = setUserMaskPixelInStore;
   (window as any).copyMaskFromStore = copyMaskFromStore;
   (window as any).copyUserMaskFromStore = copyUserMaskFromStore;
   (window as any).getMaskTypeFromStore = getMaskTypeFromStore;

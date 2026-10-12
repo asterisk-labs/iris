@@ -25,47 +25,6 @@
 
 import type { ProjectConfig, ClassConfig } from '../types/iris';
 
-// Bridge function to trigger React mask layer renders from legacy code
-export const triggerReactMaskRender = (bbox?: [number, number, number, number]) => {
-  const event = new CustomEvent('react-mask-render', { 
-    detail: { bbox } 
-  });
-  window.dispatchEvent(event);
-};
-
-// Bridge function to trigger React preview layer renders from legacy code
-export const triggerReactPreviewRender = () => {
-  const event = new CustomEvent('react-preview-render');
-  window.dispatchEvent(event);
-};
-
-// Bridge function to get React layers (similar to legacy vm.getLayers)
-export const getReactLayers = (type?: string) => {
-  const w = window as any;
-  const allLayers = [
-    ...(w.reactRGBLayers || []),
-    ...(w.reactMaskLayers || []),
-    ...(w.reactPreviewLayers || []),
-    ...(w.reactBingLayers || []),
-  ];
-  
-  if (type) {
-    return allLayers.filter((layer: any) => layer.type === type);
-  }
-  
-  return allLayers;
-};
-
-// Bridge function to render all React layers
-export const renderAllReactLayers = (layerType?: string) => {
-  const layers = getReactLayers(layerType);
-  layers.forEach((layer: any) => {
-    if (layer.render) {
-      layer.render();
-    }
-  });
-};
-
 // Initialize legacy bridge functions on window
 if (typeof window !== 'undefined') {
   const w = window as any;
@@ -457,67 +416,5 @@ if (typeof window !== 'undefined') {
     }
     console.warn('[IRIS Migration] getPrevImageIdFromStore: React store not available');
     return null;
-  };
-  
-  // Override legacy render_mask function to also trigger React renders
-  const originalRenderMask = w.render_mask;
-  w.render_mask = (bbox?: [number, number, number, number]) => {    
-    // Call original legacy function
-    if (originalRenderMask) {
-      originalRenderMask(bbox);
-    }
-    
-    // For React mask renders, we need to be careful about bbox handling
-    // If bbox is provided, check if we're using a round brush
-    let reactBbox = bbox;
-    if (bbox && w.getToolShapeFromStore) {
-      const toolShape = w.getToolShapeFromStore();
-      if (toolShape === 'round') {
-        // For round brushes, force full re-render to show circular shape properly
-        console.log('[IRIS] Legacy bridge: forcing full re-render for round brush');
-        reactBbox = undefined;
-      }
-    }
-    
-    // Trigger React mask renders
-    triggerReactMaskRender(reactBbox);
-  };
-  
-  // Override legacy zoom function to trigger React re-renders
-  const originalZoom = w.zoom;
-  w.zoom = (delta: number) => {
-    // Call original legacy zoom function
-    if (originalZoom) {
-      originalZoom(delta);
-    }
-    
-    // Trigger React canvas re-renders after zoom
-    setTimeout(() => {
-      const event = new CustomEvent('iris-transform-change');
-      window.dispatchEvent(event);
-    }, 0);
-  };
-  
-  // Override legacy move function to trigger React re-renders
-  const originalMove = w.move;
-  w.move = (dx: number, dy: number) => {
-    // Call original legacy move function
-    if (originalMove) {
-      originalMove(dx, dy);
-    }
-    
-    // Trigger React canvas re-renders after move
-    setTimeout(() => {
-      const event = new CustomEvent('iris-transform-change');
-      window.dispatchEvent(event);
-    }, 0);
-  };
-  
-  // Expose bridge functions globally for debugging
-  w.reactBridge = {
-    triggerReactMaskRender,
-    triggerReactPreviewRender,
-    getReactLayers,
-    renderAllReactLayers,
   };
 }

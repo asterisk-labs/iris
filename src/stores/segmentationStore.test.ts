@@ -49,26 +49,6 @@ describe('segmentationStore - Filter Functions', () => {
     expect(useSegmentationStore.getState().brightness).toBe(790);
   });
 
-  it('applies filters as CSS to RGB canvases only, and reset clears them', () => {
-    const rgb = document.createElement('canvas');
-    rgb.className = 'view-canvas';
-    const mask = document.createElement('canvas');
-    mask.className = 'view-canvas mask-canvas';
-    document.body.append(rgb, mask);
-
-    const store = useSegmentationStore.getState();
-    store.setBrightness(150);
-    store.setContrast(true);
-    store.setInvert(true);
-    expect(rgb.style.filter).toBe('invert(1) brightness(150%) contrast(200%) saturate(100%)');
-    expect(mask.style.filter).toBe('');
-
-    store.resetFilters();
-    expect(rgb.style.filter).toBe('brightness(100%) saturate(100%)');
-
-    rgb.remove();
-    mask.remove();
-  });
 
   it('handles slider expansion', () => {
     const store = useSegmentationStore.getState();
@@ -113,24 +93,6 @@ describe('segmentationStore - Tool Resizing Mode Migration', () => {
   });
 });
 
-describe('segmentationStore - Cursor Image Migration', () => {
-  it('manages cursor coordinates', () => {
-    const store = useSegmentationStore.getState();
-    
-    store.setCursorImage([100, 200]);
-    expect(useSegmentationStore.getState().cursorImage).toEqual([100, 200]);
-  });
-
-  it('validates coordinate input', () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    
-    useSegmentationStore.getState().setCursorImage([100] as any);
-    expect(consoleSpy).toHaveBeenCalledWith('[IRIS] setCursorImage: Invalid coordinates provided', [100]);
-    
-    consoleSpy.mockRestore();
-  });
-});
-
 describe('segmentationStore - Tool Type Migration', () => {
   it('manages tool type', () => {
     const store = useSegmentationStore.getState();
@@ -144,27 +106,6 @@ describe('segmentationStore - Tool Type Migration', () => {
     
     useSegmentationStore.getState().setCurrentTool('invalid' as any);
     expect(consoleSpy).toHaveBeenCalledWith('[IRIS] setCurrentTool: Invalid tool type provided', 'invalid');
-    
-    consoleSpy.mockRestore();
-  });
-});
-
-describe('segmentationStore - Drag Start Migration', () => {
-  it('manages drag coordinates', () => {
-    const store = useSegmentationStore.getState();
-    
-    store.setDragStart([100, 200]);
-    expect(useSegmentationStore.getState().dragStart).toEqual([100, 200]);
-    
-    store.setDragStart(null);
-    expect(useSegmentationStore.getState().dragStart).toBe(null);
-  });
-
-  it('validates coordinate input', () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    
-    useSegmentationStore.getState().setDragStart([100] as any);
-    expect(consoleSpy).toHaveBeenCalledWith('[IRIS] setDragStart: Invalid coordinates provided', [100]);
     
     consoleSpy.mockRestore();
   });

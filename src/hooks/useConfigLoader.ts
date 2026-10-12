@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useSegmentationStore } from '../stores/segmentationStore';
 import { useViewManagerStore } from '../stores/viewManagerStore';
+import { imageSizeFromShape } from '../segmentation/geometry/transform';
 
 export interface ConfigLoaderResult {
   loading: boolean;
@@ -116,10 +117,9 @@ export const useConfigLoader = (): ConfigLoaderResult => {
         }
       }
 
-      // Set image dimensions
-      if (config.images?.shape && Array.isArray(config.images.shape) && config.images.shape.length >= 2) {
-        const [width, height] = config.images.shape;
-        viewManagerStore.setImageDimensions(width, height);
+      const imageSize = imageSizeFromShape(config.images?.shape);
+      if (imageSize) {
+        viewManagerStore.setImageDimensions(imageSize.width, imageSize.height);
       }
 
       // Set mask area and calculate mask dimensions

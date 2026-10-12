@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import { ViewTransform, readViewTransform, applyViewTransform } from '../utils/viewTransform';
+import type { ViewTransform } from '../segmentation/geometry/transform';
 
 export interface ViewConfig {
   name: string;
@@ -42,9 +42,6 @@ export interface ViewManagerState {
   /** Zoom/pan in image-space terms, carried across viewport remounts */
   viewTransform: ViewTransform | null;
 
-  // Canvas coordinates [x, y] of the cursor in pixels (replaces vars.cursor_canvas)
-  canvasMousePosition: [number, number];
-
   // Keyboard filter shortcuts write here; see docs/agents/FINISH_MIGRATION_PLAN.md bug 1
   filters: ViewFilters;
 
@@ -67,7 +64,6 @@ export interface ViewManagerState {
   getImageAspectRatio: () => number;
 
   setCurrentView: (viewName: string | null) => void;
-  setCanvasMousePosition: (coords: [number, number]) => void;
 
   addView: (name: string, position?: number) => void;
   removeView: (position: number) => void;
@@ -76,14 +72,9 @@ export interface ViewManagerState {
   showGroup: (groupName: string) => void;
   getCurrentViews: () => ViewConfig[];
 
-  renderMask: (bbox?: number[]) => void;
-  renderPreview: () => void;
-  updateViews: () => void;
-
-  zoomCanvas: (delta: number) => void;
-  moveCanvas: (dx: number, dy: number) => void;
+  /** Zoom and pan shared by all view canvases; null is the default fit view. */
+  setViewTransform: (t: ViewTransform | null) => void;
   resetCanvas: () => void;
-  captureViewTransform: () => void;
 
   updateSize: () => void;
   calculateViewDimensions: () => [number, number];
@@ -120,8 +111,6 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
   currentView: null,
 
   viewTransform: null,
-
-  canvasMousePosition: [0, 0],
 
   filters: {
     contrast: false,
@@ -227,17 +216,6 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
     set({ currentView });
   },
 
-  setCanvasMousePosition: (coords) => {
-    if (!Array.isArray(coords) || coords.length !== 2 ||
-        typeof coords[0] !== 'number' || typeof coords[1] !== 'number' ||
-        isNaN(coords[0]) || isNaN(coords[1])) {
-      console.warn('[IRIS] setCanvasMousePosition: Invalid coordinates', coords);
-      return;
-    }
-
-    set({ canvasMousePosition: [coords[0], coords[1]] });
-  },
-
   addView: (name, position = -1) => {
     const { viewGroups, currentGroup } = get();
     const newGroups = { ...viewGroups };
@@ -315,101 +293,9 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
     return viewNames.map(name => views[name]).filter(Boolean);
   },
 
-  renderMask: (bbox) => {
-    window.dispatchEvent(new CustomEvent('react-mask-render', { detail: { bbox } }));
-  },
+  setViewTransform: (viewTransform) => set({ viewTransform }),
 
-  renderPreview: () => {
-    window.dispatchEvent(new CustomEvent('react-preview-render'));
-  },
-
-  updateViews: () => {
-    // Recompute the cursor's image coordinates under the new transform
-    const w = window as any;
-    const oneCanvas = document.getElementsByClassName("view-canvas")[0] as HTMLCanvasElement;
-    if (oneCanvas) {
-      const ctx = oneCanvas.getContext("2d") as any;
-      if (ctx && ctx.getWorldCoords) {
-        const { canvasMousePosition } = get();
-        const imageCoords = ctx.getWorldCoords(...canvasMousePosition);
-        if (w.setCursorImageInStore) {
-          w.setCursorImageInStore(imageCoords.x, imageCoords.y);
-        }
-      }
-    }
-
-    window.dispatchEvent(new CustomEvent('iris-update-views'));
-  },
-
-  zoomCanvas: (delta) => {
-    const factor = Math.pow(1.1, delta);
-
-    const w = window as any;
-    if (w.getCursorImageFromStore) {
-      const cursorImage = w.getCursorImageFromStore();
-
-      for (const canvas of document.getElementsByClassName('view-canvas')) {
-        const ctx = (canvas as HTMLCanvasElement).getContext('2d') as any;
-        if (ctx) {
-          ctx.translate(...cursorImage);
-          ctx.scale(factor, factor);
-          ctx.translate(-cursorImage[0], -cursorImage[1]);
-
-          if (w.constrain_view) {
-            w.constrain_view(ctx, factor, 0, 0);
-          }
-        }
-      }
-    }
-
-    get().captureViewTransform();
-    get().updateViews();
-  },
-
-  moveCanvas: (dx, dy) => {
-    if (dx === 0 && dy === 0) return;
-
-    const w = window as any;
-    for (const canvas of document.getElementsByClassName('view-canvas')) {
-      const ctx = (canvas as HTMLCanvasElement).getContext('2d') as any;
-      if (ctx) {
-        ctx.translate(dx, dy);
-        if (w.constrain_view) {
-          w.constrain_view(ctx, 1, dx, dy);
-        }
-      }
-    }
-
-    get().captureViewTransform();
-    get().updateViews();
-  },
-
-  resetCanvas: () => {
-    set({ viewTransform: null });
-
-    // Put every view canvas back to the default fit-to-canvas view
-    const w = window as any;
-    const imageShape = w.getImageShapeFromStore ? w.getImageShapeFromStore() : null;
-    if (imageShape) {
-      for (const canvas of document.getElementsByClassName('view-canvas')) {
-        const el = canvas as HTMLCanvasElement;
-        const ctx = el.getContext('2d');
-        if (ctx) applyViewTransform(ctx, el, imageShape, null);
-      }
-    }
-
-    get().updateViews();
-    window.dispatchEvent(new CustomEvent('iris-transform-change'));
-  },
-
-  captureViewTransform: () => {
-    const w = window as any;
-    const imageShape = w.getImageShapeFromStore ? w.getImageShapeFromStore() : null;
-    const canvas = document.getElementsByClassName('view-canvas')[0] as HTMLCanvasElement | undefined;
-    if (!imageShape || !canvas) return;
-    const viewTransform = readViewTransform(canvas, imageShape);
-    if (viewTransform) set({ viewTransform });
-  },
+  resetCanvas: () => set({ viewTransform: null }),
 
   updateSize: () => {
     get().updateViewDimensions();
@@ -486,34 +372,6 @@ if (typeof window !== 'undefined') {
 
   w.getImageLocationFromStore = (): [number, number] => {
     return useViewManagerStore.getState().imageLocation;
-  };
-
-  w.setCanvasMousePositionInStore = (x: number, y: number) => {
-    useViewManagerStore.getState().setCanvasMousePosition([x, y]);
-  };
-
-  w.getImageShapeFromStore = (): [number, number] | null => {
-    return useViewManagerStore.getState().getImageShape();
-  };
-
-  w.updateViewsFromStore = () => {
-    useViewManagerStore.getState().updateViews();
-  };
-
-  w.renderMaskFromStore = (bbox?: number[]) => {
-    useViewManagerStore.getState().renderMask(bbox);
-  };
-
-  w.renderPreviewFromStore = () => {
-    useViewManagerStore.getState().renderPreview();
-  };
-
-  w.zoomCanvasFromStore = (delta: number) => {
-    useViewManagerStore.getState().zoomCanvas(delta);
-  };
-
-  w.moveCanvasFromStore = (dx: number, dy: number) => {
-    useViewManagerStore.getState().moveCanvas(dx, dy);
   };
 
   w.resetCanvasFromStore = () => {

@@ -188,28 +188,6 @@ const SegmentationApp: React.FC = () => {
         const imageLocation = useViewManagerStore.getState().imageLocation || [0, 0];
         useViewManagerStore.getState().setImage(currentImageId, imageLocation);
         if (w.IRIS_DEBUG) console.log('✅ React: Image set in viewManagerStore:', currentImageId);
-        
-        // Verify critical components are available from store (debug only)
-        if (w.IRIS_DEBUG) {
-          const maskData = w.getMaskDataFromStore ? w.getMaskDataFromStore() : null;
-          const userMaskData = w.getUserMaskDataFromStore ? w.getUserMaskDataFromStore() : null;
-          const hiddenMaskContext = w.getHiddenMaskContextFromStore ? w.getHiddenMaskContextFromStore() : null;
-          
-          if (hiddenMaskContext && maskData && userMaskData) {
-            console.log('✅ React: All mask components verified from store:', {
-              hasHiddenMaskContext: !!hiddenMaskContext,
-              maskLength: maskData.length,
-              userMaskLength: userMaskData.length,
-              maskShape: w.getMaskShapeFromStore ? w.getMaskShapeFromStore() : null
-            });
-          } else {
-            console.warn('⚠️ React: Some mask components missing after init_views', {
-              hasHiddenMaskContext: !!hiddenMaskContext,
-              hasMaskData: !!maskData,
-              hasUserMaskData: !!userMaskData
-            });
-          }
-        }
       } else {
         console.error('❌ React: init_views function not available');
       }

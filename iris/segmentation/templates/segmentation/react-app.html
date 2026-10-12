@@ -22,7 +22,7 @@
         window.legacyScriptsReady = true;
         
         // Verify critical functions are available (only show errors)
-        if (typeof window.init_views === 'undefined' || typeof window.mouse_wheel === 'undefined') {
+        if (typeof window.init_views === 'undefined') {
             console.error('❌ CRITICAL: Legacy functions not exported! Check segmentation.js');
         }
     </script>

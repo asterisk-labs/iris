@@ -9,10 +9,8 @@ import React, { useRef, useState } from 'react';
 import { ViewConfig } from '../../stores/viewManagerStore';
 import { useViewManagerStore } from '../../stores/viewManagerStore';
 import { useTheme } from '../../contexts/ThemeContext';
-import ReactRGBLayer from './layers/ReactRGBLayer';
-import ReactMaskLayer from './layers/ReactMaskLayer';
-import ReactPreviewLayer from './layers/ReactPreviewLayer';
 import ReactBingLayer from './layers/ReactBingLayer';
+import ViewportCanvases from './ViewportCanvases';
 
 interface ReactViewPortProps {
   view: ViewConfig;
@@ -199,15 +197,8 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
     >
       {/* Layers Container */}
       <div style={layersContainerStyle}>
-        {/* RGB/Image Layer */}
         {view.type === 'image' && (
-          <ReactRGBLayer
-            view={view}
-            width={width}
-            height={height}
-            imageId={imageId}
-            zIndex={1}
-          />
+          <ViewportCanvases view={view} imageId={imageId} />
         )}
 
         {/* Bing Map Layer */}
@@ -218,26 +209,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             height={height}
             onLocationChange={onImageLocationChange}
             zIndex={1}
-          />
-        )}
-
-        {/* Mask Layer (only for image views) */}
-        {view.type === 'image' && (
-          <ReactMaskLayer
-            view={view}
-            width={width}
-            height={height}
-            zIndex={2}
-          />
-        )}
-
-        {/* Preview Layer (only for image views) */}
-        {view.type === 'image' && (
-          <ReactPreviewLayer
-            view={view}
-            width={width}
-            height={height}
-            zIndex={3}
           />
         )}
       </div>

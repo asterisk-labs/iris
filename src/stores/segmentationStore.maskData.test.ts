@@ -28,6 +28,7 @@ const mockWindow = {
 beforeEach(() => {
   // Reset store state
   useSegmentationStore.setState({
+    maskDocument: null,
     maskData: null,
     userMaskData: null,
     errorsMaskData: null,
@@ -64,13 +65,8 @@ describe('Core Mask Data Operations', () => {
     expect(state.maskData).toEqual(testData);
     expect(state.maskDimensions).toEqual({ width: 2, height: 2 });
     
-    // Test pixel access
-    expect(state.getMaskPixel(0, 0)).toBe(1);
-    expect(state.getMaskPixel(1, 1)).toBe(4);
-    
-    // Test bounds checking
-    expect(state.getMaskPixel(-1, 0)).toBe(0);
-    expect(state.getMaskPixel(2, 0)).toBe(0);
+    expect(state.maskData![0]).toBe(1);
+    expect(state.maskData![3]).toBe(4);
   });
 
   test('validates input data and handles errors', () => {
@@ -101,8 +97,8 @@ describe('Core Mask Data Operations', () => {
     // Modify original array
     originalData[0] = 99;
     
-    // Stored data should be unchanged (immutable copy)
-    expect(store.getMaskPixel(0, 0)).toBe(1);
+    // Stored data should be unchanged (copied in)
+    expect(useSegmentationStore.getState().maskData![0]).toBe(1);
   });
 
   test('calculates pixel counts correctly', () => {
@@ -146,12 +142,6 @@ describe('User Mask Data Management', () => {
     // Get fresh state after update
     const updatedStore = useSegmentationStore.getState();
     expect(updatedStore.userMaskData).toEqual(userMaskData);
-    expect(updatedStore.getUserMaskPixel(0, 0)).toBe(1);
-    expect(updatedStore.getUserMaskPixel(1, 0)).toBe(0);
-    
-    // Test setting user mask pixels
-    updatedStore.setUserMaskPixel(1, 0, 1);
-    expect(store.getUserMaskPixel(1, 0)).toBe(1);
   });
 
   test('validates user mask dimensions', () => {
@@ -239,28 +229,47 @@ describe('History System', () => {
   });
 });
 
-describe('Batch Operations & Performance', () => {
-  test('handles batch operations efficiently', () => {
+describe('Painting', () => {
+  test('paintPixels paints and erases through the mask document', () => {
     const store = useSegmentationStore.getState();
-    
-    store.setMaskData(new Uint8Array([0, 0, 0, 0]), 2, 2);
-    
-    const updates = [
-      { x: 0, y: 0, classId: 1 },
-      { x: 1, y: 1, classId: 2 }
-    ];
-    
-    store.updateMaskRegion(updates);
-    
-    expect(store.getMaskPixel(0, 0)).toBe(1);
-    expect(store.getMaskPixel(1, 1)).toBe(2);
-    expect(store.getMaskPixel(1, 0)).toBe(0); // Unchanged
-    
-    // Test fill region
-    store.fillMaskRegion(0, 0, 1, 1, 5);
-    expect(store.getMaskPixel(0, 0)).toBe(5);
-    expect(store.getMaskPixel(1, 1)).toBe(5);
+    store.setClasses([
+      { name: 'a', colour: [0, 0, 0, 255] },
+      { name: 'b', colour: [255, 0, 0, 255] },
+    ]);
+    store.setMaskData(new Uint8Array(4), 2, 2);
+    store.setUserMaskData(new Uint8Array(4));
+    const before = useSegmentationStore.getState().maskRevision;
+
+    store.paintPixels([1, 3], 1);
+    let state = useSegmentationStore.getState();
+    expect(Array.from(state.maskData!)).toEqual([0, 1, 0, 1]);
+    expect(Array.from(state.userMaskData!)).toEqual([0, 1, 0, 1]);
+    expect(state.userPixelCounts).toEqual({ 0: 0, 1: 2, total: 2 });
+    expect(state.maskRevision).toBeGreaterThan(before);
+    expect(state.maskChanged).toBe(true);
+
+    store.paintPixels([3], null);
+    state = useSegmentationStore.getState();
+    expect(Array.from(state.maskData!)).toEqual([0, 1, 0, 0]);
+    expect(state.userPixelCounts.total).toBe(1);
   });
+
+  test('undo restores an earlier state into the same document', () => {
+    const store = useSegmentationStore.getState();
+    store.setMaskData(new Uint8Array(4), 2, 2);
+    store.setUserMaskData(new Uint8Array(4));
+    store.updateHistory();
+    const doc = useSegmentationStore.getState().maskDocument;
+    store.paintPixels([0], 1);
+    store.updateHistory();
+    store.undo();
+    const state = useSegmentationStore.getState();
+    expect(state.maskDocument).toBe(doc);
+    expect(Array.from(state.maskData!)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('Performance', () => {
 
   test('handles large mask data efficiently', () => {
     const store = useSegmentationStore.getState();
@@ -282,13 +291,14 @@ describe('Batch Operations & Performance', () => {
     expect(endTime - startTime).toBeLessThan(50);
     
     // Verify data integrity
-    expect(store.getMaskPixel(0, 0)).toBe(0);
-    expect(store.getMaskPixel(511, 511)).toBe((511 * 512 + 511) % 256);
+    const stored = useSegmentationStore.getState().maskData!;
+    expect(stored[0]).toBe(0);
+    expect(stored[511 * 512 + 511]).toBe((511 * 512 + 511) % 256);
     
     // Test cleanup
     store.clearMask();
-    expect(store.maskData).toBeNull();
-    expect(store.maskHistory).toEqual([]);
+    expect(useSegmentationStore.getState().maskData).toBeNull();
+    expect(useSegmentationStore.getState().maskHistory).toEqual([]);
   });
 });
 
@@ -297,7 +307,6 @@ describe('Error Handling', () => {
     const store = useSegmentationStore.getState();
     
     // Operations on null mask should not crash
-    expect(store.getMaskPixel(0, 0)).toBe(0);
     expect(store.copyMask()).toBeNull();
     
     const counts = store.calculatePixelCounts();
@@ -307,6 +316,6 @@ describe('Error Handling', () => {
     store.setMaskData(new Uint8Array([1, 2, 3, 4]), 2, 2);
     const copy = store.copyMask();
     expect(copy).toEqual(new Uint8Array([1, 2, 3, 4]));
-    expect(copy).not.toBe(store.maskData); // Should be different object
+    expect(copy).not.toBe(useSegmentationStore.getState().maskData); // Should be different object
   });
 });

@@ -10,6 +10,7 @@ import ReactViewManager from './ReactViewManager';
 import ErrorBoundary from './ErrorBoundary';
 import { useViewManagerStore } from '../../stores/viewManagerStore';
 import { useSegmentationStore } from '../../stores/segmentationStore';
+import { imageSizeFromShape } from '../../segmentation/geometry/transform';
 
 interface ViewerComparisonProps {
   // Props interface kept for future extensibility
@@ -78,13 +79,9 @@ const ViewerComparison: React.FC<ViewerComparisonProps> = () => {
           }
         }
 
-        // Set image dimensions from React config
-        if (config.images && typeof config.images === 'object' && 'shape' in config.images) {
-          const shape = (config.images as any).shape;
-          if (Array.isArray(shape) && shape.length >= 2) {
-            const [width, height] = shape;
-            viewManagerStore.setImageDimensions(width, height);
-          }
+        const imageSize = imageSizeFromShape((config.images as any)?.shape);
+        if (imageSize) {
+          viewManagerStore.setImageDimensions(imageSize.width, imageSize.height);
         }
 
         // Set current image from store
