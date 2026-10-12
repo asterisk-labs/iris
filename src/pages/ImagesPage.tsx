@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ImageData, ImagesApiResponse } from '../types/iris';
+import { imageUrl } from '../services/http';
 
-// Declare global function from base.html
-declare global {
-  interface Window {
-    goto_image: (mode: string, imageId: string) => void;
-  }
-}
 
 const ImagesPage: React.FC = () => {
   const [images, setImages] = useState<ImageData[]>([]);
@@ -84,9 +79,7 @@ const ImagesPage: React.FC = () => {
   }, [orderBy, isAscending]);
 
   const handleGotoImage = (imageId: string) => {
-    if (window.goto_image) {
-      window.goto_image('segmentation', imageId);
-    }
+    window.open(imageUrl(imageId));
   };
 
   if (isLoading) {

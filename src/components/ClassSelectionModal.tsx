@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../stores/segmentationStore';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -14,7 +15,7 @@ interface ClassSelectionModalProps {
  * descriptions, and pixel counts. Allows users to select a class for drawing.
  */
 const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({ isOpen, onClose }) => {
-  const { classes, userPixelCounts, currentClass, setCurrentClass } = useSegmentationStore();
+  const { classes, userPixelCounts, currentClass, setCurrentClass } = useSegmentationStore(useShallow(s => ({ classes: s.classes, userPixelCounts: s.userPixelCounts, currentClass: s.currentClass, setCurrentClass: s.setCurrentClass })));
   const { theme } = useTheme();
 
   useEffect(() => {

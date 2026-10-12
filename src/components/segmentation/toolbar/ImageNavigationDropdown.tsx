@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../../stores/segmentationStore';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -18,7 +19,7 @@ interface ImageNavigationDropdownProps {
 export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = ({
   onNavigate,
 }) => {
-  const { images, currentImageId } = useSegmentationStore();
+  const { images, currentImageId } = useSegmentationStore(useShallow(s => ({ images: s.images, currentImageId: s.currentImageId })));
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

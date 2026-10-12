@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import ToolButton from './ToolButton';
 import { useSegmentationStore } from '../../../stores/segmentationStore';
 
@@ -21,27 +22,15 @@ const PaintbrushSelector: React.FC<PaintbrushSelectorProps> = ({
   onClick,
   disabled = false,
   title,
-  dropdownType,
   label,
   style,
 }) => {
-  const { 
-    showDrawToolDropdown,
-    showEraserToolDropdown,
-    setShowDrawToolDropdown,
-    setShowEraserToolDropdown,
-    toolShape, 
-    setToolShape, 
-    toolSize, 
-    setToolSize 
-  } = useSegmentationStore();
+  const { toolShape, setToolShape, toolSize, setToolSize } = useSegmentationStore(useShallow(s => ({ toolShape: s.toolShape, setToolShape: s.setToolShape, toolSize: s.toolSize, setToolSize: s.setToolSize })));
+  const [showDropdown, setShowDropdown] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  // Determine which dropdown state to use based on type
-  const showDropdown = dropdownType === 'draw' ? showDrawToolDropdown : showEraserToolDropdown;
-  const setShowDropdown = dropdownType === 'draw' ? setShowDrawToolDropdown : setShowEraserToolDropdown;
 
   // Calculate dropdown position
   const getDropdownPosition = () => {
