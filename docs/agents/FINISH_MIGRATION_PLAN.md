@@ -150,6 +150,14 @@ description. Below, **[port]** marks bugs fixed by the rewrite and
     prediction triggers the pixel-count update, which writes "Start the
     training!" over it. S3 derives the hint: worst class after a
     prediction, until the next edit.
+16. **[port] Picking an image while the action info cannot be fetched
+    went to the next image** instead of the one picked. Fixed with the
+    navigation rewrite.
+17. **[port] Shortcuts fired while typing in modals.** The legacy
+    `body.onkeydown` stayed active under every modal except the legacy
+    dialogue, so typing "s" in a profile field saved the mask. The new
+    shortcut hook is off while any modal is open and ignores form fields
+    and Ctrl/Cmd/Alt combinations.
 
 ---
 

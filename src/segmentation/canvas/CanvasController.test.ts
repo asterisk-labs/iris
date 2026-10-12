@@ -51,7 +51,7 @@ describe('CanvasController', () => {
       maskDocument: null, maskData: null, userMaskData: null, maskDimensions: null,
       maskHistory: [], userMaskHistory: [], historyCurrentEpoch: 0,
       currentTool: 'draw', toolSize: 1, toolShape: 'square', currentClass: 1,
-      toolResizingMode: false, showMask: true, maskType: 'final',
+      showMask: true, maskType: 'final',
     });
     const s = useSegmentationStore.getState();
     s.setClasses([
@@ -120,9 +120,9 @@ describe('CanvasController', () => {
     expect(t.originX).toBeCloseTo(50 + (0 - 50) / 1.1);
   });
 
-  it('resizes the brush with the wheel in resizing mode', () => {
-    useSegmentationStore.setState({ toolResizingMode: true, toolSize: 10 });
-    vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 100 }));
+  it('resizes the brush with Shift+wheel (which browsers report as horizontal)', () => {
+    useSegmentationStore.setState({ toolSize: 10 });
+    vp.canvases.preview.dispatchEvent(new WheelEvent('wheel', { deltaX: -100, shiftKey: true, clientX: 100, clientY: 100 }));
     expect(useSegmentationStore.getState().toolSize).toBe(15);
     expect(useViewManagerStore.getState().viewTransform).toBeNull();
   });

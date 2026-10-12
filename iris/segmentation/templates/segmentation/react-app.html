@@ -14,18 +14,6 @@
     <!-- Load all existing CSS and JavaScript exactly as before -->
     <link rel="stylesheet" href="{{ url_for('segmentation.static', filename='css/segmentation.css') }}">
 
-    <script type="text/javascript" src="{{ url_for('segmentation.static', filename='javascripts/segmentation.js') }}"></script>
-    
-    <!-- CRITICAL: Signal that legacy scripts are fully loaded -->
-    <script type="text/javascript">
-        // Mark legacy scripts as ready
-        window.legacyScriptsReady = true;
-        
-        // Verify critical functions are available (only show errors)
-        if (typeof window.init_views === 'undefined') {
-            console.error('❌ CRITICAL: Legacy functions not exported! Check segmentation.js');
-        }
-    </script>
     
     <!-- Pass data to JavaScript exactly as before -->
     <script type="text/javascript">

@@ -81,18 +81,6 @@ describe('segmentationStore - Tool Size Migration', () => {
   });
 });
 
-describe('segmentationStore - Tool Resizing Mode Migration', () => {
-  it('manages tool resizing mode', () => {
-    const store = useSegmentationStore.getState();
-    
-    store.setToolResizingMode(true);
-    expect(useSegmentationStore.getState().toolResizingMode).toBe(true);
-    
-    store.setToolResizingMode(false);
-    expect(useSegmentationStore.getState().toolResizingMode).toBe(false);
-  });
-});
-
 describe('segmentationStore - Tool Type Migration', () => {
   it('manages tool type', () => {
     const store = useSegmentationStore.getState();

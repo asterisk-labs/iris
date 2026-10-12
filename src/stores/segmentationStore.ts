@@ -33,6 +33,7 @@ import { scorePrediction } from '../segmentation/ai/metrics';
 import { loadMask, saveMask } from '../services/masks';
 import { predictMask as requestPrediction } from '../services/prediction';
 import { AuthError, HttpError, setAppUrls } from '../services/http';
+import type { ActionInfo } from '../services/actionInfo';
 
 interface ImageInfo {
   image_id: string;
@@ -60,7 +61,6 @@ interface SegmentationDebugInfo {
   // Core drawing state debug info
   currentTool: string;
   toolSize: number;
-  toolResizingMode: boolean;
   currentClass: number;
   maskType: string;
   classesCount: number;
@@ -146,10 +146,17 @@ interface SegmentationState {
   // Page-level feedback: a blocking loading message, a transient notice,
   // and a request for the login form (session expired)
   loadingMessage: string | null;
-  notice: { text: string; id: number } | null;
+  notice: { text: string; key?: string; id: number } | null;
   loginRequired: boolean;
+  /** Asking for difficulty/notes/complete before going to targetImageId. */
+  actionInfoPrompt: { action: ActionInfo; targetImageId: string } | null;
+  resetMaskConfirmOpen: boolean;
   setLoadingMessage: (text: string | null) => void;
-  showNotice: (text: string, timeoutMs?: number) => void;
+  showNotice: (text: string, timeoutMs?: number, key?: string) => void;
+  openActionInfoPrompt: (action: ActionInfo, targetImageId: string) => void;
+  closeActionInfoPrompt: () => void;
+  requestResetMask: () => void;
+  closeResetMaskConfirm: () => void;
   hideNotice: () => void;
   requestLogin: () => void;
   clearLoginRequest: () => void;
@@ -215,7 +222,6 @@ interface SegmentationState {
   currentTool: 'move' | 'draw' | 'eraser';
   toolSize: number;
   toolShape: 'square' | 'round';
-  toolResizingMode: boolean;
   showDrawToolDropdown: boolean;
   showEraserToolDropdown: boolean;
   currentClass: number;
@@ -227,7 +233,6 @@ interface SegmentationState {
   setCurrentTool: (tool: 'move' | 'draw' | 'eraser') => void;
   setToolSize: (size: number) => void;
   setToolShape: (shape: 'square' | 'round') => void;
-  setToolResizingMode: (resizing: boolean) => void;
   setShowDrawToolDropdown: (show: boolean) => void;
   setShowEraserToolDropdown: (show: boolean) => void;
   setCurrentClass: (classId: number) => void;
@@ -404,11 +409,6 @@ const setJustLoggedInInStore = (loggedIn: boolean) => {
 // Helper function to get tool size from React store (for legacy compatibility)
 const getToolSizeFromStore = () => {
   return useSegmentationStore.getState().toolSize;
-};
-
-// Helper function to get tool resizing mode from React store (for legacy compatibility)
-const getToolResizingModeFromStore = () => {
-  return useSegmentationStore.getState().toolResizingMode;
 };
 
 // Helper function to get current tool from React store (for legacy compatibility)
@@ -1106,13 +1106,15 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   loadingMessage: null,
   notice: null,
   loginRequired: false,
+  actionInfoPrompt: null,
+  resetMaskConfirmOpen: false,
   predictionRevision: null,
 
   setLoadingMessage: (text) => set({ loadingMessage: text }),
 
-  showNotice: (text, timeoutMs) => {
+  showNotice: (text, timeoutMs, key) => {
     const id = Date.now() + Math.random();
-    set({ notice: { text, id } });
+    set({ notice: { text, key, id } });
     if (timeoutMs !== undefined) {
       setTimeout(() => {
         if (get().notice?.id === id) set({ notice: null });
@@ -1121,6 +1123,14 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   },
 
   hideNotice: () => set({ notice: null }),
+
+  openActionInfoPrompt: (action, targetImageId) => set({ actionInfoPrompt: { action, targetImageId } }),
+
+  closeActionInfoPrompt: () => set({ actionInfoPrompt: null }),
+
+  requestResetMask: () => set({ resetMaskConfirmOpen: true }),
+
+  closeResetMaskConfirm: () => set({ resetMaskConfirmOpen: false }),
 
   requestLogin: () => set({ loginRequired: true, loadingMessage: null }),
 
@@ -1173,7 +1183,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   currentTool: 'draw', // Default tool
   toolSize: 5, // Default tool size
   toolShape: 'square', // Default tool shape
-  toolResizingMode: false, // Default to zoom mode (not resize mode)
   showDrawToolDropdown: false, // Default to dropdown closed
   showEraserToolDropdown: false, // Default to dropdown closed
   currentClass: 0, // Default to first class
@@ -1280,9 +1289,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     set({ toolSize: clampedSize });
   },
 
-  setToolResizingMode: (resizing: boolean) => {
-    set({ toolResizingMode: resizing });
-  },
 
   setToolShape: (shape: 'square' | 'round') => {
     // Validate shape type
@@ -2125,7 +2131,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       // PHASE 1: Core drawing state debug info
       currentTool: state.currentTool,
       toolSize: state.toolSize,
-      toolResizingMode: state.toolResizingMode,
       currentClass: state.currentClass,
       maskType: state.maskType,
       classesCount: state.classes.length,
@@ -2175,7 +2180,6 @@ if (typeof window !== 'undefined') {
   (window as any).getJustLoggedInFromStore = getJustLoggedInFromStore;
   (window as any).setJustLoggedInInStore = setJustLoggedInInStore;
   (window as any).getToolSizeFromStore = getToolSizeFromStore;
-  (window as any).getToolResizingModeFromStore = getToolResizingModeFromStore;
   (window as any).getCurrentToolFromStore = getCurrentToolFromStore;
   (window as any).setCurrentToolInStore = setCurrentToolInStore;
   (window as any).getToolShapeFromStore = getToolShapeFromStore;

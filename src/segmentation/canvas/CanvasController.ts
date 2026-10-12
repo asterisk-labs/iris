@@ -290,10 +290,11 @@ export class CanvasController {
   }
 
   private onWheel(v: Viewport, e: WheelEvent) {
-    const delta = -Math.sign(e.deltaY);
+    // Browsers turn Shift+wheel into horizontal scrolling, so fall back to deltaX
+    const delta = -Math.sign(e.deltaY || e.deltaX);
     if (delta === 0 || !this.track(v, e)) return;
     const s = useSegmentationStore.getState();
-    if (s.toolResizingMode) {
+    if (e.shiftKey) {
       const mask = s.maskDimensions;
       const limit = mask ? Math.max(mask.width, mask.height) : 100;
       const size = s.toolSize + delta * 0.5 * s.toolSize;

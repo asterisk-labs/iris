@@ -10,6 +10,8 @@ import ViewerComparison from './components/segmentation/ViewerComparison';
 import ImageChatPanel from './components/segmentation/ImageChatPanel';
 import PageFeedback from './components/segmentation/PageFeedback';
 import { saveMaskOnUnload } from './services/masks';
+import ActionInfoModal from './components/segmentation/ActionInfoModal';
+import { useKeyboardShortcuts, useToolbarHints } from './hooks/useKeyboardShortcuts';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useViewManagerStore } from './stores/viewManagerStore';
@@ -40,7 +42,6 @@ const SegmentationApp: React.FC = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isResetMaskOpen, setIsResetMaskOpen] = useState(false);
   const [isClassSelectionOpen, setIsClassSelectionOpen] = useState(false);
   const [isImageInfoOpen, setIsImageInfoOpen] = useState(false);
   const [isConfusionMatrixOpen, setIsConfusionMatrixOpen] = useState(false);
@@ -67,6 +68,15 @@ const SegmentationApp: React.FC = () => {
       useSegmentationStore.getState().clearLoginRequest();
     }
   }, [loginRequired]);
+
+  const isResetMaskOpen = useSegmentationStore((state) => state.resetMaskConfirmOpen);
+  const errorModalOpen = useSegmentationStore((state) => state.errorModal.isOpen);
+  const actionInfoOpen = useSegmentationStore((state) => state.actionInfoPrompt !== null);
+  const anyModalOpen = isPreferencesOpen || isProfileOpen || isLoginOpen || isHelpOpen ||
+    isResetMaskOpen || isClassSelectionOpen || isImageInfoOpen || isConfusionMatrixOpen ||
+    errorModalOpen || actionInfoOpen;
+  useKeyboardShortcuts(authChecked && isAuthenticated && !anyModalOpen);
+  useToolbarHints();
 
   // Save unsaved changes when the page is closed or navigated away from
   useEffect(() => {
@@ -124,7 +134,6 @@ const SegmentationApp: React.FC = () => {
         // Initialize navigation
         await initializeNavigation();
         
-        // CRITICAL: Initialize views and mask data (equivalent to init_views)
         // This handles ViewManager creation, so no separate service needed
         await initializeMaskData();
         
@@ -171,60 +180,21 @@ const SegmentationApp: React.FC = () => {
     }
   };
 
-  // Initialize mask data for current image (equivalent to legacy init_views)
+  // Load the current image's mask and show the image at the default view
   const initializeMaskData = async () => {
-    try {
-      // Get current image ID from React store (primary source)
-      const currentImageId = useSegmentationStore.getState().currentImageId;
-      if (!currentImageId) {
-        if ((window as any).IRIS_DEBUG) console.warn('No current image ID found in store, skipping mask data initialization');
-        return;
-      }
-
-      const w = window as any;
-      if (w.IRIS_DEBUG) console.log('🔧 React: Initializing views and mask data for image:', currentImageId);
-      
-      // CRITICAL: Wait for legacy scripts to be fully loaded
-      if (!w.legacyScriptsReady) {
-        if (w.IRIS_DEBUG) console.log('⏳ React: Waiting for legacy scripts to be ready...');
-        const maxWait = 5000; // 5 seconds
-        const startTime = Date.now();
-        while (!w.legacyScriptsReady) {
-          if (Date.now() - startTime > maxWait) {
-            console.error('❌ React: Legacy scripts not ready after 5 seconds');
-            throw new Error('Legacy scripts failed to load');
-          }
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        if (w.IRIS_DEBUG) console.log('✅ React: Legacy scripts ready');
-      }
-      
-      // Call the full init_views function which handles:
-      // - Hidden mask canvas creation
-      // - Mask data loading
-      // - Toolbar/statusbar visibility
-      // - Event initialization
-      if (w.init_views) {
-        await w.init_views();
-        if (w.IRIS_DEBUG) console.log('✅ React: Views and mask data initialized successfully');
-        
-        // CRITICAL: Set the image in viewManagerStore after init_views completes
-        const imageLocation = useViewManagerStore.getState().imageLocation || [0, 0];
-        useViewManagerStore.getState().setImage(currentImageId, imageLocation);
-        if (w.IRIS_DEBUG) console.log('✅ React: Image set in viewManagerStore:', currentImageId);
-      } else {
-        console.error('❌ React: init_views function not available');
-      }
-    } catch (error) {
-      console.error('❌ React: Views and mask data initialization failed:', error);
-    }
+    const currentImageId = useSegmentationStore.getState().currentImageId;
+    if (!currentImageId) return;
+    await useSegmentationStore.getState().loadMaskForImage(currentImageId);
+    const viewStore = useViewManagerStore.getState();
+    viewStore.resetCanvas();
+    viewStore.setImage(currentImageId, viewStore.imageLocation || [0, 0]);
   };
 
   // Memoize callbacks to prevent unnecessary re-renders
   const handleOpenPreferences = useCallback(() => setIsPreferencesOpen(true), []);
   const handleOpenHelp = useCallback(() => setIsHelpOpen(true), []);
   const handleSelectClass = useCallback(() => setIsClassSelectionOpen(true), []);
-  const handleResetMask = useCallback(() => setIsResetMaskOpen(true), []);
+  const handleResetMask = useCallback(() => useSegmentationStore.getState().requestResetMask(), []);
   const handleOpenProfile = useCallback(() => setIsProfileOpen(true), []);
   const handleOpenImageInfo = useCallback(() => setIsImageInfoOpen(true), []);
   const handleOpenConfusionMatrix = useCallback(() => setIsConfusionMatrixOpen(true), []);
@@ -265,13 +235,6 @@ const SegmentationApp: React.FC = () => {
     onOpenHelp: handleOpenHelp
   });
 
-  // Override legacy dialogue functions to use React modals
-  useEffect(() => {
-    (window as any).dialogue_reset_mask = () => setIsResetMaskOpen(true);
-    (window as any).dialogue_class_selection = () => setIsClassSelectionOpen(true);
-    (window as any).dialogue_image = () => setIsImageInfoOpen(true);
-    (window as any).dialogue_confusion_matrix = () => setIsConfusionMatrixOpen(true);
-  }, []);
 
   return (
     <ThemeProvider>
@@ -355,6 +318,7 @@ const SegmentationApp: React.FC = () => {
       )}
 
       <PageFeedback />
+      <ActionInfoModal />
 
       <SegmentationModals
         isPreferencesOpen={isPreferencesOpen}
@@ -368,7 +332,7 @@ const SegmentationApp: React.FC = () => {
         isHelpOpen={isHelpOpen}
         onCloseHelp={() => setIsHelpOpen(false)}
         isResetMaskOpen={isResetMaskOpen}
-        onCloseResetMask={() => setIsResetMaskOpen(false)}
+        onCloseResetMask={() => useSegmentationStore.getState().closeResetMaskConfirm()}
         onConfirmResetMask={() => useSegmentationStore.getState().resetMask()}
         isClassSelectionOpen={isClassSelectionOpen}
         onCloseClassSelection={() => setIsClassSelectionOpen(false)}

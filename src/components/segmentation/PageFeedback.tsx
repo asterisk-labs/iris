@@ -25,6 +25,7 @@ const PageFeedback: React.FC = () => {
       )}
       {notice !== null && (
         <div className="message" style={{ visibility: 'visible' }} role="status" aria-live="polite">
+          {notice.key && <span className="key">{notice.key}</span>}{notice.key && ' '}
           {notice.text}
         </div>
       )}

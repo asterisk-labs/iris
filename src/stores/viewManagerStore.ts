@@ -265,11 +265,6 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
 
     set({ currentGroup: nextGroup });
     _persistViewState(get);
-
-    const w = window as any;
-    if (w.show_message) {
-      w.show_message(`Group: <i>${nextGroup}</i>`);
-    }
   },
 
   showGroup: (groupName) => {
@@ -277,11 +272,6 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
     if (viewGroups[groupName]) {
       set({ currentGroup: groupName });
       _persistViewState(get);
-
-      const w = window as any;
-      if (w.show_message) {
-        w.show_message(`Group: <i>${groupName}</i>`);
-      }
     } else {
       console.warn(`[ViewManager] Group '${groupName}' not found`);
     }
