@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BrainIcon } from '../../icons/ToolbarIcons';
+import { useSegmentationStore } from '../../../stores/segmentationStore';
+import { usableClasses } from '../../../segmentation/ai/sampling';
+import { aiRecommendation } from '../../../segmentation/ai/metrics';
 
 const AIRecommendation: React.FC = () => {
   const { theme } = useTheme();
-  
+  const counts = useSegmentationStore(s => s.userPixelCounts);
+  const classes = useSegmentationStore(s => s.classes);
+  const confusionMatrix = useSegmentationStore(s => s.confusionMatrix);
+  const maskRevision = useSegmentationStore(s => s.maskRevision);
+  const predictionRevision = useSegmentationStore(s => s.predictionRevision);
+
+  const recommendation = useMemo(() => aiRecommendation(
+    predictionRevision === maskRevision ? confusionMatrix : null,
+    usableClasses(counts).length,
+    classes.map(c => c.name),
+  ), [counts, classes, confusionMatrix, maskRevision, predictionRevision]);
+
   return (
     <div
       style={{
@@ -21,7 +35,7 @@ const AIRecommendation: React.FC = () => {
       }}
     >
       <BrainIcon size={18} color={theme.toolbarText} />
-      <div 
+      <div
         id="ai-recommendation"
         style={{
           display: 'flex',
@@ -29,7 +43,8 @@ const AIRecommendation: React.FC = () => {
           gap: '6px',
         }}
       >
-        AI is loading
+        {recommendation.text}
+        {recommendation.className && <b>{recommendation.className}</b>}
       </div>
     </div>
   );

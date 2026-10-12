@@ -44,15 +44,9 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ onResetMask }) => {
     resetViews();
   };
 
-  const handleUndo = () => {
-    const w = window as any;
-    if (w.undo) w.undo();
-  };
+  const handleUndo = () => useSegmentationStore.getState().undo();
 
-  const handleRedo = () => {
-    const w = window as any;
-    if (w.redo) w.redo();
-  };
+  const handleRedo = () => useSegmentationStore.getState().redo();
   
   const toolbarWidth = isExpanded ? 180 : 60;
   

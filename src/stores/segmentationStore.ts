@@ -28,6 +28,11 @@ import type {
   ConfusionMatrix
 } from '../types/iris';
 import { MaskDocument } from '../segmentation/mask/MaskDocument';
+import { splitTrainTest, usableClasses, MIN_CLASSES } from '../segmentation/ai/sampling';
+import { scorePrediction } from '../segmentation/ai/metrics';
+import { loadMask, saveMask } from '../services/masks';
+import { predictMask as requestPrediction } from '../services/prediction';
+import { AuthError, HttpError, setAppUrls } from '../services/http';
 
 interface ImageInfo {
   image_id: string;
@@ -138,6 +143,21 @@ interface SegmentationState {
   canUndo: () => boolean;
   canRedo: () => boolean;
   
+  // Page-level feedback: a blocking loading message, a transient notice,
+  // and a request for the login form (session expired)
+  loadingMessage: string | null;
+  notice: { text: string; id: number } | null;
+  loginRequired: boolean;
+  setLoadingMessage: (text: string | null) => void;
+  showNotice: (text: string, timeoutMs?: number) => void;
+  hideNotice: () => void;
+  requestLogin: () => void;
+  clearLoginRequest: () => void;
+
+  /** maskRevision right after the last prediction; the score describes the mask while they match. */
+  predictionRevision: number | null;
+  resetMask: () => void;
+
   // Error Modal
   errorModal: {
     isOpen: boolean;
@@ -733,6 +753,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     }
 
     set({ apiUrls: urls });
+    setAppUrls(urls);
   },
 
   getApiUrl: (endpoint: keyof ApiUrls) => {
@@ -853,7 +874,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     set({ maskRevision: doc.revision });
     get().updateUserPixelCounts(doc.counts());
     get().discardFuture();
-    get().setShowDialogueBeforeNextImage(true);
     get().setMaskChanged(true);
   },
 
@@ -1036,11 +1056,12 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
         maskRevision: doc.revision,
       });
 
-      // Update pixel counts and trigger re-render (only if classes are set)
+      // Update pixel counts (only if classes are set)
       const { classes } = get();
       if (classes && classes.length > 0) {
         get().updateUserPixelCounts(get().calculatePixelCounts());
       }
+      get().setMaskChanged(true);
     }
   },
 
@@ -1063,11 +1084,12 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
         maskRevision: doc.revision,
       });
 
-      // Update pixel counts and trigger re-render (only if classes are set)
+      // Update pixel counts (only if classes are set)
       const { classes } = get();
       if (classes && classes.length > 0) {
         get().updateUserPixelCounts(get().calculatePixelCounts());
       }
+      get().setMaskChanged(true);
     }
   },
 
@@ -1080,6 +1102,29 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     const { maskHistory, historyCurrentEpoch } = get();
     return historyCurrentEpoch < maskHistory.length - 1;
   },
+
+  loadingMessage: null,
+  notice: null,
+  loginRequired: false,
+  predictionRevision: null,
+
+  setLoadingMessage: (text) => set({ loadingMessage: text }),
+
+  showNotice: (text, timeoutMs) => {
+    const id = Date.now() + Math.random();
+    set({ notice: { text, id } });
+    if (timeoutMs !== undefined) {
+      setTimeout(() => {
+        if (get().notice?.id === id) set({ notice: null });
+      }, timeoutMs);
+    }
+  },
+
+  hideNotice: () => set({ notice: null }),
+
+  requestLogin: () => set({ loginRequired: true, loadingMessage: null }),
+
+  clearLoginRequest: () => set({ loginRequired: false }),
 
   // Error Modal State
   errorModal: {
@@ -1355,41 +1400,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
 
   updateUserPixelCounts: (counts: { [classId: number]: number; total: number }) => {
     set({ userPixelCounts: counts });
-    
-    // Update legacy DOM elements
-    const w = window as any;
-    if (w.get_object && w.nice_number) {
-      const drawnPixelsElement = w.get_object('drawn-pixels');
-      if (drawnPixelsElement) {
-        drawnPixelsElement.innerHTML = w.nice_number(counts.total);
-      }
-      
-      // Count different classes with significant pixels
-      let differentClasses = 0;
-      Object.keys(counts).forEach(key => {
-        if (key !== 'total' && counts[parseInt(key)] > 10) {
-          differentClasses++;
-        }
-      });
-      
-      const differentClassesElement = w.get_object('different-classes');
-      if (differentClassesElement) {
-        differentClassesElement.innerHTML = differentClasses.toString();
-      }
-      
-      // Update AI recommendation
-      const aiRecommendationElement = w.get_object('ai-recommendation');
-      if (aiRecommendationElement) {
-        if (differentClasses >= 2) {
-          aiRecommendationElement.innerHTML = 'Start the training!';
-        } else {
-          aiRecommendationElement.innerHTML = 'Draw at least 10 pixels from two classes!';
-        }
-      }
-    }
-    
-    // Mark mask as changed when user pixels are updated
-    get().setMaskChanged(true);
   },
 
   // Helper function to calculate pixel counts from mask data
@@ -1472,103 +1482,140 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
 
   // PHASE 2: Navigation & Actions Actions
   saveCurrentMask: async () => {
-    const { currentImageId, isLoading } = get();
-    
-    if (isLoading || !currentImageId) {
-      return;
-    }
-    
+    const { currentImageId, isLoading, maskDocument: doc, userMaskData } = get();
+    if (isLoading || !currentImageId) return;
+    // Do not save masks that have not been loaded yet
+    if (!doc || !userMaskData) return;
+
     set({ isLoading: true });
-    
+    get().showNotice('Saving mask...');
     try {
-      const w = window as any;
-      if (w.legacySaveMask) {
-        // legacySaveMask now returns a Promise
-        await w.legacySaveMask(null);
-        set({ maskChanged: false, lastSaveTime: new Date(), isLoading: false });
-      } else {
-        throw new Error('Legacy legacySaveMask function not available');
-      }
+      await saveMask(currentImageId, doc.final, doc.user);
+      get().showNotice('Mask saved', 1000);
+      set({ lastSaveTime: new Date() });
+      get().setMaskChanged(false);
     } catch (error) {
-      console.error('[IRIS] saveCurrentMask failed:', error);
-      set({ isLoading: false });
+      get().hideNotice();
+      if (error instanceof AuthError) {
+        get().requestLogin();
+      } else {
+        const detail = error instanceof HttpError ? error.body : String(error);
+        get().showErrorModal(`Could not save the mask due to an internal problem!\n${detail}`);
+      }
       throw error;
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   loadMaskForImage: async (imageId: string) => {
-    const { isLoading } = get();
-    
-    if (isLoading) {
-      console.log('[IRIS] loadMaskForImage: Already loading');
+    if (get().isLoading) return;
+    const dims = get().maskDimensions;
+    if (!dims) {
+      get().showErrorModal('Could not load mask: mask dimensions not available');
       return;
     }
-    
+
     set({ isLoading: true });
-    
+    get().setLoadingMessage('Loading masks...');
     try {
-      // Call legacy legacyLoadMask function directly to avoid circular calls
-      const w = window as any;
-      if (w.legacyLoadMask) {
-        await w.legacyLoadMask();
-        
-        // Update store state after successful load
-        set({ 
-          currentImageId: imageId,
-          maskChanged: false,
-          isLoading: false 
-        });
-      } else {
-        throw new Error('Legacy legacyLoadMask function not available');
+      const n = dims.width * dims.height;
+      let masks: { final: Uint8Array; user: Uint8Array } | null;
+      try {
+        masks = await loadMask(imageId, n);
+      } catch (error) {
+        if (error instanceof AuthError) {
+          get().requestLogin();
+        } else {
+          const detail = error instanceof HttpError ? error.body : String(error);
+          get().showErrorModal(`Could not load the mask from the server!\n${detail}`);
+        }
+        return;
       }
-    } catch (error) {
-      console.error('[IRIS] loadMaskForImage failed:', error);
+
+      const doc = ensureMaskDocument(dims.width, dims.height);
+      doc.replace(masks ? masks.final : new Uint8Array(n), masks ? masks.user : new Uint8Array(n));
+      doc.setErrors(new Uint8Array(n));
+      set({
+        currentImageId: imageId,
+        maskData: doc.final,
+        userMaskData: doc.user,
+        errorsMaskData: doc.errors,
+        maskRevision: doc.revision,
+        userPixelCounts: doc.counts(),
+        confusionMatrix: null,
+        predictionRevision: null,
+      });
+      get().discardFuture();
+      get().updateHistory();
+      get().setMaskChanged(false);
+    } finally {
       set({ isLoading: false });
-      throw error;
+      get().setLoadingMessage(null);
     }
   },
 
   predictMask: async () => {
-    const { isLoading, userPixelCounts } = get();
-    
-    if (isLoading) {
-      console.log('[IRIS] predictMask: Already loading');
-      return;
-    }
-    
-    // Check if we have enough training data
-    let classesWithEnoughPixels = 0;
-    Object.keys(userPixelCounts).forEach(key => {
-      if (key !== 'total' && userPixelCounts[parseInt(key)] > 10) {
-        classesWithEnoughPixels++;
-      }
-    });
-    
-    if (classesWithEnoughPixels < 2) {
+    const { isLoading, userPixelCounts, maskDocument: doc, currentImageId, config, classes } = get();
+    if (isLoading) return;
+
+    if (usableClasses(userPixelCounts).length < MIN_CLASSES) {
       throw new Error('You need to draw at least 10 pixels for more than one class to use the AI.');
     }
-    
+    const aiModel = config?.segmentation?.ai_model;
+    if (!doc || !currentImageId || !aiModel) return;
+
     set({ isLoading: true });
-    
+    get().setLoadingMessage('Prepare training data...');
     try {
-      // Call legacy legacyPredictMask function directly to avoid circular calls
-      const w = window as any;
-      if (w.legacyPredictMask) {
-        await w.legacyPredictMask();
-        
-        // Mark mask as changed after prediction
-        set({ 
-          maskChanged: true,
-          isLoading: false 
-        });
-      } else {
-        throw new Error('Legacy legacyPredictMask function not available');
+      const split = splitTrainTest(doc.final, doc.user, userPixelCounts, {
+        trainRatio: aiModel.train_ratio,
+        maxTrainPixels: aiModel.max_train_pixels,
+      });
+
+      get().setLoadingMessage('Train AI...');
+      let predicted: Uint8Array;
+      try {
+        predicted = await requestPrediction(currentImageId, split.trainPixels, split.trainLabels);
+      } catch (error) {
+        if (error instanceof AuthError) get().requestLogin();
+        else get().showErrorModal('Could not predict the mask due to a server problem!');
+        return;
       }
-    } catch (error) {
-      console.error('[IRIS] predictMask failed:', error);
+      if (predicted.length !== doc.length) {
+        get().showErrorModal('Could not predict the mask: the server returned the wrong number of pixels.');
+        return;
+      }
+
+      get().setLoadingMessage('Process results...');
+      const { errors, confusionMatrix } = scorePrediction(predicted, split, classes.map(c => c.name));
+      doc.setErrors(errors);
+      doc.applyPrediction(predicted);
+      get().discardFuture();
+      get().updateHistory();
+      set({
+        errorsMaskData: doc.errors,
+        maskRevision: doc.revision,
+        predictionRevision: doc.revision,
+        userPixelCounts: doc.counts(),
+        confusionMatrix,
+      });
+      get().setMaskChanged(true);
+    } finally {
       set({ isLoading: false });
-      throw error;
+      get().setLoadingMessage(null);
     }
+  },
+
+  resetMask: () => {
+    const doc = get().maskDocument;
+    if (!doc) return;
+    doc.reset();
+    set({ maskRevision: doc.revision, userPixelCounts: doc.counts() });
+    // Unlike before, a reset can be undone
+    get().discardFuture();
+    get().updateHistory();
+    get().setMaskChanged(true);
   },
 
   updateConfusionMatrix: (matrix: ConfusionMatrix) => {

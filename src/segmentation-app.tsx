@@ -8,6 +8,8 @@ import BottomBar from './components/segmentation/BottomBar';
 import SegmentationModals from './components/segmentation/SegmentationModals';
 import ViewerComparison from './components/segmentation/ViewerComparison';
 import ImageChatPanel from './components/segmentation/ImageChatPanel';
+import PageFeedback from './components/segmentation/PageFeedback';
+import { saveMaskOnUnload } from './services/masks';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useViewManagerStore } from './stores/viewManagerStore';
@@ -55,6 +57,28 @@ const SegmentationApp: React.FC = () => {
 
   // Get config loader hook
   const { loadConfig } = useConfigLoader();
+
+  // An expired session during a request opens the login form
+  const loginRequired = useSegmentationStore((state) => state.loginRequired);
+  useEffect(() => {
+    if (loginRequired) {
+      setLoginMode('login');
+      setIsLoginOpen(true);
+      useSegmentationStore.getState().clearLoginRequest();
+    }
+  }, [loginRequired]);
+
+  // Save unsaved changes when the page is closed or navigated away from
+  useEffect(() => {
+    const onPageHide = () => {
+      const { maskChanged, maskDocument, userMaskData, currentImageId } = useSegmentationStore.getState();
+      if (maskChanged && maskDocument && userMaskData && currentImageId) {
+        saveMaskOnUnload(currentImageId, maskDocument.final, maskDocument.user);
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
 
   // Note: Export GeoTIFF is now handled in TopBar component
 
@@ -330,6 +354,8 @@ const SegmentationApp: React.FC = () => {
         />
       )}
 
+      <PageFeedback />
+
       <SegmentationModals
         isPreferencesOpen={isPreferencesOpen}
         onClosePreferences={() => setIsPreferencesOpen(false)}
@@ -343,10 +369,7 @@ const SegmentationApp: React.FC = () => {
         onCloseHelp={() => setIsHelpOpen(false)}
         isResetMaskOpen={isResetMaskOpen}
         onCloseResetMask={() => setIsResetMaskOpen(false)}
-        onConfirmResetMask={() => {
-          const w = window as any;
-          if (w.reset_mask) w.reset_mask();
-        }}
+        onConfirmResetMask={() => useSegmentationStore.getState().resetMask()}
         isClassSelectionOpen={isClassSelectionOpen}
         onCloseClassSelection={() => setIsClassSelectionOpen(false)}
         isImageInfoOpen={isImageInfoOpen}
