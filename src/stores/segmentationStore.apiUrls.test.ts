@@ -98,38 +98,3 @@ describe('segmentationStore - apiUrls', () => {
     expect(getDebugInfo().hasApiUrls).toBe(true);
   });
 });
-
-describe('segmentationStore - apiUrls legacy bridge', () => {
-  beforeEach(() => {
-    useSegmentationStore.setState({ apiUrls: null });
-  });
-
-  it('should provide legacy bridge functions', () => {
-    const testUrls = {
-      main: '/main/',
-      segmentation: '/segmentation/',
-      user: '/user/',
-      admin: '/admin/'
-    };
-    
-    // Test function existence
-    expect(typeof (window as any).getApiUrlsFromStore).toBe('function');
-    expect(typeof (window as any).getApiUrlFromStore).toBe('function');
-    expect(typeof (window as any).setApiUrlsInStore).toBe('function');
-    
-    // Test setting via legacy bridge
-    (window as any).setApiUrlsInStore(testUrls);
-    const { apiUrls } = useSegmentationStore.getState();
-    expect(apiUrls).toEqual(testUrls);
-    
-    // Test getting via legacy bridge
-    expect((window as any).getApiUrlsFromStore()).toEqual(testUrls);
-    expect((window as any).getApiUrlFromStore('main')).toBe('/main/');
-    expect((window as any).getApiUrlFromStore('invalid')).toBeNull();
-    
-    // Test null handling
-    useSegmentationStore.setState({ apiUrls: null });
-    expect((window as any).getApiUrlsFromStore()).toBeNull();
-    expect((window as any).getApiUrlFromStore('main')).toBeNull();
-  });
-});

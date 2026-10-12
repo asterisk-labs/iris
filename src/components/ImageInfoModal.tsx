@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../stores/segmentationStore';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -23,7 +24,7 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
   
-  const { currentImageId, apiUrls } = useSegmentationStore();
+  const { currentImageId, apiUrls } = useSegmentationStore(useShallow(s => ({ currentImageId: s.currentImageId, apiUrls: s.apiUrls })));
 
   useEffect(() => {
     if (isOpen) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import ToolButton from './toolbar/ToolButton';
 import PaintbrushSelector from './toolbar/PaintbrushSelector';
 import { useSegmentationStore } from '../../stores/segmentationStore';
@@ -17,14 +18,7 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ onResetMask }) => {
     return saved ? JSON.parse(saved) : false;
   });
 
-  const { 
-    currentTool, 
-    setCurrentTool, 
-    predictMask, 
-    resetViews, 
-    isLoading,
-    showErrorModal 
-  } = useSegmentationStore();
+  const { currentTool, setCurrentTool, predictMask, resetViews, isLoading, showErrorModal } = useSegmentationStore(useShallow(s => ({ currentTool: s.currentTool, setCurrentTool: s.setCurrentTool, predictMask: s.predictMask, resetViews: s.resetViews, isLoading: s.isLoading, showErrorModal: s.showErrorModal })));
   
   // Save preference when it changes
   React.useEffect(() => {

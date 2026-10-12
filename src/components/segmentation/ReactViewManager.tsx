@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useViewManagerStore } from '../../stores/viewManagerStore';
 
 import ReactViewPort from './ReactViewPort';
@@ -21,20 +22,9 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const {
-    currentGroup,
-    viewWidth,
-    viewHeight,
-    showControls,
-    imageId,
-    currentView,
-    getCurrentViews,
-    updateViewDimensions,
-    setImageLocation,
-    setCurrentView,
-  } = useViewManagerStore();
+  const { currentGroup, viewWidth, viewHeight, showControls, imageId, currentView, updateViewDimensions, setImageLocation, setCurrentView } = useViewManagerStore(useShallow(s => ({ currentGroup: s.currentGroup, viewWidth: s.viewWidth, viewHeight: s.viewHeight, showControls: s.showControls, imageId: s.imageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setImageLocation: s.setImageLocation, setCurrentView: s.setCurrentView })));
   
-  const currentViews = getCurrentViews();
+  const currentViews = useViewManagerStore(useShallow(s => s.getCurrentViews()));
   
   useEffect(() => {
     window.addEventListener('resize', updateViewDimensions);

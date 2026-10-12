@@ -39,17 +39,6 @@ describe('showDialogueBeforeNextImage Store Migration', () => {
     expect(useSegmentationStore.getState().showDialogueBeforeNextImage).toBe(false);
   });
 
-  it('should be accessible via window.segmentationStore', () => {
-    // Verify the bridge exists
-    expect((window as any).segmentationStore).toBeDefined();
-    expect((window as any).segmentationStore.getState).toBeDefined();
-    
-    // Test setting via window bridge
-    (window as any).segmentationStore.getState().setShowDialogueBeforeNextImage(true);
-    
-    const state = useSegmentationStore.getState();
-    expect(state.showDialogueBeforeNextImage).toBe(true);
-  });
 
   it('should maintain state across multiple calls', () => {
     const { setShowDialogueBeforeNextImage } = useSegmentationStore.getState();

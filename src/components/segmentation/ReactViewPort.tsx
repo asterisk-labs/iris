@@ -6,6 +6,7 @@
  */
 
 import React, { useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { ViewConfig } from '../../stores/viewManagerStore';
 import { useViewManagerStore } from '../../stores/viewManagerStore';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -39,16 +40,9 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
   const [selectedViewName, setSelectedViewName] = useState(view.name);
   const { theme } = useTheme();
 
-  const {
-    views,
-    addView,
-    removeView,
-    replaceView,
-    getCurrentViews,
-  } = useViewManagerStore();
+  const { views, addView, removeView, replaceView } = useViewManagerStore(useShallow(s => ({ views: s.views, addView: s.addView, removeView: s.removeView, replaceView: s.replaceView })));
 
-  const currentViews = getCurrentViews();
-  const canRemove = currentViews.length > 1;
+  const canRemove = useViewManagerStore(s => s.getCurrentViews().length > 1);
 
   // Handle view selection change
   const handleViewChange = (newViewName: string) => {

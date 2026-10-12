@@ -16,29 +16,12 @@ import { useSegmentationSetup } from './components/segmentation/hooks/useSegment
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useViewManagerStore } from './stores/viewManagerStore';
 import { useConfigLoader } from './hooks/useConfigLoader';
-import './utils/legacyBridge'; // Initialize legacy bridge functions
-
-// Declare global functions that exist in the legacy JavaScript
-declare global {
-  interface Window {
-    init_segmentation: () => void;
-    vars: any;
-    openUserProfile?: (userId?: string) => void;
-    openLogin?: () => void;
-    openRegister?: () => void;
-    reactLogout?: (callback?: () => void) => Promise<void>;
-    irisReactApp?: {
-      openHelpModal?: () => void;
-      openUserProfile?: (userId?: string) => void;
-      openPreferences?: () => void;
-    };
-  }
-}
+import { bootPage, bootUrls, exposeDebugHandle } from './boot';
 
 const SegmentationApp: React.FC = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [profileUserId, setProfileUserId] = useState<string>('current');
+  const profileUserId = 'current';
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -125,19 +108,9 @@ const SegmentationApp: React.FC = () => {
       if (!authChecked || !isAuthenticated) return;
 
       try {
-        const w = window as any;
-        if (w.IRIS_DEBUG) console.log('🔧 React: Starting app initialization...');
-        
-        // Load config directly (no polling, no legacy dependency)
         await loadConfig();
-        
-        // Initialize navigation
         await initializeNavigation();
-        
-        // This handles ViewManager creation, so no separate service needed
         await initializeMaskData();
-        
-        if (w.IRIS_DEBUG) console.log('✅ React: App initialization complete');
       } catch (error) {
         console.error('❌ React: App initialization failed:', error);
         // You can set error state here if needed
@@ -152,10 +125,7 @@ const SegmentationApp: React.FC = () => {
     try {
       // Get current image ID from React store (primary source)
       const currentImageId = useSegmentationStore.getState().currentImageId;
-      if (!currentImageId) {
-        if ((window as any).IRIS_DEBUG) console.warn('No current image ID found in store, skipping navigation initialization');
-        return;
-      }
+      if (!currentImageId) return;
 
       const response = await fetch(
         `/segmentation/api/images/list?current_image_id=${encodeURIComponent(currentImageId)}`,
@@ -173,8 +143,6 @@ const SegmentationApp: React.FC = () => {
 
       // Set current image
       useSegmentationStore.getState().setCurrentImage(currentImageId);
-      
-      if ((window as any).IRIS_DEBUG) console.log('✅ React: Navigation initialized');
     } catch (error) {
       console.error('❌ React: Navigation initialization failed:', error);
     }
@@ -199,25 +167,6 @@ const SegmentationApp: React.FC = () => {
   const handleOpenImageInfo = useCallback(() => setIsImageInfoOpen(true), []);
   const handleOpenConfusionMatrix = useCallback(() => setIsConfusionMatrixOpen(true), []);
 
-  const handleOpenLogin = useCallback(() => {
-    const w = window as any;
-    if (w.hide_loader) w.hide_loader();
-    setLoginMode('login');
-    setIsLoginOpen(true);
-  }, []);
-
-  const handleOpenRegister = useCallback(() => {
-    const w = window as any;
-    if (w.hide_loader) w.hide_loader();
-    setLoginMode('register');
-    setIsLoginOpen(true);
-  }, []);
-
-  const handleOpenProfileWithId = useCallback((userId?: string) => {
-    setProfileUserId(userId || 'current');
-    setIsProfileOpen(true);
-  }, []);
-
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
     setIsLoginOpen(false);
@@ -229,10 +178,6 @@ const SegmentationApp: React.FC = () => {
   useSegmentationSetup({
     authChecked: authChecked && isAuthenticated,
     onOpenPreferences: handleOpenPreferences,
-    onOpenLogin: handleOpenLogin,
-    onOpenRegister: handleOpenRegister,
-    onOpenProfile: handleOpenProfileWithId,
-    onOpenHelp: handleOpenHelp
   });
 
 
@@ -372,6 +317,14 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const container = document.getElementById('react-segmentation-app');
     if (container) {
+      // Page data from the template, before anything fetches
+      const urls = bootUrls();
+      if (urls) useSegmentationStore.getState().setApiUrls(urls);
+      const page = bootPage();
+      useSegmentationStore.getState().setDebugMode(page.debug);
+      useViewManagerStore.getState().setImageLocation(page.imageLocation);
+      exposeDebugHandle({ segmentationStore: useSegmentationStore, viewManagerStore: useViewManagerStore });
+
       const root = createRoot(container);
       root.render(<SegmentationApp />);
     } else {

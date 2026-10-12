@@ -6,7 +6,7 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { useSegmentationStore, getClassFromStore, getClassNameFromStore, getClassCountFromStore } from './segmentationStore';
+import { useSegmentationStore } from './segmentationStore';
 
 // Define the ClassConfig interface for the test
 interface ClassConfig {
@@ -25,9 +25,6 @@ const mockWindow = {
       classes: [] as ClassConfig[]
     }
   },
-  getClassFromStore: vi.fn(),
-  getClassNameFromStore: vi.fn(),
-  getClassCountFromStore: vi.fn(),
   setClassesInStore: vi.fn(),
   getCurrentClassFromStore: vi.fn(),
   setCurrentClassInStore: vi.fn()
@@ -97,48 +94,6 @@ describe('segmentationStore.classes migration', () => {
       
       // Current class should be reset to 0 since 2 is out of bounds
       expect(updatedStore.currentClass).toBe(0);
-    });
-  });
-
-  describe('helper functions', () => {
-    beforeEach(() => {
-      const testClasses = [
-        { name: 'cloud', colour: [255, 255, 255, 255] as [number, number, number, number] },
-        { name: 'shadow', colour: [0, 0, 0, 255] as [number, number, number, number] },
-        { name: 'clear', colour: [0, 255, 0, 255] as [number, number, number, number] }
-      ];
-      
-      const store = useSegmentationStore.getState();
-      store.setClasses(testClasses);
-    });
-
-    test('getClassFromStore returns individual class by ID with bounds checking', () => {
-      const class0 = getClassFromStore(0);
-      expect(class0?.name).toBe('cloud');
-      expect(class0?.colour).toEqual([255, 255, 255, 255]);
-      
-      const invalidClass = getClassFromStore(10);
-      expect(invalidClass).toBeNull();
-    });
-
-    test('getClassNameFromStore returns class names with fallback', () => {
-      const name0 = getClassNameFromStore(0);
-      expect(name0).toBe('cloud');
-      
-      const invalidName = getClassNameFromStore(10);
-      expect(invalidName).toBe('Class 10');
-    });
-
-    test('getClassCountFromStore returns correct count', () => {
-      const count = getClassCountFromStore();
-      expect(count).toBe(3);
-      
-      // Test with empty classes
-      const store = useSegmentationStore.getState();
-      store.setClasses([]);
-      
-      const emptyCount = getClassCountFromStore();
-      expect(emptyCount).toBe(0);
     });
   });
 

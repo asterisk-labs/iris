@@ -138,8 +138,9 @@ describe('Config State Management', () => {
     const store = useSegmentationStore.getState();
     store.setConfig(validConfig);
     
-    expect(mockWindow.setClassesInStore).toHaveBeenCalledWith(validConfig.classes);
-    expect(mockWindow.setMaskAreaInStore).toHaveBeenCalledWith(validConfig.segmentation.mask_area);
+    const state = useSegmentationStore.getState();
+    expect(state.classes).toEqual(validConfig.classes);
+    expect(state.maskArea).toEqual(validConfig.segmentation.mask_area);
   });
 });
 
@@ -308,7 +309,7 @@ describe('Config Section Access', () => {
     // Get fresh state after update
     const updatedStore = useSegmentationStore.getState();
     expect(updatedStore.config?.classes).toEqual(newClasses);
-    expect(mockWindow.setClassesInStore).toHaveBeenCalledWith(newClasses);
+    expect(updatedStore.classes).toEqual(newClasses);
   });
 
   it('should reject invalid section update', () => {
@@ -483,7 +484,7 @@ describe('Integration with Related Stores', () => {
     const store = useSegmentationStore.getState();
     store.setConfig(validConfig);
     
-    expect(mockWindow.setClassesInStore).toHaveBeenCalledWith(validConfig.classes);
+    expect(useSegmentationStore.getState().classes).toEqual(validConfig.classes);
   });
 });
 

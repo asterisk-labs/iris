@@ -2,7 +2,6 @@
  * Segmentation Store (Zustand)
  * 
  * This store gradually replaces the global `vars` object from legacy JavaScript.
- * During migration, the store syncs with legacy code via window bridge.
  * 
  * Migration Status:
  * - [x] showMask (vars.show_mask) - COMPLETE
@@ -28,6 +27,7 @@ import type {
   ConfusionMatrix
 } from '../types/iris';
 import { MaskDocument } from '../segmentation/mask/MaskDocument';
+import { useViewManagerStore } from './viewManagerStore';
 import { splitTrainTest, usableClasses, MIN_CLASSES } from '../segmentation/ai/sampling';
 import { scorePrediction } from '../segmentation/ai/metrics';
 import { loadMask, saveMask } from '../services/masks';
@@ -86,13 +86,7 @@ interface SegmentationState {
   showDialogueBeforeNextImage: boolean;
   setShowDialogueBeforeNextImage: (show: boolean) => void;
 
-  // Initialization Flow Control (replaces vars.next_action)
-  nextAction: (() => Promise<void>) | null;
-  setNextAction: (action: (() => Promise<void>) | null) => void;
 
-  // New User Experience (replaces vars.just_logged_in)
-  justLoggedIn: boolean;
-  setJustLoggedIn: (loggedIn: boolean) => void;
 
   // CRITICAL: API URLs (replaces vars.url)
   apiUrls: ApiUrls | null;
@@ -292,403 +286,6 @@ interface SegmentationState {
   getDebugInfo: () => SegmentationDebugInfo;
 }
 
-// CRITICAL: Helper functions for config legacy access during migration (vars.config)
-const getConfigFromStore = (): ProjectConfig | null => {
-  return useSegmentationStore.getState().config;
-};
-
-const setConfigInStore = (config: ProjectConfig) => {
-  const store = useSegmentationStore.getState();
-  
-  // Validate config structure
-  if (!store.validateConfig(config)) {
-    console.error('[IRIS] setConfigInStore: Invalid config structure', config);
-    return;
-  }
-  
-  store.setConfig(config);
-  
-  // Sync related data to other stores
-  if (config.classes && (window as any).setClassesInStore) {
-    (window as any).setClassesInStore(config.classes);
-  }
-  if (config.segmentation?.mask_area && (window as any).setMaskAreaInStore) {
-    (window as any).setMaskAreaInStore(config.segmentation.mask_area);
-  }
-};
-
-const getConfigSectionFromStore = <T extends keyof ProjectConfig>(section: T): ProjectConfig[T] | null => {
-  const config = useSegmentationStore.getState().config;
-  return config ? config[section] : null;
-};
-
-const updateConfigSectionInStore = <T extends keyof ProjectConfig>(section: T, data: ProjectConfig[T]) => {
-  const store = useSegmentationStore.getState();
-  const currentConfig = store.config;
-  
-  if (!currentConfig) {
-    console.error('[IRIS] updateConfigSectionInStore: No config available to update');
-    return;
-  }
-  
-  const updatedConfig = { ...currentConfig, [section]: data };
-  
-  if (!store.validateConfig(updatedConfig)) {
-    console.error('[IRIS] updateConfigSectionInStore: Invalid config after update', { section, data });
-    return;
-  }
-  
-  store.setConfig(updatedConfig);
-  
-  // Sync specific sections to related stores
-  if (section === 'classes' && (window as any).setClassesInStore) {
-    (window as any).setClassesInStore(data as ClassConfig[]);
-  }
-  if (section === 'segmentation' && (data as any)?.mask_area && (window as any).setMaskAreaInStore) {
-    (window as any).setMaskAreaInStore((data as any).mask_area);
-  }
-};
-
-const validateConfigFromStore = (): boolean => {
-  const store = useSegmentationStore.getState();
-  const config = store.config;
-  return config ? store.validateConfig(config) : false;
-};
-
-const getConfigDebugInfoFromStore = () => {
-  const store = useSegmentationStore.getState();
-  const config = store.config;
-  
-  return {
-    loaded: config !== null,
-    sections: config ? Object.keys(config) : [],
-    valid: config ? store.validateConfig(config) : false,
-    hasClasses: config?.classes ? config.classes.length : 0,
-    hasViews: config?.views ? (Array.isArray(config.views) ? config.views.length : Object.keys(config.views).length) : 0,
-    hasViewGroups: config?.view_groups ? (Array.isArray(config.view_groups) ? config.view_groups.length : Object.keys(config.view_groups).length) : 0,
-    hasSegmentation: !!config?.segmentation,
-    hasAIModel: !!config?.segmentation?.ai_model
-  };
-};
-
-// Helper function to get API URLs from React store (for legacy compatibility)
-const getApiUrlsFromStore = (): ApiUrls | null => {
-  return useSegmentationStore.getState().apiUrls;
-};
-
-// Helper function to get specific API URL from React store (for legacy compatibility)
-const getApiUrlFromStore = (endpoint: keyof ApiUrls): string | null => {
-  return useSegmentationStore.getState().getApiUrl(endpoint);
-};
-
-// Helper function to set API URLs in React store (for legacy compatibility)
-const setApiUrlsInStore = (urls: ApiUrls) => {
-  useSegmentationStore.getState().setApiUrls(urls);
-};
-
-// Helper function to get next action from React store (for legacy compatibility)
-const getNextActionFromStore = () => {
-  return useSegmentationStore.getState().nextAction;
-};
-
-// Helper function to set next action in React store (for legacy compatibility)
-const setNextActionInStore = (action: (() => Promise<void>) | null) => {
-  useSegmentationStore.getState().setNextAction(action);
-};
-
-// Helper function to get just logged in from React store (for legacy compatibility)
-const getJustLoggedInFromStore = () => {
-  return useSegmentationStore.getState().justLoggedIn;
-};
-
-// Helper function to set just logged in in React store (for legacy compatibility)
-const setJustLoggedInInStore = (loggedIn: boolean) => {
-  useSegmentationStore.getState().setJustLoggedIn(loggedIn);
-};
-
-// Helper function to get tool size from React store (for legacy compatibility)
-const getToolSizeFromStore = () => {
-  return useSegmentationStore.getState().toolSize;
-};
-
-// Helper function to get current tool from React store (for legacy compatibility)
-const getCurrentToolFromStore = () => {
-  return useSegmentationStore.getState().currentTool;
-};
-
-// Helper function to set current tool in React store (for legacy compatibility)
-const setCurrentToolInStore = (tool: 'move' | 'draw' | 'eraser') => {
-  useSegmentationStore.getState().setCurrentTool(tool);
-};
-
-// Helper function to get tool shape from React store (for legacy compatibility)
-const getToolShapeFromStore = () => {
-  return useSegmentationStore.getState().toolShape;
-};
-
-// Helper function to set tool shape in React store (for legacy compatibility)
-const setToolShapeInStore = (shape: 'square' | 'round') => {
-  useSegmentationStore.getState().setToolShape(shape);
-};
-
-// CRITICAL: Helper functions for mask area legacy access during migration (vars.mask_area)
-const getMaskAreaFromStore = (): [number, number, number, number] | null => {
-  return useSegmentationStore.getState().getMaskArea();
-};
-
-// Helper function to set mask area in React store (for legacy compatibility)
-const setMaskAreaInStore = (area: [number, number, number, number] | null) => {
-  useSegmentationStore.getState().setMaskArea(area);
-};
-
-// CRITICAL: Helper functions for mask data legacy access during migration
-const getMaskDataFromStore = () => {
-  return useSegmentationStore.getState().maskData;
-};
-
-const setMaskDataInStore = (data: Uint8Array, width: number, height: number) => {
-  useSegmentationStore.getState().setMaskData(data, width, height);
-};
-
-// CRITICAL: Helper functions for mask shape legacy access during migration (vars.mask_shape)
-const getMaskShapeFromStore = (): [number, number] | null => {
-  const dimensions = useSegmentationStore.getState().maskDimensions;
-  return dimensions ? [dimensions.width, dimensions.height] : null;
-};
-
-const setMaskShapeInStore = (width: number, height: number) => {
-  // Validate input
-  if (typeof width !== 'number' || typeof height !== 'number' || width <= 0 || height <= 0) {
-    console.error('[IRIS] setMaskShapeInStore: Invalid dimensions', { width, height });
-    return;
-  }
-
-  const store = useSegmentationStore.getState();
-  
-  // If we have existing mask data, validate dimensions match
-  const currentMask = store.maskData;
-  if (currentMask && currentMask.length !== width * height) {
-    console.warn('[IRIS] setMaskShapeInStore: Dimension mismatch with existing mask data', {
-      currentLength: currentMask.length,
-      expectedLength: width * height
-    });
-  }
-
-  // Update dimensions using store method (this will also sync with legacy vars.mask_shape)
-  store.setMaskDimensions({ width, height });
-};
-
-const getMaskWidthFromStore = (): number => {
-  const dimensions = useSegmentationStore.getState().maskDimensions;
-  return dimensions ? dimensions.width : 0;
-};
-
-const getMaskHeightFromStore = (): number => {
-  const dimensions = useSegmentationStore.getState().maskDimensions;
-  return dimensions ? dimensions.height : 0;
-};
-
-const getUserMaskDataFromStore = () => {
-  return useSegmentationStore.getState().userMaskData;
-};
-
-const setUserMaskDataInStore = (data: Uint8Array) => {
-  useSegmentationStore.getState().setUserMaskData(data);
-};
-
-const getErrorsMaskDataFromStore = () => {
-  return useSegmentationStore.getState().errorsMaskData;
-};
-
-const setErrorsMaskDataInStore = (data: Uint8Array) => {
-  useSegmentationStore.getState().setErrorsMaskData(data);
-};
-
-const copyMaskFromStore = () => {
-  return useSegmentationStore.getState().copyMask();
-};
-
-const copyUserMaskFromStore = () => {
-  return useSegmentationStore.getState().copyUserMask();
-};
-
-const getMaskTypeFromStore = () => {
-  return useSegmentationStore.getState().maskType;
-};
-
-// Helper functions for classes legacy access during migration
-const getClassesFromStore = (): ClassConfig[] => {
-  return useSegmentationStore.getState().classes;
-};
-
-const getClassFromStore = (classId: number): ClassConfig | null => {
-  const classes = useSegmentationStore.getState().classes;
-  return (classId >= 0 && classId < classes.length) ? classes[classId] : null;
-};
-
-const getClassColorFromStore = (classId: number): [number, number, number, number] | null => {
-  const classInfo = getClassFromStore(classId);
-  return classInfo ? classInfo.colour : null;
-};
-
-const getClassNameFromStore = (classId: number): string => {
-  const classInfo = getClassFromStore(classId);
-  return classInfo ? classInfo.name : `Class ${classId}`;
-};
-
-const getClassCountFromStore = (): number => {
-  return useSegmentationStore.getState().classes.length;
-};
-
-const setClassesInStore = (classes: ClassConfig[]) => {
-  useSegmentationStore.getState().setClasses(classes);
-};
-
-const getCurrentClassFromStore = (): number => {
-  return useSegmentationStore.getState().currentClass;
-};
-
-const setCurrentClassInStore = (classId: number) => {
-  useSegmentationStore.getState().setCurrentClass(classId);
-};
-
-// History system helper functions
-const updateHistoryInStore = () => {
-  useSegmentationStore.getState().updateHistory();
-};
-
-const undoInStore = () => {
-  useSegmentationStore.getState().undo();
-};
-
-const redoInStore = () => {
-  useSegmentationStore.getState().redo();
-};
-
-const discardFutureInStore = () => {
-  useSegmentationStore.getState().discardFuture();
-};
-
-const canUndoFromStore = () => {
-  return useSegmentationStore.getState().canUndo();
-};
-
-const canRedoFromStore = () => {
-  return useSegmentationStore.getState().canRedo();
-};
-
-// CRITICAL: Helper functions for user legacy access during migration (vars.user)
-const getUserFromStore = (): UserInfo | null => {
-  return useSegmentationStore.getState().user;
-};
-
-const setUserInStore = (user: UserInfo) => {
-  const store = useSegmentationStore.getState();
-  
-  // Validate user structure
-  if (!user || typeof user !== 'object') {
-    console.error('[IRIS] setUserInStore: Invalid user object', user);
-    return;
-  }
-  
-  // Validate required fields
-  const requiredFields = ['id', 'name', 'admin', 'tested', 'created', 'image_seed', 'segmentation'];
-  for (const field of requiredFields) {
-    if (!(field in user)) {
-      console.error(`[IRIS] setUserInStore: Missing required field: ${field}`);
-      return;
-    }
-  }
-  
-  // Validate segmentation object
-  if (!user.segmentation || typeof user.segmentation !== 'object') {
-    console.error('[IRIS] setUserInStore: Invalid segmentation object');
-    return;
-  }
-  
-  const requiredSegmentationFields = ['score', 'score_unverified', 'n_masks'];
-  for (const field of requiredSegmentationFields) {
-    if (!(field in user.segmentation)) {
-      console.error(`[IRIS] setUserInStore: Missing required segmentation field: ${field}`);
-      return;
-    }
-  }
-  
-  store.setUser(user);
-};
-
-const getUserStatsFromStore = () => {
-  const user = useSegmentationStore.getState().user;
-  return user ? user.segmentation : null;
-};
-
-const isAdminFromStore = (): boolean => {
-  const user = useSegmentationStore.getState().user;
-  return user ? user.admin : false;
-};
-
-const getUserNameFromStore = (): string => {
-  const user = useSegmentationStore.getState().user;
-  return user ? user.name : '';
-};
-
-const getUserIdFromStore = (): number | null => {
-  const user = useSegmentationStore.getState().user;
-  return user ? user.id : null;
-};
-
-const isNewUserFromStore = (): boolean => {
-  const user = useSegmentationStore.getState().user;
-  return user ? user.segmentation.n_masks === 0 : false;
-};
-
-// CRITICAL: Helper functions for confusion matrix legacy access during migration (vars.confusion_matrix)
-const getConfusionMatrixFromStore = (): ConfusionMatrix | null => {
-  return useSegmentationStore.getState().confusionMatrix;
-};
-
-const setConfusionMatrixInStore = (matrix: ConfusionMatrix) => {
-  const store = useSegmentationStore.getState();
-  
-  // Validate confusion matrix structure
-  if (!matrix || typeof matrix !== 'object') {
-    console.error('[IRIS] setConfusionMatrixInStore: Invalid matrix object', matrix);
-    return;
-  }
-  
-  if (!Array.isArray(matrix.matrix) || matrix.matrix.length === 0) {
-    console.error('[IRIS] setConfusionMatrixInStore: Invalid matrix array');
-    return;
-  }
-  
-  store.updateConfusionMatrix(matrix);
-};
-
-const getAccuracyStatsFromStore = () => {
-  const store = useSegmentationStore.getState();
-  return store.getAccuracyStats();
-};
-
-const clearConfusionMatrixFromStore = () => {
-  const store = useSegmentationStore.getState();
-  store.clearConfusionMatrix();
-};
-
-const getConfusionMatrixDataFromStore = (): number[][] | null => {
-  const store = useSegmentationStore.getState();
-  return store.getConfusionMatrixData();
-};
-
-const createConfusionMatrixFromStore = (
-  matrix: number[][], 
-  truePositives: { [classId: number]: number },
-  userClasses: number[],
-  classNames: string[]
-): ConfusionMatrix => {
-  const store = useSegmentationStore.getState();
-  return store.createConfusionMatrix(matrix, truePositives, userClasses, classNames);
-};
-
 /** The current mask document, replaced when the mask size changes. */
 const ensureMaskDocument = (width: number, height: number): MaskDocument => {
   const { maskDocument, classes } = useSegmentationStore.getState();
@@ -719,19 +316,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     set({ showDialogueBeforeNextImage: show });
   },
 
-  // Initialization Flow Control State (replaces vars.next_action)
-  nextAction: null,
 
-  setNextAction: (action: (() => Promise<void>) | null) => {
-    set({ nextAction: action });
-  },
-
-  // New User Experience State (replaces vars.just_logged_in)
-  justLoggedIn: false,
-
-  setJustLoggedIn: (loggedIn: boolean) => {
-    set({ justLoggedIn: loggedIn });
-  },
 
   // CRITICAL: API URLs State (replaces vars.url)
   apiUrls: null,
@@ -1266,22 +851,6 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     }
     
     set({ currentTool: tool });
-    
-    // Update legacy DOM elements
-    const w = window as any;
-    if (w.get_object) {
-      // Remove checked class from all tool buttons
-      const tools = ['move', 'draw', 'eraser'];
-      tools.forEach(t => {
-        const btn = w.get_object(`tb_tool_${t}`);
-        if (btn) btn.classList.remove('checked');
-      });
-      
-      // Add checked class to current tool
-      const currentBtn = w.get_object(`tb_tool_${tool}`);
-      if (currentBtn) currentBtn.classList.add('checked');
-    }
-    
   },
 
   setToolSize: (size: number) => {
@@ -1326,42 +895,12 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     
     set({ currentClass: classId });
     
-    // Update legacy DOM elements
-    const w = window as any;
-    if (w.get_object && classes[classId]) {
-      const classInfo = classes[classId];
-      const nameElement = w.get_object('tb_current_class');
-      const colorElement = w.get_object('tb_select_class');
-      
-      if (nameElement) {
-        nameElement.innerHTML = classInfo.name;
-      }
-      
-      if (colorElement && w.rgba2css) {
-        const cssColor = w.rgba2css(classInfo.colour);
-        colorElement.style.backgroundColor = cssColor;
-      }
-    }
-    
     // Automatically switch to draw tool (legacy behavior)
     get().setCurrentTool('draw');
   },
 
   setMaskType: (type: 'final' | 'user' | 'errors') => {
-    const { maskType: currentType } = get();
     set({ maskType: type });
-    
-    // Update legacy DOM elements
-    const w = window as any;
-    if (w.get_object) {
-      // Remove checked class from current mask type button
-      const currentBtn = w.get_object(`tb_mask_${currentType}`);
-      if (currentBtn) currentBtn.classList.remove('checked');
-      
-      // Add checked class to new mask type button
-      const newBtn = w.get_object(`tb_mask_${type}`);
-      if (newBtn) newBtn.classList.add('checked');
-    }
   },
 
   setClasses: (classes: ClassConfig[]) => {
@@ -1686,9 +1225,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     let accSum = 0;
     let accProd = userClasses.length; // Start with user_classes.length like legacy code
     
-    // Get test_n_samples from legacy vars (this is what the original code uses)
-    const w = window as any;
-    const testNSamples = w.vars?.test_n_samples || {};
+    const testNSamples: { [classId: number]: { current: number } } = {};
     
     for (const classId of userClasses) {
       const tp = truePositives[classId] || 0;
@@ -1741,13 +1278,7 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
   },
 
   resetViews: () => {
-    // Call legacy reset_views function
-    const w = window as any;
-    if (w.reset_views) {
-      w.reset_views();
-    } else {
-      console.warn('[IRIS] resetViews: Legacy reset_views function not available');
-    }
+    useViewManagerStore.getState().resetCanvas();
   },
 
   setConfig: (config: ProjectConfig) => {
@@ -1769,13 +1300,11 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
       });
     }
     
-    // Sync related data with legacy functions
-    const w = window as any;
-    if (w.setClassesInStore && config.classes) {
-      w.setClassesInStore(config.classes);
+    if (config.classes) {
+      get().setClasses(config.classes);
     }
-    if (w.setMaskAreaInStore && config.segmentation?.mask_area) {
-      w.setMaskAreaInStore(config.segmentation.mask_area);
+    if (config.segmentation?.mask_area) {
+      get().setMaskArea(config.segmentation.mask_area);
     }
   },
 
@@ -1828,15 +1357,13 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     
     get().setConfig(updatedConfig);
     
-    // Sync specific sections with legacy functions
-    const w = window as any;
-    if (section === 'classes' && w.setClassesInStore) {
-      w.setClassesInStore(data);
+    if (section === 'classes') {
+      get().setClasses(data as ClassConfig[]);
     }
-    if (section === 'segmentation' && w.setMaskAreaInStore) {
+    if (section === 'segmentation') {
       const segmentationData = data as ProjectConfig['segmentation'];
       if (segmentationData.mask_area) {
-        w.setMaskAreaInStore(segmentationData.mask_area);
+        get().setMaskArea(segmentationData.mask_area);
       }
     }
   },
@@ -2147,126 +1674,3 @@ export const useSegmentationStore = create<SegmentationState>((set, get) => ({
     };
   },
 }));
-
-// Bridge for legacy JavaScript access during migration
-// Legacy JS can call: window.segmentationStore.getState().setShowMask(true)
-if (typeof window !== 'undefined') {
-  (window as any).segmentationStore = useSegmentationStore;
-  
-  // CRITICAL: Check for pending image ID from early bridge
-  const checkForPendingImageId = () => {
-    const w = window as any;
-    if (w._pendingImageId) {
-      console.log('[IRIS Migration] ✅ Found pending image ID, setting in React store');
-      useSegmentationStore.getState().setCurrentImage(w._pendingImageId);
-      w._pendingImageId = null;
-    }
-  };
-  
-  // Check immediately
-  checkForPendingImageId();
-  
-  // Replace early bridge with real bridge function
-  (window as any).setCurrentImageIdInStore = (imageId: string) => {
-    console.log('[IRIS Migration] ✅ Real bridge: Setting current image ID in React store');
-    useSegmentationStore.getState().setCurrentImage(imageId);
-  };
-  
-  (window as any).getApiUrlsFromStore = getApiUrlsFromStore;
-  (window as any).getApiUrlFromStore = getApiUrlFromStore;
-  (window as any).setApiUrlsInStore = setApiUrlsInStore;
-  (window as any).getNextActionFromStore = getNextActionFromStore;
-  (window as any).setNextActionInStore = setNextActionInStore;
-  (window as any).getJustLoggedInFromStore = getJustLoggedInFromStore;
-  (window as any).setJustLoggedInInStore = setJustLoggedInInStore;
-  (window as any).getToolSizeFromStore = getToolSizeFromStore;
-  (window as any).getCurrentToolFromStore = getCurrentToolFromStore;
-  (window as any).setCurrentToolInStore = setCurrentToolInStore;
-  (window as any).getToolShapeFromStore = getToolShapeFromStore;
-  (window as any).setToolShapeInStore = setToolShapeInStore;
-  
-  // Export mask area helper functions for legacy JavaScript
-  (window as any).getMaskAreaFromStore = getMaskAreaFromStore;
-  (window as any).setMaskAreaInStore = setMaskAreaInStore;
-  
-  // CRITICAL: Export mask data helper functions for legacy JavaScript
-  (window as any).getMaskDataFromStore = getMaskDataFromStore;
-  (window as any).setMaskDataInStore = setMaskDataInStore;
-  (window as any).getUserMaskDataFromStore = getUserMaskDataFromStore;
-  (window as any).setUserMaskDataInStore = setUserMaskDataInStore;
-  (window as any).getErrorsMaskDataFromStore = getErrorsMaskDataFromStore;
-  (window as any).setErrorsMaskDataInStore = setErrorsMaskDataInStore;
-  (window as any).copyMaskFromStore = copyMaskFromStore;
-  (window as any).copyUserMaskFromStore = copyUserMaskFromStore;
-  (window as any).getMaskTypeFromStore = getMaskTypeFromStore;
-  (window as any).getClassesFromStore = getClassesFromStore;
-  (window as any).getClassFromStore = getClassFromStore;
-  (window as any).getClassColorFromStore = getClassColorFromStore;
-  (window as any).getClassNameFromStore = getClassNameFromStore;
-  (window as any).getClassCountFromStore = getClassCountFromStore;
-  (window as any).setClassesInStore = setClassesInStore;
-  (window as any).getCurrentClassFromStore = getCurrentClassFromStore;
-  (window as any).setCurrentClassInStore = setCurrentClassInStore;
-  
-  // CRITICAL: Export mask shape helper functions for legacy JavaScript (vars.mask_shape migration)
-  (window as any).getMaskShapeFromStore = getMaskShapeFromStore;
-  (window as any).setMaskShapeInStore = setMaskShapeInStore;
-  (window as any).getMaskWidthFromStore = getMaskWidthFromStore;
-  (window as any).getMaskHeightFromStore = getMaskHeightFromStore;
-  
-  // Export history system helper functions
-  (window as any).updateHistoryInStore = updateHistoryInStore;
-  (window as any).scheduleHistoryUpdateInStore = () => useSegmentationStore.getState().scheduleHistoryUpdate();
-  (window as any).flushPendingHistoryInStore = () => useSegmentationStore.getState().flushPendingHistory();
-  (window as any).undoInStore = undoInStore;
-  (window as any).redoInStore = redoInStore;
-  (window as any).discardFutureInStore = discardFutureInStore;
-  (window as any).canUndoFromStore = canUndoFromStore;
-  (window as any).canRedoFromStore = canRedoFromStore;
-  
-  // Export config helper functions for legacy JavaScript
-  (window as any).getConfigFromStore = getConfigFromStore;
-  (window as any).setConfigInStore = setConfigInStore;
-  (window as any).getConfigSectionFromStore = getConfigSectionFromStore;
-  (window as any).updateConfigSectionInStore = updateConfigSectionInStore;
-  (window as any).validateConfigFromStore = validateConfigFromStore;
-  (window as any).getConfigDebugInfoFromStore = getConfigDebugInfoFromStore;
-  
-  // Export user helper functions for legacy JavaScript
-  (window as any).getUserFromStore = getUserFromStore;
-  (window as any).setUserInStore = setUserInStore;
-  (window as any).getUserStatsFromStore = getUserStatsFromStore;
-  (window as any).isAdminFromStore = isAdminFromStore;
-  (window as any).getUserNameFromStore = getUserNameFromStore;
-  (window as any).getUserIdFromStore = getUserIdFromStore;
-  (window as any).isNewUserFromStore = isNewUserFromStore;
-  
-  // CRITICAL: Export confusion matrix helper functions for legacy JavaScript (vars.confusion_matrix migration)
-  (window as any).getConfusionMatrixFromStore = getConfusionMatrixFromStore;
-  (window as any).setConfusionMatrixInStore = setConfusionMatrixInStore;
-  (window as any).getAccuracyStatsFromStore = getAccuracyStatsFromStore;
-  (window as any).clearConfusionMatrixFromStore = clearConfusionMatrixFromStore;
-  (window as any).getConfusionMatrixDataFromStore = getConfusionMatrixDataFromStore;
-  (window as any).createConfusionMatrixFromStore = createConfusionMatrixFromStore;
-  
-  // Migration tracking
-  console.log('[IRIS Migration] Segmentation store initialized - all data now managed by React stores');
-}
-
-// Export helper functions for testing and external use
-export {
-  getClassesFromStore,
-  getClassFromStore,
-  getClassColorFromStore,
-  getClassNameFromStore,
-  getClassCountFromStore,
-  setClassesInStore,
-  getCurrentClassFromStore,
-  setCurrentClassInStore,
-  getConfusionMatrixFromStore,
-  setConfusionMatrixInStore,
-  getAccuracyStatsFromStore,
-  clearConfusionMatrixFromStore,
-  getConfusionMatrixDataFromStore,
-  createConfusionMatrixFromStore
-};

@@ -83,3 +83,19 @@ it catches most corruption, so impact is low.
 `get_or_404` and updates difficulty, notes and complete without checking
 that it belongs to `session['user_id']`. A user can change another
 user's annotation metadata by posting to `/set_action_info/<id>`.
+
+---
+
+## Tests
+
+### Timing-sensitive tests fail intermittently under the full suite
+
+*Found on `finish-migration`.*
+
+`src/pages/ImagesPage.test.tsx` ("disables export button during export")
+and `src/pages/PasswordResetRequestsPage.test.tsx` ("refreshes list after
+successful password generation") pass on their own but occasionally fail
+when the whole vitest suite runs, which runs test files in parallel. Both
+race a mocked `setTimeout` delay against `waitFor`. Use fake timers or
+wait on the resulting state instead of elapsed time.
+

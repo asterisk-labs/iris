@@ -287,8 +287,9 @@ describe('Performance', () => {
     store.setMaskData(largeMask, 512, 512);
     const endTime = performance.now();
     
-    // Should complete in reasonable time (less than 50ms)
-    expect(endTime - startTime).toBeLessThan(50);
+    // Guards against pathological costs (e.g. per-pixel copies), not exact
+    // timing: the full suite runs files in parallel, so allow headroom.
+    expect(endTime - startTime).toBeLessThan(250);
     
     // Verify data integrity
     const stored = useSegmentationStore.getState().maskData!;

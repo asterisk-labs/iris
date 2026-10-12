@@ -345,30 +345,3 @@ export const useViewManagerStore = create<ViewManagerState>((set, get) => ({
 
   setInitialized: (isInitialized) => set({ isInitialized }),
 }));
-
-// Bridge for legacy JavaScript (segmentation.js) until it is ported
-if (typeof window !== 'undefined') {
-  const w = window as any;
-  w.viewManagerStore = useViewManagerStore;
-
-  if (w._pendingImageLocation) {
-    useViewManagerStore.getState().setImageLocation(w._pendingImageLocation);
-    w._pendingImageLocation = null;
-  }
-
-  w.setImageLocationInStore = (location: [number, number]) => {
-    useViewManagerStore.getState().setImageLocation(location);
-  };
-
-  w.getImageLocationFromStore = (): [number, number] => {
-    return useViewManagerStore.getState().imageLocation;
-  };
-
-  w.resetCanvasFromStore = () => {
-    useViewManagerStore.getState().resetCanvas();
-  };
-
-  w.resetFiltersFromStore = () => {
-    useViewManagerStore.getState().resetFilters();
-  };
-}

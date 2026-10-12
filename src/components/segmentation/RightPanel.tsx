@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -11,23 +12,7 @@ interface RightPanelProps {
 const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onToggleCollapse }) => {
   const { theme, actualThemeName } = useTheme();
   
-  const {
-    showMask,
-    toggleMask,
-    maskType,
-    setMaskType,
-    brightness,
-    saturation,
-    contrast,
-    invert,
-    setBrightness,
-    setSaturation,
-    setContrast,
-    setInvert,
-    resetFilters,
-    currentClass,
-    classes,
-  } = useSegmentationStore();
+  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
   const currentClassName = currentClass >= 0 && currentClass < classes.length 

@@ -60,31 +60,6 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
     updateBingMap();
   }, [imageLocation, updateBingMap]);
   
-  // Expose update function for legacy compatibility
-  useEffect(() => {
-    const w = window as any;
-    if (!w.reactBingLayers) {
-      w.reactBingLayers = [];
-    }
-    
-    const layerInterface = {
-      update: updateBingMap,
-      view: view,
-      type: 'bingmap',
-      container: iframeRef.current,
-      imageLocationChanged: updateBingMap,
-      sizeChanged: updateBingMap,
-    };
-    
-    w.reactBingLayers.push(layerInterface);
-    
-    return () => {
-      const index = w.reactBingLayers.indexOf(layerInterface);
-      if (index > -1) {
-        w.reactBingLayers.splice(index, 1);
-      }
-    };
-  }, [updateBingMap, view]);
   
   const iframeStyle: React.CSSProperties = {
     width: `${width}px`,

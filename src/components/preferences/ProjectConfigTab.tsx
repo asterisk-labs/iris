@@ -111,7 +111,6 @@ const ProjectConfigTab: React.FC<ProjectConfigTabProps> = ({ onStateChange }) =>
     if (viewGroupsRef.current?.setData) viewGroupsRef.current.setData(config.view_groups);
     if (segmentationRef.current?.setData) segmentationRef.current.setData(config.segmentation);
     if (chatRef.current?.setData) {
-      if ((window as any).IRIS_DEBUG) console.log('[ProjectConfigTab] Populating ChatSection with:', config.chat);
       chatRef.current.setData(config.chat);
     }
   };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ImageNavigationDropdown } from './toolbar/ImageNavigationDropdown';
@@ -24,16 +25,10 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   const config = useSegmentationStore((state) => state.config);
   const projectName = config?.name || 'IRIS';
   
-  const { 
-    getPrevImageId, 
-    getNextImageId, 
-    saveCurrentMask,
-    isLoading,
-    maskChanged,
-  } = useSegmentationStore();
+  const { saveCurrentMask, isLoading, maskChanged } = useSegmentationStore(useShallow(s => ({ saveCurrentMask: s.saveCurrentMask, isLoading: s.isLoading, maskChanged: s.maskChanged })));
   
-  const hasPrev = getPrevImageId() !== null;
-  const hasNext = getNextImageId() !== null;
+  const hasPrev = useSegmentationStore(s => s.getPrevImageId() !== null);
+  const hasNext = useSegmentationStore(s => s.getNextImageId() !== null);
 
   const handleNavigateToImage = (imageId: string) => {
     void goToPickedImage(imageId);

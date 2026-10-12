@@ -5,14 +5,12 @@
  */
 
 import { useSegmentationStore } from '../stores/segmentationStore';
-import { appUrls } from '../services/http';
+import { imageUrl } from '../services/http';
 import { getActionInfo } from '../services/actionInfo';
 
 const store = () => useSegmentationStore.getState();
 
-export function imageUrl(imageId: string): string {
-  return `${appUrls().segmentation}?image_id=${encodeURIComponent(imageId)}`;
-}
+export { imageUrl };
 
 export function goToImage(imageId: string): void {
   window.location.href = imageUrl(imageId);

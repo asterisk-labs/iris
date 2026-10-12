@@ -25,6 +25,11 @@ export function appUrls(): AppUrls {
   return urls;
 }
 
+/** URL of the segmentation page for an image. */
+export function imageUrl(imageId: string): string {
+  return `${urls.segmentation}?image_id=${encodeURIComponent(imageId)}`;
+}
+
 /** The session has expired or the user is not logged in. */
 export class AuthError extends Error {
   constructor() {

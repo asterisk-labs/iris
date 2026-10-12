@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import ToolButton from './ToolButton';
 import { useSegmentationStore } from '../../../stores/segmentationStore';
 
@@ -25,16 +26,7 @@ const PaintbrushSelector: React.FC<PaintbrushSelectorProps> = ({
   label,
   style,
 }) => {
-  const { 
-    showDrawToolDropdown,
-    showEraserToolDropdown,
-    setShowDrawToolDropdown,
-    setShowEraserToolDropdown,
-    toolShape, 
-    setToolShape, 
-    toolSize, 
-    setToolSize 
-  } = useSegmentationStore();
+  const { showDrawToolDropdown, showEraserToolDropdown, setShowDrawToolDropdown, setShowEraserToolDropdown, toolShape, setToolShape, toolSize, setToolSize } = useSegmentationStore(useShallow(s => ({ showDrawToolDropdown: s.showDrawToolDropdown, showEraserToolDropdown: s.showEraserToolDropdown, setShowDrawToolDropdown: s.setShowDrawToolDropdown, setShowEraserToolDropdown: s.setShowEraserToolDropdown, toolShape: s.toolShape, setToolShape: s.setToolShape, toolSize: s.toolSize, setToolSize: s.setToolSize })));
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);

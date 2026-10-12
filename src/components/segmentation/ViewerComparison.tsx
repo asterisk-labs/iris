@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import ReactViewManager from './ReactViewManager';
 import ErrorBoundary from './ErrorBoundary';
 import { useViewManagerStore } from '../../stores/viewManagerStore';
@@ -18,8 +19,8 @@ interface ViewerComparisonProps {
 
 const ViewerComparison: React.FC<ViewerComparisonProps> = () => {
   // Use store hooks instead of direct window access
-  const { isInitialized } = useViewManagerStore();
-  const { config } = useSegmentationStore();
+  const { isInitialized } = useViewManagerStore(useShallow(s => ({ isInitialized: s.isInitialized })));
+  const { config } = useSegmentationStore(useShallow(s => ({ config: s.config })));
 
   // Initialize React ViewManager from React config (not legacy vars)
   useEffect(() => {
