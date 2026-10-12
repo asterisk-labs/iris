@@ -28,23 +28,6 @@ navigates but does not save the mask; the mask is saved only by the
 
 Needs a decision on when the dialogue should show before fixing.
 
-### Reset-view shortcut is `Y`, documented as `Z`
-
-*Found on `finish-migration`, preserved by the migration.*
-
-`key_down` in `segmentation.js` binds `KeyY` to reset the view; the
-command table and the Help modal say `Z`. `Z` is correct. Probably a
-QWERTZ leftover (`event.code` is layout-independent).
-
-### Fast strokes leave gaps
-
-*Found on `finish-migration`, preserved by the migration.*
-
-The brush is stamped only at mouse event positions. Moving quickly with a
-small brush leaves a dotted line. Fix: stamp along the segment between
-successive pointer positions (Bresenham), which is cheap once the brush
-geometry is a pure function (planned in `geometry/brush.ts`).
-
 ### Image shape convention is inconsistent
 
 *Found on `finish-migration`; the migration keeps the current frontend

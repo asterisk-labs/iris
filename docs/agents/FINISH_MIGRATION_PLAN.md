@@ -80,21 +80,21 @@ Not imported by anything except their own tests:
 
 ### 1.3 Bugs found while reading
 
-Policy for this branch (agreed 2026-10-12): the migration preserves
-current behaviour, bugs included, and bugs go to `docs/agents/bugs.md`
-for issues to be raised separately. The exception is a bug that lives
-only in code being deleted, where preserving it would mean rebuilding
-dead or broken code on purpose; there the port takes the natural
-behaviour and the PR description lists it. Below, **[port]** marks those
-exceptions and **[bugs.md]** marks preserved ones.
+Policy for this branch (agreed 2026-10-12): fix a bug when the PR is
+already rewriting the code it lives in; otherwise preserve the behaviour
+and log the bug in `docs/agents/bugs.md` for issues to be raised
+separately. No tangents. Every behaviour change goes in the PR
+description. Below, **[port]** marks bugs fixed by the rewrite and
+**[bugs.md]** marks preserved ones.
 
 1. **[port] Keyboard filters do nothing.** `C`, `I`, `X` update
    `viewManagerStore.filters`, which nothing renders. The sliders and
    arrow keys update `segmentationStore.brightness` etc., which
    `applyFiltersToLayers` writes into canvas CSS. Two filter states, one
    of them dead.
-2. **[bugs.md] Reset-view key.** The handler binds `KeyY`; the command table and
-   Help say `Z` (QWERTZ heritage).
+2. **[port] Reset-view key.** The handler binds `KeyY`; the command table and
+   Help say `Z` (QWERTZ heritage). `Z` is correct; the new shortcut
+   table (S4) binds it.
 3. **[bugs.md] Action-info dialogue is nearly unreachable.** `setMaskChanged(false)`
    after a save also clears `showDialogueBeforeNextImage`. So Enter
    (save, then `next_image`) and the TopBar Next button (save, then
@@ -134,7 +134,8 @@ exceptions and **[bugs.md]** marks preserved ones.
     move and `ReactPreviewLayer` subscribes to it.
 11. `mouse_wheel` uses the deprecated `wheelDelta` (the port reads
     `deltaY`, same sign). **[bugs.md]** Strokes are stamped only at event
-    positions, so fast strokes leave gaps; the port keeps that.
+    positions, so fast strokes leave gaps. **[port]**: the new pointer
+    handling (S2) stamps along the segment between positions.
 12. `HelpModal` and `PreferencesModal` disable shortcuts by swapping
     `document.body.onkeydown`.
 
@@ -146,7 +147,8 @@ exceptions and **[bugs.md]** marks preserved ones.
 src/segmentation/                  plain TS, no React, no window
   geometry/transform.ts            ViewTransform maths: fit, zoom about a point,
                                    pan, clamp to image, canvas<->image
-  geometry/brush.ts                brushFootprint(shape, size) -> offsets
+  geometry/brush.ts                brushFootprint(shape, size) -> offsets;
+                                   strokeSegment(a, b) for gap-free strokes
   mask/MaskDocument.ts             mutable final/user/errors Uint8Arrays,
                                    paint/erase/applyPrediction/reset,
                                    dirty rect, incremental per-class counts,
@@ -438,12 +440,12 @@ grep gate, and the Cypress preferences spec still passing.
 Manual smoke list, run on the demo after S2, S3 and S5:
 
 - Paint square and round at sizes 1, 3, 5, 8; erase; class digits;
-  Shift+wheel resize.
+  Shift+wheel resize; fast strokes leave no gaps.
 - Wheel zoom stays anchored at the cursor; right/middle drag and move
   tool pan; reset view; switching view group (`B`) and adding/removing a
   view keep zoom and pan; reload keeps them.
 - Mask types `F`/`G`/`H`, Space toggle, filters by keys and sliders,
-  filter reset, `Y` resets the view.
+  filter reset, `Z` resets the view.
 - Undo/redo across strokes, predict, reset.
 - Predict (`A`) fills only unpainted pixels; errors mask; confusion matrix
   modal; AI score and recommendation.
@@ -466,10 +468,11 @@ this branch if S2 turns out fiddly.
    store built from flat slices, not several stores.
 2. **PR shape.** One branch, one PR onto `overhaul`, reviewed commit by
    commit; open it as a draft after S1.
-3. **Bugs.** Preserved and logged in `docs/agents/bugs.md` unless they
-   live only in deleted code (the [port] cases in 1.3). That covers the
-   action-info dialogue, the reset-view key (`Z` is correct, fix
-   separately), gap-free strokes and history memory.
+3. **Bugs.** Fixed when the PR rewrites their code anyway (the [port]
+   cases in 1.3, including the `Z` key and gap-free strokes); otherwise
+   logged in `docs/agents/bugs.md`. The action-info dialogue keeps
+   today's behaviour until it has been tested and its intended trigger
+   decided.
 4. **Image shape.** Keep current indexing; test on a non-square project
    and decide the convention separately.
 5. **Bing layer.** Keep it working through this branch.
