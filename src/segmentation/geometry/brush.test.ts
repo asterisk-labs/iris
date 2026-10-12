@@ -33,7 +33,7 @@ const touchesFarEdge = (c: LegacyCase) => {
 const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
 
 describe('brushPixels matches the legacy brush', () => {
-  const cases = (legacy as { cases: LegacyCase[] }).cases;
+  const cases = (legacy as unknown as { cases: LegacyCase[] }).cases;
   const comparable = cases.filter(c => !touchesFarEdge(c));
 
   it('has a meaningful number of comparable fixtures', () => {

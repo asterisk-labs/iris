@@ -145,6 +145,11 @@ description. Below, **[port]** marks bugs fixed by the rewrite and
 14. **[port] Filter reset leaves the image filtered.** `resetFilters`
     zeroed the state but never re-applied the CSS. Fixed in S0, where the
     filter code had to change to drop the mock ViewManager.
+15. **[port] The AI recommendation is overwritten straight away.**
+    `update_ai_box` writes the worst-class hint, then applying the
+    prediction triggers the pixel-count update, which writes "Start the
+    training!" over it. S3 derives the hint: worst class after a
+    prediction, until the next edit.
 
 ---
 
