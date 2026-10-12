@@ -5,8 +5,8 @@ Branch `finish-migration`, cut from `overhaul` (732f437) on
 
 Goal: the segmentation page is one TypeScript application. No legacy
 script tags, no `vars`, no `window.*FromStore` bridge, no custom-event
-plumbing between layers, and state owned by small stores with clear
-boundaries. Wire formats to the backend do not change; T1.1.2 (server-side
+plumbing between layers, and state held in one store built from slice files
+with clear boundaries. Wire formats to the backend do not change; T1.1.2 (server-side
 prediction contract) stays a separate task.
 
 Baseline on this branch: vitest 388 passed / 1 skipped, `tsc --noEmit`
@@ -164,7 +164,7 @@ src/services/                      fetch wrappers, typed
   images.ts                        images list
   config.ts                        (exists)
 
-src/stores/                        0.2.B, section 4
+src/stores/segmentation/           0.2.B, slices of one store, section 4
 src/hooks/useCanvasController.tsx  context provider; viewports register canvases
 src/hooks/useKeyboardShortcuts.ts  binds the table; disabled by modal context
 ```
@@ -181,11 +181,11 @@ and per-canvas context matrices with a single `ViewTransform`
 (`{zoom, originX, originY}`, already defined in `viewTransform.ts`). Each
 draw calls `ctx.setTransform` from it. Canvas↔image conversion is a pure
 function, so pointer maths becomes testable and the SVGMatrix patching
-goes. The controller writes the transform to `viewStore.viewTransform`
+goes. The controller writes the transform to `viewTransform` in the view slice
 (throttled) so remounts and reloads keep it, as last week's fix does now.
 
 **D2. Mask pixels live outside zustand.** `MaskDocument` is mutated in
-place. The mask store holds a reference plus reactive summary fields:
+place. The mask slice holds a reference plus reactive summary fields:
 `revision`, `savedRevision`, `counts`, `canUndo`, `canRedo`. Components
 subscribe to summaries; the controller subscribes to the document's
 dirty-rect events. `maskChanged` becomes `revision !== savedRevision`
@@ -211,14 +211,14 @@ always the first `.view-canvas` in the document).
 **D6. Legacy chrome becomes React.** `show_message` → toast,
 `show_loader` → loading overlay, `show_dialogue` → existing `ErrorModal`,
 action-info dialogue → `ActionInfoModal`, all driven by a small
-`uiStore`. `base.html` loses `#dialogue`, `#loader`, `#message`,
+the UI slice. `base.html` loses `#dialogue`, `#loader`, `#message`,
 `#block-screen` and both script tags; admin does not use them (checked:
 no references under `src/pages`).
 
 **D7. Boot data, not globals.** The template emits
 `<script type="application/json" id="iris-boot">{image_id,
 image_location, debug, urls}</script>`; `src/boot.ts` parses it once. No
-`vars`, no `IRIS_DEBUG` global (a `debug` flag in the config store), no
+`vars`, no `IRIS_DEBUG` global (a `debug` flag in the config slice), no
 `_pending*` handoffs, no `legacyScriptsReady` polling.
 
 **D8. Image shape.** Store image and mask sizes as `{width, height}`
@@ -232,7 +232,7 @@ inconsistency is noted for T0.6, not fixed here.
 ## 3. Steps (0.2.A)
 
 Each step leaves the app working, `tsc` clean and vitest green, and is
-one or a few commits. New state lands directly in its 0.2.B store, so
+one or a few commits. New state lands directly in its 0.2.B slice, so
 each piece of state moves once (section 4 says where).
 
 ### S0. Clear dead code
@@ -280,11 +280,11 @@ Tests that pin current behaviour:
 - `CanvasController` with `attachViewport(id, {rgb, mask, preview})` and
   `detachViewport(id)`, zoom/pan/reset, resize via `ResizeObserver`,
   render loop, pointer handling (D5) calling `MaskDocument` through the
-  mask store's actions, preview (brush outline and mask-area rectangle)
+  mask slice's actions, preview (brush outline and mask-area rectangle)
   drawn from controller-local cursor state.
 - RGB layer: image loading stays in the component (it is per view), the
   draw call moves to the controller; filters applied as CSS from
-  `filterStore`.
+  the filter slice.
 - Delete `coordinateTransform.ts`, `trackTransforms` use,
   `iris-transform-change`, `iris-update-views`, `react-mask-render`,
   `react-preview-render`, `iris-mask-loaded`, `window.react*Layers`,
@@ -302,7 +302,7 @@ pure modules so most logic is tested there.
 
 - `services/masks.ts`: load (404 → empty mask), save, `saveBeacon` on
   `pagehide` when `maskChanged`. 403 opens the login modal (bug 4).
-- Mask store actions: `load(imageId)`, `save()`, `reset()`, `undo()`,
+- Store actions: `load(imageId)`, `save()`, `reset()`, `undo()`,
   `redo()`, `predict()`. `predict` ports `legacyPredictMask` on top of
   `sampling.ts` and `metrics.ts`, posts to the existing octet endpoint,
   applies the result, sets the errors mask and confusion matrix, and
@@ -325,7 +325,7 @@ not navigate; navigation after save uses the post-save state.
   inputs disable it via context. `HelpModal` renders its key list from the
   table. Remove the `onkeydown` swapping (bug 12). Shift-held resize mode
   becomes controller state, not store state.
-- `uiStore` with toast, loading overlay and error; replace every
+- UI slice with toast, loading overlay and error; replace every
   `show_message`, `show_loader`, `hide_loader`, `show_dialogue` call
   (TopBar export, view-group switch, save confirmation).
 - `ActionInfoModal` (difficulty, notes, complete) as a React component.
@@ -359,35 +359,64 @@ project, vitest and tsc green.
 
 ## 4. Store split (0.2.B)
 
-Target: `segmentationStore.ts` (2,657 lines) and `viewManagerStore.ts`
-(1,240 lines) replaced by these, each well under 300 lines. Components
-use selectors (`useMaskStore(s => s.counts)`), never the whole store.
+One Zustand store, `useSegmentationStore`, assembled from slice files.
+This keeps gt-sse's single-store model and atomic cross-cutting updates,
+and gives the file-level separation 0.2.B is after. `viewManagerStore`
+folds in as a slice, so the segmentation page has one store.
 
-| Store | Owns | Comes from |
+```
+src/stores/segmentation/
+  index.ts            create() spreading the slices, plus cross-slice
+                      actions: loadImage, saveThenNavigate, predict
+  maskSlice.ts
+  toolSlice.ts
+  filterSlice.ts
+  configSlice.ts
+  navigationSlice.ts
+  viewSlice.ts
+  uiSlice.ts
+  types.ts            SegmentationState = intersection of slice types
+```
+
+Slices are spread flat, so access does not change:
+`useSegmentationStore(s => s.showMask)`, as today. The name stays, so
+components and tests keep their imports. Rules:
+
+- Components always read through narrow selectors, never
+  `useSegmentationStore()` bare. Enforced by the grep test in S5.
+- Action names say what they act on (`resetMask`, `resetFilters`,
+  `setToolSize`), because slices share one namespace. A type-level check
+  fails the build if two slice types declare the same key.
+- A slice may read other slices through `get()`; writes that span slices
+  live in `index.ts` as named actions, so cross-cutting flows are in one
+  place.
+
+| Slice | Owns | Comes from |
 |---|---|---|
-| `maskStore` | `MaskDocument` ref, `revision`, `savedRevision`, `counts`, history flags, `maskType`, `showMask`, errors mask, `confusionMatrix`, `lastSaveTime`; actions load/save/reset/undo/redo/predict/paint | segmentationStore mask, history, pixel counts, confusion matrix, `maskChanged`, `isLoading` |
-| `toolStore` | `tool`, `size`, `shape`, `currentClass` | segmentationStore tool fields (the dropdown-open flags become component state) |
-| `filterStore` | `brightness`, `saturation`, `contrast`, `invert` | both filter copies (bug 1); `expandedFilterSlider` becomes component state |
-| `configStore` | project `config`, `user`, derived `classes`, `imageSize`, `maskArea`, `maskSize`, `debug` | segmentationStore config/user/classes/maskArea/apiUrls, `useConfigLoader` |
-| `navigationStore` | `images`, `currentImageId`, derived prev/next; `goTo` flow | segmentationStore navigation, template `next_image`/`prev_image` |
-| `viewStore` | `views`, `viewGroups`, `currentGroup`, `showControls`, `viewTransform`, active view, layout persistence | slimmed `viewManagerStore` |
-| `uiStore` | toast, loading overlay, error modal, action-info modal state | `errorModal`, `dialogue.js` |
+| `maskSlice` | `MaskDocument` ref, `revision`, `savedRevision`, `counts`, history flags, `maskType`, `showMask`, errors mask, `confusionMatrix`, `lastSaveTime`; paint/reset/undo/redo | segmentationStore mask, history, pixel counts, confusion matrix, `maskChanged`, `isLoading` |
+| `toolSlice` | `tool`, `toolSize`, `toolShape`, `currentClass` | segmentationStore tool fields (the dropdown-open flags become component state) |
+| `filterSlice` | `brightness`, `saturation`, `contrast`, `invert` | both filter copies (bug 1); `expandedFilterSlider` becomes component state |
+| `configSlice` | project `config`, `user`, derived `classes`, `imageSize`, `maskArea`, `maskSize`, `debug` | segmentationStore config/user/classes/maskArea/apiUrls, `useConfigLoader` |
+| `navigationSlice` | `images`, `currentImageId`, derived prev/next | segmentationStore navigation, template `next_image`/`prev_image` |
+| `viewSlice` | `views`, `viewGroups`, `currentGroup`, `showControls`, `viewTransform`, active view, layout persistence | slimmed `viewManagerStore` |
+| `uiSlice` | toast, loading overlay, error modal, action-info modal state | `errorModal`, `dialogue.js` |
 
-Not stored at all: cursor position, drag start, canvas mouse position,
-hidden mask canvas, resize mode (controller-local); `nextAction`,
-`justLoggedIn`, `apiUrls` (deleted; URLs are constants plus a base path
-from boot data); debug-info getters.
+Leaving the store rather than getting a slice: the mask pixel arrays
+(held by reference in `MaskDocument`, D2); cursor position, drag start,
+canvas mouse position, hidden mask canvas, resize mode (controller-local);
+config validation, about 180 lines, to `src/config/validate.ts`
+unchanged, for 0.2.C to replace with the generated schema; the window
+bridge exports; `nextAction`, `justLoggedIn`, `apiUrls` and the debug-info
+getters (deleted; URLs are constants plus a base path from boot data).
 
-Config validation (`validateConfig`, about 180 lines) moves out of the
-store into `src/config/validate.ts` unchanged; 0.2.C replaces it with the
-generated schema. `vars` and `initializeViewManagerFromLegacy` go in S0
-and S5.
+Expected size: about 1,000 lines across the slice files, against 3,900
+in the two stores today.
 
 Tests: about 20 store test files target the current API, many of them the
-bridge helpers. Plan: rewrite per new store, keeping the behaviours
-(pixel counts, confusion matrix, history, config validation, navigation,
-image location, mask area) and dropping tests of deleted bridge
-functions. Expect the vitest count to dip after S0 and climb with S1.
+bridge helpers. Plan: rewrite per slice, keeping the behaviours (pixel
+counts, confusion matrix, history, config validation, navigation, image
+location, mask area) and dropping tests of deleted bridge functions.
+Expect the vitest count to dip after S0 and climb with S1.
 
 ---
 
@@ -423,10 +452,11 @@ this branch if S2 turns out fiddly.
 
 ## 6. Decisions for review
 
-1. **Order.** I recommend A first with state landing in B's stores as it
+1. **Order.** I recommend A first with state landing in B's slices as it
    moves (S0–S5), then a final B sweep for config and navigation. The
    alternative, B first, means re-pointing about 90 `window` exports at
-   new stores only to delete them later.
+   the new slices only to delete them later. Settled: one store built
+   from flat slices, not several stores.
 2. **PR shape.** One branch, one PR onto `overhaul`, reviewed commit by
    commit; or two PRs (A, then B). One PR is less rebasing; two are
    easier to review. I lean to one draft PR opened after S1.
