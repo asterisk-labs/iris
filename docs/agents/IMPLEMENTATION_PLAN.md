@@ -562,6 +562,17 @@ This item stays at this point in the plan on purpose: the skill consumes
 the catalogue, `iris init` and the view presets, so it is written after
 those have settled rather than before.
 
+**Constraint: none of this is a gate.** Building a project by hand (files
+in a folder, a project JSON, `iris label`) stays the primary route and must
+never need the spec, the catalogue or the skill. Three rules keep it so:
+the project config remains the interface and the spec only compiles into
+a config plus files, so anything the spec can express is expressible by
+hand; a minimal spec is a task name, a region, one source and a class
+list with everything else defaulted, and a field that only an agent ever
+fills in belongs in a default; and `iris init <folder>` with no spec
+scaffolds an empty project with a template config and a note on where to
+put files. Docs present the routes in that order: manual, `init`, skill.
+
 **The pieces, in dependency order.**
 
 1. **Source catalogue (extensible).** One YAML file per source. Three
@@ -674,6 +685,12 @@ session.
 - Agents hallucinate sources. The catalogue plus the check command is the
   mitigation: the skill may only propose sources with entries that pass
   the check, and it writes new entries rather than inventing fetch logic.
+- Gatekeeping. If the spec grows until a person cannot realistically
+  write one, IRIS ends up behind the agent and existing users who build
+  their own datasets lose out. Watch the spec's size in review; any field
+  added should be justified by a human wanting to set it, not by the agent
+  needing somewhere to put a decision. The no-spec `init` and the manual
+  route are the guarantee, and both stay first in the docs.
 - Runtime complement: the view creator in T1.3.2 lets users adjust views
   after `init` without rerunning anything; `init` only has to get the
   project opening well.
