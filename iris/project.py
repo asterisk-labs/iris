@@ -30,6 +30,9 @@ class Project:
         self.image_ids = None
         self.file = None
         self.debug = False
+        # images.shape as written in the config file (None when derived)
+        self.configured_shape = None
+        self._shape_cache = {}
 
     def load_from(self, filename):
         if not isabs(filename):
@@ -73,11 +76,17 @@ class Project:
         # Default seed
         self.set_image_seed(0)
 
+        self._init_image_shape()
+
         if self.segmentation:
-            self.config['segmentation']['mask_shape'] = (
-                self['segmentation']['mask_area'][2]-self['segmentation']['mask_area'][0],
-                self['segmentation']['mask_area'][3]-self['segmentation']['mask_area'][1],
-            )
+            # mask_area is optional; without it the whole image is the mask
+            # area, per image (images may differ in size).
+            area = self['segmentation'].get('mask_area')
+            if area is not None:
+                self._check_mask_area(area)
+            self.config['segmentation']['mask_area'] = area
+            self.config['segmentation']['mask_shape'] = \
+                self.get_mask_shape(self.image_ids[0])
 
             format = basename(self['segmentation']['path']).split('.')[-1].lower()
             encodings = {
@@ -218,6 +227,90 @@ class Project:
     @property
     def segmentation(self):
         return 'path' in self.config.get('segmentation', [])
+
+    def _init_image_shape(self):
+        """Derive images.shape from the first image and check any configured value.
+
+        `images.shape` in the config is optional. When present it must be
+        `[height, width]` (numpy order) and match the first image; the
+        value kept in `self.config` is always the derived `[height, width]`.
+        """
+        self._shape_cache = {}
+        configured = self.config['images'].get('shape')
+        self.configured_shape = list(configured) if configured else None
+        try:
+            height, width = self.get_image_shape(self.image_ids[0])
+        except Exception as error:
+            if configured:
+                # Unreadable first image but a shape was given: trust it,
+                # the error will surface when the image is rendered.
+                print(f"Warning: could not read the size of image "
+                      f"'{self.image_ids[0]}' ({error}); using images.shape")
+                height, width = int(configured[0]), int(configured[1])
+                self._shape_cache[self.image_ids[0]] = (height, width)
+            else:
+                raise Exception(
+                    f"[CONFIG] Could not read image '{self.image_ids[0]}' to "
+                    f"determine images.shape: {error}"
+                ) from error
+        if configured:
+            conf = [int(configured[0]), int(configured[1])]
+            if conf != [height, width]:
+                hint = ''
+                if conf == [width, height]:
+                    hint = (' It looks like [width, height]; images.shape is'
+                            ' [height, width], and may simply be left out.')
+                raise Exception(
+                    f"[CONFIG] images.shape {conf} does not match the first "
+                    f"image '{self.image_ids[0]}', which is "
+                    f"[{height}, {width}] (height, width).{hint}"
+                )
+        self.config['images']['shape'] = [height, width]
+
+    def _check_mask_area(self, area):
+        if (not isinstance(area, (list, tuple)) or len(area) != 4
+                or area[2] <= area[0] or area[3] <= area[1]):
+            raise Exception(
+                '[CONFIG] segmentation.mask_area must be [x0, y0, x1, y1] '
+                f'with x1 > x0 and y1 > y0, got {area}'
+            )
+
+    def get_image_shape(self, image_id):
+        """(height, width) of an image, read from the file header and cached."""
+        if image_id in self._shape_cache:
+            return self._shape_cache[image_id]
+        path = self.get_image_path(image_id)
+        if isinstance(path, dict):
+            path = list(path.values())[0]
+        lower = path.lower()
+        if lower.endswith('npy'):
+            array = np.load(path, mmap_mode='r', allow_pickle=False)
+            shape = (int(array.shape[0]), int(array.shape[1]))
+        elif lower.endswith(('.tif', '.tiff', '.vrt')):
+            with rio.open(path) as file:
+                shape = (int(file.height), int(file.width))
+        else:
+            array = imread(path)
+            shape = (int(array.shape[0]), int(array.shape[1]))
+        self._shape_cache[image_id] = shape
+        return shape
+
+    def get_mask_area(self, image_id):
+        """[x0, y0, x1, y1] of the mask area for an image.
+
+        The configured `segmentation.mask_area` when set, otherwise the
+        whole image.
+        """
+        area = self.config.get('segmentation', {}).get('mask_area')
+        if area is not None:
+            return list(area)
+        height, width = self.get_image_shape(image_id)
+        return [0, 0, width, height]
+
+    def get_mask_shape(self, image_id):
+        """(width, height) of the mask for an image."""
+        x0, y0, x1, y1 = self.get_mask_area(image_id)
+        return (x1 - x0, y1 - y0)
 
     def get_start_image_id(self):
         return self.image_ids[self.image_order[0]]
@@ -364,12 +457,12 @@ class Project:
                 pprint(environment)
 
         # Broadcast (single numbers are converted to an array with the size of
-        # image)
-        image_size = project['images']['shape'][0] * project['images']['shape'][1]
+        # this image)
+        shapes = [b.shape[:2] for b in rgb_bands if isinstance(b, np.ndarray)]
+        shape = shapes[0] if shapes else self.get_image_shape(image_id)
         for i, band in enumerate(rgb_bands):
             if isinstance(band, Number):
-                band = np.repeat(band, image_size)
-                band = band.reshape(*project['images']['shape'])
+                band = np.full(shape, band, dtype=float)
 
             rgb_bands[i] = band
 

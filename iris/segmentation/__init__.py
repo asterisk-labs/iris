@@ -269,9 +269,8 @@ def save_mask(image_id):
     # 1 to mask_length: mask
     # mask_length to 2*mask_length: user mask
     # 2*mask_length + 1: magic end byte 254
-    mask_length = \
-        project['segmentation']['mask_shape'][0] \
-        * project['segmentation']['mask_shape'][1]
+    mask_width, mask_height = project.get_mask_shape(image_id)
+    mask_length = mask_width * mask_height
 
     if len(data) != 2*mask_length + 2:
         print('Error: Octet-stream does not have the expected length!')
@@ -284,13 +283,13 @@ def save_mask(image_id):
 
     # We get the mask in the form HxW where each element is a class id
     final_mask = data[1:mask_length+1]
-    final_mask = final_mask.reshape(project['segmentation']['mask_shape'][::-1])
+    final_mask = final_mask.reshape(mask_height, mask_width)
 
     # The user mask denotes who classified the pixels in the mask:
     #   if true: the user classified the pixel
     #   if false: the AI classified the pixel
     user_mask = data[1+mask_length:-1].astype(bool)
-    user_mask = user_mask.reshape(project['segmentation']['mask_shape'][::-1])
+    user_mask = user_mask.reshape(mask_height, mask_width)
 
     final_mask_file, user_mask_file = get_mask_filenames(image_id, user_id)
     os.makedirs(dirname(final_mask_file), exist_ok=True)
@@ -338,13 +337,16 @@ def predict_mask(image_id):
 
     n_channels = image.shape[-1]
 
-    # Select only the masking area:
+    # Select only the masking area (per image: the configured area, or the
+    # whole image when none is configured):
+    area = project.get_mask_area(image_id)
+    mask_width, mask_height = project.get_mask_shape(image_id)
     mask_area = (
-        slice(config['mask_area'][1], config['mask_area'][3]),
-        slice(config['mask_area'][0], config['mask_area'][2]),
+        slice(area[1], area[3]),
+        slice(area[0], area[2]),
         slice(None, None, None)
     )
-    mask_size = config['mask_shape'][0] * config['mask_shape'][1]
+    mask_size = mask_width * mask_height
     image = image[mask_area]
 
     data = json.loads(flask.request.data)
@@ -412,7 +414,7 @@ def predict_mask(image_id):
     # Apply suppression filter:
     if config['ai_model']['suppression_threshold'] != 0:
         other_classes = (predictions != config['ai_model']['suppression_default_class']).astype(int)
-        other_classes = other_classes.reshape(*config['mask_shape'])
+        other_classes = other_classes.reshape(mask_height, mask_width)
         window_size = config['ai_model']['suppression_filter_size']
         window = np.ones((window_size, window_size))
         window[window_size//2, window_size//2] = 0

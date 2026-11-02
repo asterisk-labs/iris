@@ -68,9 +68,12 @@ When you have your data distributed over multiple files (e.g. coming from Sentin
 ```
 
 ### images : shape
-The shape of the images. Must be a list of width and height.
+Optional. IRIS reads the size of each image from the file, and images in
+one project may differ in size. If you do give a shape it must be
+`[height, width]` (numpy order) and match the first image; IRIS refuses to
+start otherwise, so leaving it out is the simplest choice.
 ```
-"shape": [512, 512]
+"shape": [384, 512]
 ```
 
 ### images : thumbnails
@@ -226,7 +229,7 @@ Note: not all mask formats support all encodings.
 ```
 
 ### segmentation : mask_area
-In case you don't want to allow the user to label the complete image, you can limit the segmentation area.
+Optional. By default the whole of each image can be labelled. In case you don't want to allow the user to label the complete image, you can limit the segmentation area with `[x0, y0, x1, y1]` in pixels; the same area then applies to every image.
 
 <i>Example:</i>
 ```

@@ -28,20 +28,6 @@ navigates but does not save the mask; the mask is saved only by the
 
 Needs a decision on when the dialogue should show before fixing.
 
-### Image shape convention is inconsistent
-
-*Found on `finish-migration`; the migration keeps the current frontend
-indexing.*
-
-`docs/config.md` says `images.shape` is `[width, height]`, and
-`useConfigLoader` destructures it that way. The React layers and
-`src/utils/viewTransform.ts` treat `shape[0]` as height and `shape[1]` as
-width. Legacy `constrain_view` treated `shape[0]` as x. The backend
-reshapes bands with `reshape(*project['images']['shape'])`
-(`iris/project.py`), i.e. `(rows, cols)`. Every demo project is square,
-so none of this shows. Needs testing on a non-square project, then one
-convention applied in docs, frontend and backend.
-
 ### New-user help popup never fires
 
 *Found on `finish-migration`; not ported.*
@@ -87,6 +73,20 @@ user's annotation metadata by posting to `/set_action_info/<id>`.
 ---
 
 ## Tests
+
+### The test suite empties the demo project's database
+
+*Found on `optional-shape`.*
+
+`iris/tests/conftest.py` imports the module-level demo app, then changes
+`SQLALCHEMY_DATABASE_URI` to a temporary file and calls `db.create_all()`
+and `db.drop_all()`. With Flask-SQLAlchemy 3 the engine was already built
+at `db.init_app` time, so the URI change has no effect and `drop_all()`
+runs against `demo/cloud-segmentation.iris/iris.db`: after a pytest run
+the demo database has no tables, and a demo server that was already
+running answers every login with a 500 ("no such table: user").
+Restarting the server recreates the tables. Goes away with the app
+factory fixture in T0.1 of the implementation plan.
 
 ### Timing-sensitive tests fail intermittently under the full suite
 

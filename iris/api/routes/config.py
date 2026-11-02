@@ -103,7 +103,8 @@ def get_project_config():
             'port': project.config.get('port', 5000),
             'images': {
                 'path': make_relative(deepcopy(project.config['images']['path']), base_dir),
-                'shape': deepcopy(project.config['images']['shape']),
+                # As written in the file; None when derived from the images
+                'shape': deepcopy(project.configured_shape),
                 'thumbnails': make_relative(project.config['images'].get('thumbnails', False), base_dir),
                 'metadata': make_relative(project.config['images'].get('metadata', False), base_dir),
             },
@@ -228,11 +229,14 @@ def update_project_config():
                 }), 400
 
         # Validate images configuration
-        if 'path' not in new_config['images'] or 'shape' not in new_config['images']:
+        if 'path' not in new_config['images']:
             return flask.jsonify({
                 'error': 'Invalid configuration',
-                'message': 'images.path and images.shape are required'
+                'message': 'images.path is required'
             }), 400
+        # images.shape is optional (derived from the images); drop an empty one
+        if new_config['images'].get('shape') in (None, [], [0, 0]):
+            new_config['images'].pop('shape', None)
 
         # Validate classes
         if not isinstance(new_config['classes'], list) or len(new_config['classes']) == 0:
@@ -348,10 +352,12 @@ def validate_project_config():
                 if '{id}' not in path_str and path_str != '':
                     warnings.append('images.path should contain {id} placeholder')
 
-            if 'shape' not in config_data['images']:
-                errors.append('images.shape is required')
-            elif not isinstance(config_data['images']['shape'], list) or len(config_data['images']['shape']) != 2:
-                errors.append('images.shape must be an array of 2 integers [width, height]')
+            shape = config_data['images'].get('shape')
+            if shape is not None and (
+                not isinstance(shape, list) or len(shape) != 2
+                or not all(isinstance(v, int) and v > 0 for v in shape)
+            ):
+                errors.append('images.shape, if given, must be [height, width] (two positive integers); it can be left out and is then read from the images')
 
         # Validate classes
         if 'classes' in config_data:
