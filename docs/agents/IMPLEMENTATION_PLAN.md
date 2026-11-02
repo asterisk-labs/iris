@@ -547,36 +547,153 @@ a source and use them for the model and for views without RAM blowups.
   whose band names are not `B<n>` (some embedding exports name channels)
   will break. Keep `B<n>` as the only supported form and say so.
 
-### T1.1.4 Dataset creation workflow (`iris init`)
+### T1.1.4 Dataset creation: catalogue, `iris init`, and the agent skill
 
-**Goal.** From an area, a date range and a list of sources, produce a
-ready project folder. Scripted first; an agent wrapper is optional.
+**Goal.** A user describes a segmentation task, a region or sampling
+strategy, the data they want to use and their practical limits, and ends
+up with an IRIS project folder: tiles in a fast layout, a project config
+with classes, views and view groups that suit the task, and a record of
+how it was all produced. The design separates judgment (an agent running a
+questionnaire) from execution (a deterministic, re-runnable pipeline), so
+the pipeline is testable without an LLM and a dataset is reproducible
+without one.
 
-**Steps.**
-1. `iris init <folder> --spec spec.yaml`: AOI (bbox or GeoJSON), dates,
-   tile size, sources, classes.
-2. `iris/dataset/` with one fetcher per source behind
-   `Source.fetch(aoi, dates, out_dir) -> list[tile]`. Start with
-   Sentinel-2 via STAC (`pystac-client` against Earth Search or CDSE) and
-   one embedding source. Optional dependency group `[dataset]`.
-3. Writer produces `images/{id}/<source>.tif|npy`, `metadata.json` with
-   location and date, `thumbnail.png`, and a project JSON with sensible
-   views and `images.shape`.
-4. Agent wrapper, only after 1 to 3 work: expose `init` as a tool for an LLM
-   so a user can describe the dataset in prose. Lives in `scripts/`.
+This item stays at this point in the plan on purpose: the skill consumes
+the catalogue, `iris init` and the view presets, so it is written after
+those have settled rather than before.
+
+**Constraint: none of this is a gate.** Building a project by hand (files
+in a folder, a project JSON, `iris label`) stays the primary route and must
+never need the spec, the catalogue or the skill. Three rules keep it so:
+the project config remains the interface and the spec only compiles into
+a config plus files, so anything the spec can express is expressible by
+hand; a minimal spec is a task name, a region, one source and a class
+list with everything else defaulted, and a field that only an agent ever
+fills in belongs in a default; and `iris init <folder>` with no spec
+scaffolds an empty project with a template config and a note on where to
+put files. Docs present the routes in that order: manual, `init`, skill.
+
+**The pieces, in dependency order.**
+
+1. **Source catalogue (extensible).** One YAML file per source. Three
+   layers merged at load, later overriding earlier by id: a small built-in
+   catalogue shipped with IRIS (Sentinel-2, Sentinel-1, AlphaEarth,
+   TESSERA, `local`), a user catalogue in `~/.iris/sources/`, and a
+   per-project `sources/` folder. Adding a source means dropping a file in
+   a directory; a user's agent can do that too. Each entry has:
+   - machine fields: `id`, `kind`, resolution, native CRS, extent, date
+     range, bands with dtype, `scale`/`offset` or a named dequantisation
+     (AlphaEarth's fixed formula; TESSERA's per-pixel scales array), band
+     *roles* (blue, green, red, red edge, NIR, SWIR1, SWIR2, cirrus, VV,
+     VH, embedding), typical bytes per tile, `auth` as the name of an
+     environment variable, quota notes, licence;
+   - prose fields for the agent and the reader: what the product is, what
+     it is good for, known gotchas;
+   - view presets written in band roles (true colour, false-colour NIR,
+     SWIR composite, PCA for embeddings, VV/VH/ratio for radar).
+   `iris sources check <id>` validates the entry, confirms the auth
+   variable is set, hits the endpoint and fetches one small tile into the
+   expected layout. This is the feedback loop for anyone, human or agent,
+   writing an entry.
+
+2. **Fetcher kinds, mostly generic.** `kind` selects one of a few fetchers
+   so most sources need no code: `stac` (endpoint, collection, asset to
+   band mapping), `http-template` (URL pattern with tile and date
+   placeholders, covers static hosting and Hugging Face datasets), `local`
+   (path pattern on disk), `earthengine` (AlphaEarth), and `command` (a
+   user script receiving the tile spec as JSON on stdin and writing
+   files). New protocols register as Python fetchers via a package entry
+   point. Lives in `iris/dataset/`, optional dependency group `[dataset]`.
+
+3. **The spec file.** `iris init <folder> --spec spec.yaml` is driven by
+   one document: task description, classes (name, description, colour),
+   sources by id, region (bbox or GeoJSON) or sampling strategy (N random
+   tiles in the region, stratified by a named product, or a list of
+   points), dates or seasons, tile size, local data to include, limits
+   (disk, bandwidth), and the view list. Secrets never go in the spec;
+   they come from the environment. The spec is copied into the project
+   folder with the resolved catalogue entries, so the project stays
+   reproducible even if the user's catalogue changes later.
+
+4. **The pipeline.** Dry run first: prints tiles, bytes, requests and
+   which auth variables are needed, and fetches nothing. Then fetch,
+   idempotent and resumable (fetches fail, users rerun). Writer produces
+   `images/{id}/<source>.tif|npy`, `metadata.json` with location and date,
+   `thumbnail.png`, and the project config with `images.shape`, per-source
+   dequantisation, views and view groups.
+
+   Layout policy (the one place IRIS is opinionated about formatting,
+   because it wrote the files; see issue #9): keep the producer's dtype,
+   band-interleaved and tiled, tile size matching the image or 128 px,
+   zstd only where a trial on one tile saves more than about a third
+   (AlphaEarth int8 yes, TESSERA no, reflectance usually yes), channels-
+   first npy otherwise. Loader side: `GDAL_NUM_THREADS=ALL_CPUS` when
+   reading, which makes compressed reads nearly free of decode cost.
+
+5. **Views and view groups.** Composed from three layers: the source
+   presets (role-based, so one preset text serves any sensor with those
+   roles; named indices like NDVI, NDWI, NDSI become role formulas, which
+   also answers issue #50), task-driven views chosen and tuned by the
+   agent (cirrus and a SWIR snow composite for clouds, NDWI and a dark
+   stretch for water, NDVI and red-edge for crops, the same composite at
+   two dates for change), and generic diagnostics (edges, a blank view per
+   issue #42, PCA and single-dimension views for embeddings). Each view
+   gets an annotator-facing `description`. Groups: a task group first
+   (what `B` cycles to by default), one group per source, a diagnostics
+   group. Stretches are computed from a sample tile (percentile clip or
+   `vmin`/`vmax`), not guessed. After writing tiles, `init` renders a
+   thumbnail of every view on one sample tile so views can be checked by
+   eye before the project opens.
+
+6. **The agent skill.** A Claude Code skill in the repo
+   (`.claude/skills/iris-dataset/`) that reads the catalogue, runs the
+   questionnaire (task, classes to confirm, sources with the tradeoffs
+   stated, region or sampling, dates, local data, limits), writes the
+   spec, runs the dry run, shows the cost, and only on a yes runs the
+   fetch; then looks at the view thumbnails and fixes stretches that came
+   out black or saturated. Zero infrastructure; this is also how champion
+   users would use it. A hosted variant on the Claude API can come later
+   without changing the spec or the CLI.
+
+**Acceptance.** A ten-tile Sentinel-2 plus AlphaEarth project built from
+a spec, dry run matching actual bytes within a reasonable margin, rerun
+after an interrupted fetch completes without refetching, every generated
+view validating and rendering, `iris label` opening it with the task group
+showing. The skill reaches the same spec from a prose description in one
+session.
 
 **Risks and known unknowns.**
-- Scope. This can absorb unlimited time (auth for CDSE, GEE, cloud masking,
-  reprojection, tiling edge cases). Fix the first version to one STAC
-  provider, one CRS handling rule (reproject to the tile's UTM zone), and
-  square tiles; treat everything else as later.
-- `images.shape` in the config is a single shape for all images and the
-  mask area is fixed in pixels; every tile must be the same size, which the
-  writer must guarantee.
+- Scope. Fetchers are where time goes: auth for CDSE and GEE, cloud
+  masking, reprojection, tiling edge cases. First version: one STAC
+  provider, one embedding source, one CRS rule (reproject to the tile's
+  UTM zone), square tiles. The catalogue grows from champion demand.
+- `images.shape` is one shape for the whole project and the mask area is
+  fixed in pixels; every tile from every source must land on the same
+  grid, which the writer must guarantee, including user-supplied local
+  data resampled onto it.
+- Sampling strategies that stratify by an external product add a source
+  dependency of their own; keep the first version to random-in-region and
+  user points.
+- The `command` kind executes code. A catalogue entry from outside the
+  user's machine deserves the caution given to any script someone sends;
+  `iris sources check` must state the kind before running anything.
+- Whole-source references in expressions (`pca($AlphaEarth)`) do not
+  parse today; the T1.1.3 token work is a prerequisite for embedding
+  presets.
 - The STAC and GEE client libraries pull in large dependency trees; keep
   them in the optional extra so `iris` itself stays light.
-- The "agentic" part in the proposal is under-specified; the scripted
-  version delivers the actual value and the wrapper is a demonstration.
+- Agents hallucinate sources. The catalogue plus the check command is the
+  mitigation: the skill may only propose sources with entries that pass
+  the check, and it writes new entries rather than inventing fetch logic.
+- Gatekeeping. If the spec grows until a person cannot realistically
+  write one, IRIS ends up behind the agent and existing users who build
+  their own datasets lose out. Watch the spec's size in review; any field
+  added should be justified by a human wanting to set it, not by the agent
+  needing somewhere to put a decision. The no-spec `init` and the manual
+  route are the guarantee, and both stay first in the docs.
+- Runtime complement: the view creator in T1.3.2 lets users adjust views
+  after `init` without rerunning anything; `init` only has to get the
+  project opening well.
 
 ---
 
