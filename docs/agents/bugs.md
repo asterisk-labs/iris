@@ -74,20 +74,6 @@ user's annotation metadata by posting to `/set_action_info/<id>`.
 
 ## Tests
 
-### The test suite empties the demo project's database
-
-*Found on `optional-shape`.*
-
-`iris/tests/conftest.py` imports the module-level demo app, then changes
-`SQLALCHEMY_DATABASE_URI` to a temporary file and calls `db.create_all()`
-and `db.drop_all()`. With Flask-SQLAlchemy 3 the engine was already built
-at `db.init_app` time, so the URI change has no effect and `drop_all()`
-runs against `demo/cloud-segmentation.iris/iris.db`: after a pytest run
-the demo database has no tables, and a demo server that was already
-running answers every login with a 500 ("no such table: user").
-Restarting the server recreates the tables. Goes away with the app
-factory fixture in T0.1 of the implementation plan.
-
 ### Timing-sensitive tests fail intermittently under the full suite
 
 *Found on `finish-migration`.*

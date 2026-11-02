@@ -87,6 +87,14 @@ jobs:
       - name: Test CLI functionality
         run: uv run iris --help
 
+      - name: Test CLI from outside the repository
+        shell: bash
+        run: |
+          # Importing iris and running the CLI must not depend on the cwd
+          cd "${RUNNER_TEMP}"
+          "${GITHUB_WORKSPACE}/.venv/bin/python" -c "import iris; from iris.cli import app; print('import ok')"
+          "${GITHUB_WORKSPACE}/.venv/bin/iris" --help > /dev/null
+
       - name: Run pytest (Ubuntu only for coverage)
         if: matrix.os == 'ubuntu-latest'
         run: |
