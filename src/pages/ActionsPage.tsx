@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Action, ActionsApiResponse } from '../types/iris';
+import { imageUrl } from '../services/http';
 
-// Declare global function from base.html
-declare global {
-  interface Window {
-    goto_image: (mode: string, imageId: string) => void;
-  }
-}
 
 const ActionsPage: React.FC = () => {
   const params = useParams();
@@ -42,9 +37,7 @@ const ActionsPage: React.FC = () => {
   }, [type, orderBy, isAscending]);
 
   const handleGotoImage = (imageId: string) => {
-    if (window.goto_image) {
-      window.goto_image('segmentation', imageId);
-    }
+    window.open(imageUrl(imageId));
   };
 
   if (isLoading) {

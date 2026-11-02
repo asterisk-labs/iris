@@ -1,7 +1,9 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ImageNavigationDropdown } from './toolbar/ImageNavigationDropdown';
+import { goFromToolbar, goToPickedImage } from '../../segmentation/navigation';
 import { 
   SaveIcon, 
   DownloadIcon, 
@@ -23,99 +25,21 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   const config = useSegmentationStore((state) => state.config);
   const projectName = config?.name || 'IRIS';
   
-  const { 
-    getPrevImageId, 
-    getNextImageId, 
-    navigateNext, 
-    navigatePrev,
-    saveCurrentMask,
-    isLoading,
-    maskChanged,
-  } = useSegmentationStore();
+  const { saveCurrentMask, isLoading, maskChanged } = useSegmentationStore(useShallow(s => ({ saveCurrentMask: s.saveCurrentMask, isLoading: s.isLoading, maskChanged: s.maskChanged })));
   
-  const hasPrev = getPrevImageId() !== null;
-  const hasNext = getNextImageId() !== null;
+  const hasPrev = useSegmentationStore(s => s.getPrevImageId() !== null);
+  const hasNext = useSegmentationStore(s => s.getNextImageId() !== null);
 
   const handleNavigateToImage = (imageId: string) => {
-    const w = window as any;
-    const store = useSegmentationStore.getState();
-    const hasUnsavedChanges = store.maskChanged;
-    
-    if (hasUnsavedChanges) {
-      if (w.dialogue_before_next_image) {
-        w.pendingNavigationImageId = imageId;
-        w.dialogue_before_next_image();
-      }
-    } else {
-      const url = `/segmentation/?image_id=${encodeURIComponent(imageId)}`;
-      if (w.goto_url) {
-        w.goto_url(url);
-      } else {
-        window.location.href = url;
-      }
-    }
+    void goToPickedImage(imageId);
   };
 
-  const handlePrevious = async () => {
-    if (maskChanged) {
-      try {
-        await saveCurrentMask();
-        const prevImageId = navigatePrev();
-        if (prevImageId) {
-          const url = `/segmentation/?image_id=${encodeURIComponent(prevImageId)}`;
-          const w = window as any;
-          if (w.goto_url) {
-            w.goto_url(url);
-          } else {
-            window.location.href = url;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to save before navigation:', error);
-      }
-    } else {
-      const prevImageId = navigatePrev();
-      if (prevImageId) {
-        const url = `/segmentation/?image_id=${encodeURIComponent(prevImageId)}`;
-        const w = window as any;
-        if (w.goto_url) {
-          w.goto_url(url);
-        } else {
-          window.location.href = url;
-        }
-      }
-    }
+  const handlePrevious = () => {
+    void goFromToolbar('prev');
   };
 
-  const handleNext = async () => {
-    if (maskChanged) {
-      try {
-        await saveCurrentMask();
-        const nextImageId = navigateNext();
-        if (nextImageId) {
-          const url = `/segmentation/?image_id=${encodeURIComponent(nextImageId)}`;
-          const w = window as any;
-          if (w.goto_url) {
-            w.goto_url(url);
-          } else {
-            window.location.href = url;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to save before navigation:', error);
-      }
-    } else {
-      const nextImageId = navigateNext();
-      if (nextImageId) {
-        const url = `/segmentation/?image_id=${encodeURIComponent(nextImageId)}`;
-        const w = window as any;
-        if (w.goto_url) {
-          w.goto_url(url);
-        } else {
-          window.location.href = url;
-        }
-      }
-    }
+  const handleNext = () => {
+    void goFromToolbar('next');
   };
 
   const handleSave = async () => {
@@ -127,16 +51,15 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   };
 
   const handleExportGeoTIFF = async () => {
+    const store = useSegmentationStore.getState();
+    const imageId = store.currentImageId;
+    if (!imageId) {
+      alert('No image loaded');
+      return;
+    }
+    const fail = (message: string) => store.showErrorModal(`Could not export GeoTIFF: ${message}`);
     try {
-      const imageId = useSegmentationStore.getState().currentImageId;
-      if (!imageId) {
-        alert('No image loaded');
-        return;
-      }
-
-      const w = window as any;
-      if (w.show_message) w.show_message('Exporting GeoTIFF...');
-
+      store.showNotice('Exporting GeoTIFF...');
       const response = await fetch(`/segmentation/api/export-geotiff/${imageId}`, {
         method: 'GET',
         credentials: 'same-origin'
@@ -152,25 +75,15 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        
-        if (w.show_message) w.show_message('GeoTIFF exported successfully', 2000);
+        store.showNotice('GeoTIFF exported successfully', 2000);
       } else {
         const error = await response.json();
-        const errorMsg = error.message || error.error || 'Export failed';
-        if (w.show_dialogue) {
-          w.show_dialogue('error', `<p>Could not export GeoTIFF: ${errorMsg}</p>`);
-        } else {
-          alert(`Export failed: ${errorMsg}`);
-        }
+        store.hideNotice();
+        fail(error.message || error.error || 'Export failed');
       }
     } catch (error) {
-      const w = window as any;
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      if (w.show_dialogue) {
-        w.show_dialogue('error', `<p>Could not export GeoTIFF: ${errorMsg}</p>`);
-      } else {
-        alert(`Export failed: ${errorMsg}`);
-      }
+      store.hideNotice();
+      fail(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 

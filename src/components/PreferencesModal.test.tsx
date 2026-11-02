@@ -72,54 +72,17 @@ describe('PreferencesModal - Keyboard Shortcuts', () => {
     vi.restoreAllMocks();
   });
 
-  it('disables keyboard shortcuts when modal is open', () => {
-    const mockKeyHandler = vi.fn();
-    document.body.onkeydown = mockKeyHandler;
-
-    renderWithTheme(<PreferencesModal isOpen={true} onClose={() => {}} />);
-
-    // Handler should be replaced
-    expect(document.body.onkeydown).not.toBe(mockKeyHandler);
-    expect(document.body.onkeydown).not.toBeNull();
+  it('closes on Escape', () => {
+    const onClose = vi.fn();
+    renderWithTheme(<PreferencesModal isOpen={true} onClose={onClose} />);
+    document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+    expect(onClose).toHaveBeenCalled();
   });
 
-  it('restores keyboard shortcuts when modal closes', () => {
+  it('leaves the page key handlers alone (shortcuts are switched off by the app while a modal is open)', () => {
     const mockKeyHandler = vi.fn();
-    const mockKeyUpHandler = vi.fn();
     document.body.onkeydown = mockKeyHandler;
-    document.body.onkeyup = mockKeyUpHandler;
-
-    const { rerender } = renderWithTheme(<PreferencesModal isOpen={true} onClose={() => {}} />);
-
-    // Handlers should be replaced
-    expect(document.body.onkeydown).not.toBe(mockKeyHandler);
-
-    // Close modal
-    rerender(<ThemeProvider><PreferencesModal isOpen={false} onClose={() => {}} /></ThemeProvider>);
-
-    // Handlers should be restored
+    renderWithTheme(<PreferencesModal isOpen={true} onClose={() => {}} />);
     expect(document.body.onkeydown).toBe(mockKeyHandler);
-    expect(document.body.onkeyup).toBe(mockKeyUpHandler);
-  });
-
-  it('blocks regular keyboard shortcuts while modal is open', () => {
-    const mockKeyHandler = vi.fn();
-    document.body.onkeydown = mockKeyHandler;
-
-    renderWithTheme(<PreferencesModal isOpen={true} onClose={() => {}} />);
-
-    const currentHandler = document.body.onkeydown;
-    expect(currentHandler).not.toBeNull();
-    expect(currentHandler).not.toBe(mockKeyHandler);
-
-    // Simulate pressing a regular key (e.g., 'D' for draw tool)
-    const regularKeyEvent = {
-      code: 'KeyD',
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    } as unknown as KeyboardEvent;
-
-    // Should not throw and should block the event
-    expect(() => currentHandler!.call(document.body, regularKeyEvent)).not.toThrow();
   });
 });

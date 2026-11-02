@@ -126,21 +126,15 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
-      const originalKeyDownHandler = document.body.onkeydown;
-      const originalKeyUpHandler = document.body.onkeyup;
-      document.body.onkeydown = (event: KeyboardEvent) => {
+      const handleKeyDown = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
           handleClose();
           event.preventDefault();
           event.stopPropagation();
         }
-        return;
       };
-      document.body.onkeyup = null;
-      return () => {
-        document.body.onkeydown = originalKeyDownHandler;
-        document.body.onkeyup = originalKeyUpHandler;
-      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
     }
   }, [isOpen, handleClose]);
 

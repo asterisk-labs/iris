@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -11,23 +12,7 @@ interface RightPanelProps {
 const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onToggleCollapse }) => {
   const { theme, actualThemeName } = useTheme();
   
-  const {
-    showMask,
-    toggleMask,
-    maskType,
-    setMaskType,
-    brightness,
-    saturation,
-    contrast,
-    invert,
-    setBrightness,
-    setSaturation,
-    setContrast,
-    setInvert,
-    resetFilters,
-    currentClass,
-    classes,
-  } = useSegmentationStore();
+  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
   const currentClassName = currentClass >= 0 && currentClass < classes.length 
@@ -38,33 +23,6 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
   const iconFilter = actualThemeName === 'dark'
     ? 'invert(1) brightness(0.9)' 
     : 'none';
-
-  // Watch for showMask changes and trigger canvas update
-  // Note: maskType changes are handled in the store's setMaskType function
-  useEffect(() => {
-    const w = window as any;
-    // Only call if function exists and vars is initialized
-    if (w.vars && w.show_mask) {
-      if (w.IRIS_DEBUG) console.log('[RightPanel] showMask changed to:', showMask);
-      try {
-        w.show_mask(showMask);
-      } catch (error) {
-        console.error('[RightPanel] Error toggling mask visibility:', error);
-      }
-    }
-  }, [showMask]);
-
-  // Watch for filter changes and apply to canvas
-  useEffect(() => {
-    const w = window as any;
-    if (w.renderFromStore) {
-      try {
-        w.renderFromStore();
-      } catch (error) {
-        console.error('[RightPanel] Error applying filters:', error);
-      }
-    }
-  }, [brightness, saturation, contrast, invert]);
 
   // Modern card section wrapper
   const SectionCard: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (

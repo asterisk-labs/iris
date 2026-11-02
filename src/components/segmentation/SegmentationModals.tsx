@@ -1,4 +1,5 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import PreferencesModal from '../PreferencesModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { LoginForm } from '../LoginForm';
@@ -54,7 +55,7 @@ const SegmentationModals: React.FC<SegmentationModalsProps> = ({
   isConfusionMatrixOpen,
   onCloseConfusionMatrix
 }) => {
-  const { errorModal, hideErrorModal } = useSegmentationStore();
+  const { errorModal, hideErrorModal } = useSegmentationStore(useShallow(s => ({ errorModal: s.errorModal, hideErrorModal: s.hideErrorModal })));
 
   return (
     <>

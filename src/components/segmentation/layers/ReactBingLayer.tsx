@@ -7,12 +7,10 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import ReactBaseLayer, { ReactBaseLayerProps } from './ReactBaseLayer';
-import { useViewManagerStore } from '../../../stores/viewManagerStore';
+import { useSegmentationStore } from '../../../stores/segmentationStore';
 
 interface ReactBingLayerProps extends Omit<ReactBaseLayerProps, 'children'> {
   onLocationChange?: (location: [number, number]) => void;
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
 }
 
 const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
@@ -22,25 +20,16 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
   zIndex,
   className = '',
   style = {},
-  zoomLevel: _zoomLevel = 1.0,
-  panOffset: _panOffset = { x: 0, y: 0 },
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
   // Get image location from React store
-  const imageLocation = useViewManagerStore(state => state.imageLocation);
-  const validateImageLocation = useViewManagerStore(state => state.validateImageLocation);
+  const imageLocation = useSegmentationStore(state => state.imageLocation);
   
   // Update Bing Maps URL
   const updateBingMap = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    
-    // Validate coordinates before using them
-    if (!validateImageLocation(imageLocation)) {
-      console.warn('[IRIS] ReactBingLayer: Invalid image location coordinates, skipping map update', imageLocation);
-      return;
-    }
     
     // Format location for Bing Maps
     const location = `${imageLocation[0]}~${imageLocation[1]}`;
@@ -52,7 +41,7 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
     url += "&lvl=12&typ=d&sty=a&src=SHELL&FORM=MBEDV8";
     
     iframe.src = url;
-  }, [imageLocation, width, height, validateImageLocation]);
+  }, [imageLocation, width, height]);
   
   // Update when size changes
   useEffect(() => {
@@ -64,31 +53,6 @@ const ReactBingLayer: React.FC<ReactBingLayerProps> = ({
     updateBingMap();
   }, [imageLocation, updateBingMap]);
   
-  // Expose update function for legacy compatibility
-  useEffect(() => {
-    const w = window as any;
-    if (!w.reactBingLayers) {
-      w.reactBingLayers = [];
-    }
-    
-    const layerInterface = {
-      update: updateBingMap,
-      view: view,
-      type: 'bingmap',
-      container: iframeRef.current,
-      imageLocationChanged: updateBingMap,
-      sizeChanged: updateBingMap,
-    };
-    
-    w.reactBingLayers.push(layerInterface);
-    
-    return () => {
-      const index = w.reactBingLayers.indexOf(layerInterface);
-      if (index > -1) {
-        w.reactBingLayers.splice(index, 1);
-      }
-    };
-  }, [updateBingMap, view]);
   
   const iframeStyle: React.CSSProperties = {
     width: `${width}px`,

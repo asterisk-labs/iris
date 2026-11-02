@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import type { UserProfile } from '../types/iris';
 import { useTheme } from '../contexts/ThemeContext';
 import type { ThemeName } from '../themes/colorschemes';
+import { useSegmentationStore } from '../stores/segmentationStore';
+import { imageUrl } from '../segmentation/navigation';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -103,10 +105,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handleThemeChange = (newTheme: ThemeName) => { setTheme(newTheme); };
 
   const handleImageClick = (imageId: string) => {
-    if (typeof (window as any).goto_image === 'function') {
-      if (typeof (window as any).save_mask === 'function') (window as any).save_mask();
-      (window as any).goto_image('segmentation', imageId);
-    }
+    // Save the open mask (if any), then open the image in a new tab
+    useSegmentationStore.getState().saveCurrentMask().catch(() => {});
+    window.open(imageUrl(imageId));
     onClose();
   };
 

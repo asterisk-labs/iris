@@ -22,14 +22,11 @@ const ChatSection = forwardRef<ChatSectionRef>((_props, ref) => {
   useImperativeHandle(ref, () => ({
     getData: () => ({ enabled, github_repo: githubRepo, utterances_theme: utterancesTheme }),
     setData: (data: ChatConfig | undefined) => {
-      if ((window as any).IRIS_DEBUG) console.log('[ChatSection] setData called with:', data);
       if (data) {
-        if ((window as any).IRIS_DEBUG) console.log('[ChatSection] Setting github_repo to:', data.github_repo);
         setEnabled(data.enabled ?? true);
         setGithubRepo(data.github_repo || '');
         setUtterancesTheme(data.utterances_theme || 'github-light');
       } else {
-        if ((window as any).IRIS_DEBUG) console.log('[ChatSection] No chat config provided, using defaults');
         setEnabled(true);
         setGithubRepo('');
         setUtterancesTheme('github-light');

@@ -46,13 +46,6 @@ const ImageChatPanel: React.FC<ImageChatPanelProps> = ({
     script.setAttribute('theme', theme);
     script.setAttribute('label', 'iris-chat');
     
-    // Add loading handler
-    script.onload = () => {
-      if ((window as any).IRIS_DEBUG) {
-        console.log('Utterances script loaded successfully');
-      }
-    };
-    
     script.onerror = (error) => {
       console.error('Failed to load Utterances script:', error);
     };

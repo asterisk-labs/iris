@@ -6,6 +6,7 @@ import UsersPage from './pages/UsersPage';
 import ActionsPage from './pages/ActionsPage';
 import ImagesPage from './pages/ImagesPage';
 import PasswordResetRequestsPage from './pages/PasswordResetRequestsPage';
+import { bootUrls } from './boot';
 
 const AdminApp: React.FC = () => {
   return (
@@ -30,6 +31,7 @@ const AdminApp: React.FC = () => {
 document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('react-admin-app');
   if (container) {
+    bootUrls();
     const root = createRoot(container);
     root.render(<AdminApp />);
   }

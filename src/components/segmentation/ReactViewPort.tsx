@@ -6,13 +6,12 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { ViewConfig } from '../../stores/viewManagerStore';
-import { useViewManagerStore } from '../../stores/viewManagerStore';
+import { useShallow } from 'zustand/react/shallow';
+import type { ViewConfig } from '../../stores/segmentationStore';
+import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
-import ReactRGBLayer from './layers/ReactRGBLayer';
-import ReactMaskLayer from './layers/ReactMaskLayer';
-import ReactPreviewLayer from './layers/ReactPreviewLayer';
 import ReactBingLayer from './layers/ReactBingLayer';
+import ViewportCanvases from './ViewportCanvases';
 
 interface ReactViewPortProps {
   view: ViewConfig;
@@ -22,9 +21,6 @@ interface ReactViewPortProps {
   showControls: boolean;
   imageId: string;
   onImageLocationChange: (location: [number, number]) => void;
-  // PHASE 3A: New zoom/pan/interaction props
-  zoomLevel?: number;
-  panOffset?: { x: number; y: number };
   isActive?: boolean;
   onViewActivate?: () => void;
 }
@@ -37,9 +33,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
   showControls,
   imageId,
   onImageLocationChange,
-  // PHASE 3A: New props with defaults
-  zoomLevel = 1.0,
-  panOffset = { x: 0, y: 0 },
   isActive = false,
   onViewActivate,
 }) => {
@@ -47,16 +40,9 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
   const [selectedViewName, setSelectedViewName] = useState(view.name);
   const { theme } = useTheme();
 
-  const {
-    views,
-    addView,
-    removeView,
-    replaceView,
-    getCurrentViews,
-  } = useViewManagerStore();
+  const { views, addView, removeView, replaceView } = useSegmentationStore(useShallow(s => ({ views: s.views, addView: s.addView, removeView: s.removeView, replaceView: s.replaceView })));
 
-  const currentViews = getCurrentViews();
-  const canRemove = currentViews.length > 1;
+  const canRemove = useSegmentationStore(s => s.getCurrentViews().length > 1);
 
   // Handle view selection change
   const handleViewChange = (newViewName: string) => {
@@ -205,17 +191,8 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
     >
       {/* Layers Container */}
       <div style={layersContainerStyle}>
-        {/* RGB/Image Layer */}
         {view.type === 'image' && (
-          <ReactRGBLayer
-            view={view}
-            width={width}
-            height={height}
-            imageId={imageId}
-            zIndex={1}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
-          />
+          <ViewportCanvases view={view} imageId={imageId} />
         )}
 
         {/* Bing Map Layer */}
@@ -226,32 +203,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
             height={height}
             onLocationChange={onImageLocationChange}
             zIndex={1}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
-          />
-        )}
-
-        {/* Mask Layer (only for image views) */}
-        {view.type === 'image' && (
-          <ReactMaskLayer
-            view={view}
-            width={width}
-            height={height}
-            zIndex={2}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
-          />
-        )}
-
-        {/* Preview Layer (only for image views) */}
-        {view.type === 'image' && (
-          <ReactPreviewLayer
-            view={view}
-            width={width}
-            height={height}
-            zIndex={3}
-            zoomLevel={zoomLevel}
-            panOffset={panOffset}
           />
         )}
       </div>
