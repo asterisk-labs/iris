@@ -22,7 +22,8 @@ const GeneralSection = forwardRef<any, {}>((_props, ref) => {
       name, port, host,
       images: {
         path: pathData,
-        shape: [parseInt(shape1) || 0, parseInt(shape2) || 0],
+        // Optional: left empty, the server reads the size from the images
+        shape: shape1 || shape2 ? [parseInt(shape1) || 0, parseInt(shape2) || 0] : null,
         thumbnails: thumbnailsEnabled ? thumbnailsPath : false,
         metadata: metadataEnabled ? metadataPath : false,
       },
@@ -100,8 +101,8 @@ const GeneralSection = forwardRef<any, {}>((_props, ref) => {
           </div>
           {/* Shape */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={s.labelStyle}>Shape *</label>
-            <small style={s.descriptionStyle}>The shape of the images [width, height]. Example: <code style={s.codeStyle}>[512, 512]</code></small>
+            <label style={s.labelStyle}>Shape</label>
+            <small style={s.descriptionStyle}>Optional. Leave empty to read the size from the images (images may differ in size). If given: [height, width], and it must match the first image. Example: <code style={s.codeStyle}>[384, 512]</code></small>
             <div style={{ display: 'flex', gap: '12px', maxWidth: '300px' }}>
               <input type="number" placeholder="512" value={shape1} onChange={(e) => setShape1(e.target.value)} style={s.inputStyle} />
               <input type="number" placeholder="512" value={shape2} onChange={(e) => setShape2(e.target.value)} style={s.inputStyle} />

@@ -14,7 +14,8 @@ import ActionInfoModal from './components/segmentation/ActionInfoModal';
 import { useKeyboardShortcuts, useToolbarHints } from './hooks/useKeyboardShortcuts';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
-import { useConfigLoader } from './hooks/useConfigLoader';
+import { useConfigLoader, applyImageGeometry } from './hooks/useConfigLoader';
+import type { ImageInfo } from './stores/segmentation/types';
 import { bootPage, bootUrls, exposeDebugHandle } from './boot';
 
 const SegmentationApp: React.FC = () => {
@@ -139,6 +140,11 @@ const SegmentationApp: React.FC = () => {
 
       // Set images in store
       useSegmentationStore.getState().setImages(data.images);
+
+      // Per-image geometry: images in a dataset may differ in size, and the
+      // mask area defaults to the whole image when none is configured.
+      const current = (data.images as ImageInfo[]).find((i) => i.image_id === currentImageId);
+      if (current) applyImageGeometry(current);
 
       // Set current image
       useSegmentationStore.getState().setCurrentImage(currentImageId);

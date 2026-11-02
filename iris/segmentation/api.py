@@ -97,11 +97,14 @@ def list_images():
         image_actions = [a for a in all_actions if a.image_id == image_id]
         user_actions = [a for a in image_actions if a.user_id == user_id]
 
+        height, width = project.get_image_shape(image_id)
         images_data.append({
             'image_id': image_id,
             'has_user_annotation': len(user_actions) > 0,
             'has_any_annotation': len(image_actions) > 0,
-            'annotation_count': len(image_actions)
+            'annotation_count': len(image_actions),
+            'shape': [height, width],
+            'mask_area': project.get_mask_area(image_id),
         })
 
     return flask.jsonify({

@@ -12,7 +12,8 @@ export interface ProjectConfig {
   port?: number;
   images: {
     path: string | Record<string, string>;
-    shape: [number, number];
+    /** [height, width]; optional, read from the images when absent */
+    shape?: [number, number] | null;
     thumbnails?: string | false;
     metadata?: string | false;
   };

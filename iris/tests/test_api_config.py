@@ -475,8 +475,8 @@ def test_validate_detects_missing_images_path(logged_in_admin, sample_valid_conf
     assert any("path" in err.lower() for err in data["errors"])
 
 
-def test_validate_detects_missing_images_shape(logged_in_admin, sample_valid_config):
-    """Test that validation detects missing images.shape"""
+def test_validate_accepts_missing_images_shape(logged_in_admin, sample_valid_config):
+    """images.shape is optional: it is read from the images when absent"""
     del sample_valid_config["images"]["shape"]
 
     response = logged_in_admin.post(
@@ -485,8 +485,8 @@ def test_validate_detects_missing_images_shape(logged_in_admin, sample_valid_con
 
     assert response.status_code == 200
     data = response.json
-    assert data["valid"] is False
-    assert any("shape" in err.lower() for err in data["errors"])
+    assert data["valid"] is True
+    assert not any("shape" in err.lower() for err in data["errors"])
 
 
 def test_put_config_validates_images_path_and_shape(logged_in_admin):

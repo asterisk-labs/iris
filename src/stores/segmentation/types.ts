@@ -26,6 +26,10 @@ export interface ImageInfo {
   has_user_annotation: boolean;
   has_any_annotation: boolean;
   annotation_count: number;
+  /** [height, width] of this image, read by the server from the file */
+  shape?: [number, number];
+  /** [x0, y0, x1, y1] mask area for this image (configured, or the whole image) */
+  mask_area?: [number, number, number, number];
 }
 
 export interface ViewConfig {

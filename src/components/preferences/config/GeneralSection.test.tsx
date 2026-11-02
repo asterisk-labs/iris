@@ -16,7 +16,7 @@ describe('GeneralSection', () => {
         host: '127.0.0.1',
         images: {
           path: 'images/{id}.tif',
-          shape: [0, 0],
+          shape: null,
           thumbnails: false,
           metadata: false,
         },
@@ -209,12 +209,12 @@ describe('GeneralSection', () => {
       expect(data.images.shape[0]).toBe(256);
     });
 
-    it('handles empty shape fields as 0', () => {
+    it('leaves the shape out when both fields are empty', () => {
       const ref = React.createRef<any>();
       render(<GeneralSection ref={ref} />);
       
       const data = ref.current?.getData();
-      expect(data.images.shape).toEqual([0, 0]);
+      expect(data.images.shape).toBeNull();
     });
   });
 

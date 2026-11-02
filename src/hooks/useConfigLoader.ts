@@ -1,7 +1,25 @@
 import { useCallback } from 'react';
 import { useSegmentationStore } from '../stores/segmentationStore';
-import { imageSizeFromShape } from '../segmentation/geometry/transform';
+import { imageSizeFromShape, maskSizeFromArea } from '../segmentation/geometry/transform';
+import type { ImageInfo } from '../stores/segmentation/types';
 import { bootPage } from '../boot';
+
+/**
+ * Apply one image's geometry from the image list: its own size and mask
+ * area (the configured area, or the whole image when none is configured).
+ * Images in a dataset may differ in size, so this runs for the current
+ * image after the list is loaded.
+ */
+export function applyImageGeometry(info: ImageInfo): void {
+  const store = useSegmentationStore.getState();
+  const size = imageSizeFromShape(info.shape);
+  if (size) store.setImageDimensions(size.width, size.height);
+  const area = info.mask_area ?? (size ? [0, 0, size.width, size.height] as [number, number, number, number] : null);
+  if (area) {
+    store.setMaskArea(area);
+    store.setMaskDimensions(maskSizeFromArea(area));
+  }
+}
 
 export interface ConfigLoaderResult {
   loading: boolean;
@@ -108,23 +126,23 @@ export const useConfigLoader = (): ConfigLoaderResult => {
         }
       }
 
+      // Project-level image size and mask area. The server always serves
+      // images.shape (derived from the first image when the config has
+      // none). Both are refined per image once the image list is loaded,
+      // see applyImageGeometry.
       const imageSize = imageSizeFromShape(config.images?.shape);
       if (imageSize) {
         segmentationStore.setImageDimensions(imageSize.width, imageSize.height);
       }
-
-      // Set mask area and calculate mask dimensions
-      if (config.segmentation?.mask_area) {
-        const maskArea = config.segmentation.mask_area;
+      const maskArea = config.segmentation?.mask_area as [number, number, number, number] | null | undefined;
+      if (Array.isArray(maskArea) && maskArea.length === 4) {
         segmentationStore.setMaskArea(maskArea);
-        
-        // Calculate mask dimensions from mask area [x, y, x2, y2] -> [width, height]
-        if (Array.isArray(maskArea) && maskArea.length === 4) {
-          const [x, y, x2, y2] = maskArea;
-          const maskWidth = x2 - x;
-          const maskHeight = y2 - y;
-          segmentationStore.setMaskDimensions({ width: maskWidth, height: maskHeight });
-        }
+        segmentationStore.setMaskDimensions(maskSizeFromArea(maskArea));
+      } else if (imageSize) {
+        // No configured mask area: the whole image is the mask area
+        const whole: [number, number, number, number] = [0, 0, imageSize.width, imageSize.height];
+        segmentationStore.setMaskArea(whole);
+        segmentationStore.setMaskDimensions(maskSizeFromArea(whole));
       }
 
 
