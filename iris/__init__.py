@@ -14,12 +14,29 @@ from iris.extensions import compress, db
 from iris.project import project
 
 
-def get_demo_file(example=None):
-    demo_file = join(
-        os.getcwd(), "demo", "cloud-segmentation.json"
+def get_demo_dir() -> Path:
+    """Locate the demo project folder.
+
+    Looked up, in order: `demo/` in the current directory, `demo/` next to
+    the package (a checkout of the repository), and `iris/demo/` inside
+    the package (when shipped as package data).
+    """
+    candidates = [
+        Path.cwd() / "demo",
+        Path(__file__).resolve().parent.parent / "demo",
+        Path(__file__).resolve().parent / "demo",
+    ]
+    for candidate in candidates:
+        if (candidate / "cloud-segmentation.json").exists():
+            return candidate
+    raise FileNotFoundError(
+        "No demo project found. Run from a checkout of the IRIS repository, "
+        "or use `iris label <your-config.json>` with your own project."
     )
 
-    return demo_file
+
+def get_demo_file(example=None):
+    return str(get_demo_dir() / "cloud-segmentation.json")
 
 def find_config_file(folder_path: Union[str, Path]) -> Union[Path, None]:
     """Find a suitable config file in the given folder.
@@ -76,9 +93,10 @@ def handle_launch_command(folder_name: str) -> Path:
         return config_file
     else:
         # Folder doesn't exist, create it from demo
-        demo_path = Path.cwd() / "demo"
-        if not demo_path.exists():
-            raise FileNotFoundError("Demo folder not found! Cannot create new project.")
+        try:
+            demo_path = get_demo_dir()
+        except FileNotFoundError as error:
+            raise FileNotFoundError("Demo folder not found! Cannot create new project.") from error
 
         print(f"Creating new project '{folder_name}' from demo...")
         shutil.copytree(demo_path, folder_path, ignore=shutil.ignore_patterns("cloud-segmentation.iris"))
@@ -197,22 +215,38 @@ def run_app():
 
 # Legacy CLI parsing removed - now using Typer
 
-def create_app(project_file, args):
-    project.load_from(project_file)
-    project.debug = args['debug']
+def create_app(project_file, args=None, db_uri=None):
+    """Create the Flask app for a project file.
 
+    Loads the project into the `project` singleton and configures the
+    database (by default `iris.db` inside the project folder; `db_uri`
+    overrides it, which tests use). Blueprints are added separately by
+    `register_extensions`; `build_app` does both.
+    """
+    project.load_from(project_file)
+    project.debug = bool(args.get('debug', False)) if args else False
 
     # Create the flask app:
     app = flask.Flask(__name__)
 
     app.config.from_pyfile('config.py')
     app.config['SQLALCHEMY_DATABASE_URI'] = \
-        'sqlite:///' + join(project['path'], 'iris.db')
+        db_uri or 'sqlite:///' + join(project['path'], 'iris.db')
 
     # Register the extensions:
     db.init_app(app)
     compress.init_app(app)
 
+    return app
+
+
+def build_app(project_file, args=None, db_uri=None):
+    """Create a fully registered app with its database tables in place."""
+    app = create_app(project_file, args, db_uri=db_uri)
+    register_extensions(app)
+    with app.app_context():
+        db.create_all()
+        db.session.commit()
     return app
 
 def create_default_admin(app, admin_user=None, admin_password=None):
@@ -276,25 +310,10 @@ def register_extensions(app):
     api_bp = create_api_blueprint()
     app.register_blueprint(api_bp)
 
-# Decide whether to parse CLI args. If help is requested or the first token
-# Module-level initialization for when IRIS is imported (not run as CLI)
-# This is used by tests and when importing iris as a library
+# Importing the package has no side effects: no project is loaded and no
+# app is created until `start_server` or `build_app` is called. The models
+# are imported here so `iris.User` and `iris.Action` stay available.
 from iris.models import Action, User  # noqa: E402, F401
-
-# Create default app for imports/tests
-_default_args = {
-    'debug': False,
-    'production': False,
-}
-_default_args['project'] = get_demo_file()
-
-app = create_app(_default_args['project'], _default_args)
-
-with app.app_context():
-    db.create_all()
-    db.session.commit()
-
-register_extensions(app)
 
 
 if __name__ == '__main__':

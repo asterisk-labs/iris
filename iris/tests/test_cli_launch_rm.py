@@ -99,10 +99,20 @@ class TestErrorHandling:
             handle_launch_command(None)
 
     def test_launch_missing_demo_raises_file_not_found(self, tmp_path, monkeypatch):
-        """Should raise FileNotFoundError when demo folder missing."""
+        """Should raise FileNotFoundError when no demo folder can be found."""
+        import iris
+
         monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(iris, "get_demo_dir", lambda: (_ for _ in ()).throw(FileNotFoundError("none")))
         with pytest.raises(FileNotFoundError, match="Demo folder not found"):
             handle_launch_command("new-project")
+
+    def test_launch_finds_the_demo_from_any_directory(self, tmp_path, monkeypatch):
+        """The demo next to the package is used when the cwd has none."""
+        monkeypatch.chdir(tmp_path)
+        config = handle_launch_command("new-project")
+        assert config == (tmp_path / "new-project" / "new-project.json").resolve()
+        assert (tmp_path / "new-project" / "images").is_dir()
 
     def test_launch_no_config_raises_error(self, tmp_path, monkeypatch):
         """Should raise error when project has no config file."""

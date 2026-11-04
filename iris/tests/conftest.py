@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 import pytest
@@ -8,56 +9,34 @@ from iris.models import db
 
 @pytest.fixture(scope='session')
 def app():
-    """Create a test Flask app with isolated database.
+    """The demo project's app with an isolated database and project folder.
 
-    IMPORTANT: This fixture cannot prevent the module-level code in iris/__init__.py
-    from creating the demo database. That happens at import time, before any fixtures run.
-
-    To work around this, we:
-    1. Accept that the demo database will be created/modified
-    2. Ensure tests use a separate test database
-    3. Document that users should restart the IRIS server after running pytest
+    Importing `iris` has no side effects, so the app is built here from
+    the demo config. The database lives in a temporary folder, as does the
+    project path (masks, user configs), so tests never touch the demo
+    project's own `.iris` folder.
     """
-    from iris import app as iris_app
+    from iris import build_app, get_demo_file
     from iris.project import project
 
-    # Create a temporary project directory for testing
     test_project_dir = tempfile.mkdtemp(suffix='.iris')
-    test_project_db = os.path.join(test_project_dir, 'iris.db')
-
-    # Create user_config subdirectory (needed for user preferences tests)
     os.makedirs(os.path.join(test_project_dir, 'user_config'), exist_ok=True)
+    test_db = 'sqlite:///' + os.path.join(test_project_dir, 'iris.db')
 
-    # Configure app for testing with isolated database
+    iris_app = build_app(get_demo_file(), {'debug': False}, db_uri=test_db)
     iris_app.config['TESTING'] = True
-    iris_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{test_project_db}'
 
-    # Update the project singleton to use test directory
-    # This prevents tests from modifying the demo project files
-    original_project_path = project.config.get('path')
+    # Keep masks and user configs written by tests out of the demo folder
     project.config['path'] = test_project_dir
 
-    # push application context for tests that require it
     ctx = iris_app.app_context()
     ctx.push()
-
     try:
-        # Create all tables in the test database
-        db.create_all()
         yield iris_app
     finally:
-        # Clean up
-        db.drop_all()
+        db.session.remove()
         ctx.pop()
-
-        # Restore original project path
-        if original_project_path:
-            project.config['path'] = original_project_path
-
-        # Clean up test project directory
-        import shutil
-        if os.path.exists(test_project_dir):
-            shutil.rmtree(test_project_dir)
+        shutil.rmtree(test_project_dir, ignore_errors=True)
 
 
 @pytest.fixture
@@ -139,7 +118,7 @@ def project_snapshot():
 
 
 @pytest.fixture
-def restore_config_file():
+def restore_config_file(app):
     """Snapshot and restore the project config file on disk.
 
     This fixture saves the config file content before the test and restores it
@@ -151,6 +130,7 @@ def restore_config_file():
 
     config_file = project.file
     backup_file = config_file + '.backup'
+    test_project_dir = project.config['path']
 
     # Save original config content
     with open(config_file) as f:
@@ -167,5 +147,6 @@ def restore_config_file():
         if os.path.exists(backup_file):
             os.remove(backup_file)
 
-        # Reload project to ensure consistency
+        # Reload project to ensure consistency, keeping the test project path
         project.load_from(config_file)
+        project.config['path'] = test_project_dir
