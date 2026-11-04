@@ -11,10 +11,10 @@ from os.path import basename, dirname, exists, getmtime, isabs, join, normpath
 from pprint import pprint
 
 import markupsafe
+import matplotlib
 import numpy as np
 import rasterio as rio
 import yaml
-import matplotlib
 from skimage.filters import sobel
 from skimage.io import imread
 from skimage.segmentation import felzenszwalb

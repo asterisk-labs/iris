@@ -166,6 +166,11 @@ uv run iris launch <project-name>
 
 # Remove a project (with confirmation prompt)
 uv run iris rm <project-name>
+
+# Export every annotated image as a GeoTIFF with its merged mask
+# (to ./exports by default; -o picks another folder)
+uv run iris export-all <your-config-file>
+uv run iris export-all demo -o /path/to/exports
 ```
 
 The `launch` command will:
@@ -257,7 +262,7 @@ The admin interface features:
 IRIS includes a comprehensive test suite using pytest. The tests are located in `iris/tests/` and include fixtures for Flask app testing and project state management.
 
 ```bash
-# Run all tests (includes frontend build verification)
+# Run the Python test suite
 uv run pytest iris/tests/
 
 # Run tests with verbose output

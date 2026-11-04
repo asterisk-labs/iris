@@ -6,7 +6,9 @@ import numpy as np
 import pytest
 
 from iris.segmentation.training import (
-    MIN_CLASS_PIXELS, filter_training_pixels, meshgrid_features,
+    MIN_CLASS_PIXELS,
+    filter_training_pixels,
+    meshgrid_features,
 )
 
 
