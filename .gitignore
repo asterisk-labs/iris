@@ -11,6 +11,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+# ...except the built frontend bundle, which is committed (see docs/agents/IMPLEMENTATION_PLAN.md T0.2)
+!/iris/static/dist/
 downloads/
 eggs/
 .eggs/

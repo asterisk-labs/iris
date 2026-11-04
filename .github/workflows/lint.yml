@@ -38,12 +38,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version-file: .nvmrc
+          cache: npm
       
       - name: Install Node.js dependencies
-        working-directory: iris
-        run: npm install
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+        run: npm ci
       
       - name: TypeScript type checking
-        working-directory: iris
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit -p .

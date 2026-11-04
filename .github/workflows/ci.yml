@@ -4,14 +4,57 @@ on:
   push:
     branches:
       - master
+      - overhaul
       - testci
   pull_request:
     branches:
       - master
+      - overhaul
   schedule:
     - cron: "9 16 * * 1"
 
 jobs:
+  frontend:
+    name: "frontend bundle"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Node.js dependencies
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+        run: npm ci
+
+      - name: TypeScript type checking
+        run: npx tsc --noEmit -p .
+
+      - name: Frontend unit tests
+        run: npm test
+
+      - name: Rebuild the bundle
+        run: npm run build
+
+      # iris/static/dist is committed. A PR that changes the frontend source
+      # must also commit the rebuilt bundle, otherwise what gets installed
+      # does not match what was reviewed.
+      - name: Check the committed bundle is up to date
+        run: |
+          # status (not just diff) so that a new or deleted chunk file also fails
+          if [ -n "$(git status --porcelain -- iris/static/dist)" ]; then
+            git status --porcelain -- iris/static/dist
+            git diff -- iris/static/dist | head -n 100
+            echo "::error::iris/static/dist is stale. Run 'npm run build' and commit the result."
+            exit 1
+          fi
+
   test:
     name: "${{ matrix.python-version }} • ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
@@ -60,24 +103,6 @@ jobs:
       - name: Create virtual environment
         run: uv venv
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Node.js dependencies
-        working-directory: iris
-        env:
-          CYPRESS_INSTALL_BINARY: 0
-        run: |
-          # Use npm ci for cleaner installs in CI
-          # Skip Cypress binary download (installed separately later for E2E tests)
-          npm ci || npm install
-
-      - name: Build React/TypeScript frontend
-        working-directory: iris
-        run: npm run build
-
       - name: Install dependencies and IRIS
         run: uv pip install -e ".[test]"
 
@@ -116,25 +141,26 @@ jobs:
 
 
 
-      - name: Verify React build artifacts
-        working-directory: iris
+      - name: Verify the committed frontend bundle is present
         shell: bash
         run: |
-          # Check that React build was successful
-          if [ -f "static/dist/adminApp.js" ]; then
-            echo "✅ React build successful - adminApp.js exists"
-            ls -la static/dist/
-          else
-            echo "❌ React build failed - adminApp.js not found at static/dist/"
-            exit 1
-          fi
+          # The bundle is committed in iris/static/dist; the frontend job checks it is current.
+          ls -la iris/static/dist/
+          test -f iris/static/dist/adminApp.js
+          test -f iris/static/dist/segmentationApp.js
+
+      - name: Set up Node.js (Ubuntu only, for Cypress)
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install Cypress dependencies (Ubuntu only)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
-        working-directory: iris
         run: |
-          # Install Cypress binary and dependencies
-          npx cypress install
+          npm ci
+          # Install system dependencies for Cypress on Ubuntu
           # Install system dependencies for Cypress on Ubuntu
           sudo apt-get update
           sudo apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libnss3 libxss1 libxtst6 xauth xvfb
@@ -163,9 +189,8 @@ jobs:
             sleep 1
           done
           
-          # Run Cypress tests in headless mode (from iris/ subdirectory)
+          # Run Cypress tests in headless mode
           echo "Running Cypress E2E tests..."
-          cd iris
           npm run cypress:headless || TEST_EXIT_CODE=$?
           
           # Stop the server

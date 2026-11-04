@@ -82,12 +82,10 @@ cd iris
 ./install.sh
 ```
 
-3. **Build the frontend:**
-```bash
-# Install Node.js dependencies and build React admin interface
-npm install
-npm run build
-```
+3. **Frontend:** nothing to do. The built bundle (`iris/static/dist`) is
+   committed, so a checkout runs without Node. You only need `npm install &&
+   npm run build` if you change the frontend source (see
+   [Frontend Development](#frontend-development)).
 
 #### Manual Installation
 
@@ -103,12 +101,10 @@ cd iris
 uv sync
 ```
 
-3. **Build the frontend:**
-```bash
-# Install Node.js dependencies and build React admin interface
-npm install
-npm run build
-```
+3. **Frontend:** nothing to do. The built bundle (`iris/static/dist`) is
+   committed, so a checkout runs without Node. You only need `npm install &&
+   npm run build` if you change the frontend source (see
+   [Frontend Development](#frontend-development)).
 
 4. **Run commands with UV (recommended):**
 ```bash
@@ -205,10 +201,14 @@ You can also use Docker to deploy IRIS. The Docker image uses the modern pyproje
 docker build --tag iris .
 
 # Run with port forwarding and volume mount
-docker run -p 80:80 -v <dataset_path>:/dataset/ --rm -it iris label /dataset/cloud-segmentation.json
+docker run -p 5000:5000 -v <dataset_path>:/dataset/ --rm -it iris label /dataset/cloud-segmentation.json
 ```
 
-Note: Port forwarding is needed (here we use port 80 as an example, but the port number can be set in your IRIS config file) and the directory to your project needs to be given as a volume to docker.
+Two things in the project config matter inside a container: `"port"`
+defaults to 5000 (change the `-p` mapping if you set another), and `"host"`
+defaults to `127.0.0.1`, which is not reachable from outside the container, so
+set `"host": "0.0.0.0"` in the config you mount. The project directory needs to
+be given as a volume to docker.
 
 ### Run on Github Codespaces
 To run in a [Github codespace](https://docs.github.com/en/codespaces/overview) fork this repository, then in the Github UI select `Code/Codespaces/Open in codespace`. Run `pip install -e .` and then `iris demo`. You will see a popup that there is an app on port 5000, click the link to open a new window showing Iris!
@@ -218,18 +218,25 @@ To run in a [Github codespace](https://docs.github.com/en/codespaces/overview) f
 
 ### Frontend Development
 
-IRIS includes a modern React/TypeScript admin interface. For frontend development:
+IRIS includes a modern React/TypeScript admin interface. The built bundle in
+`iris/static/dist` is committed, so a plain checkout works without Node. If
+you change anything under `src/`, rebuild and commit the bundle with your
+change; CI rebuilds it and fails if the committed copy is stale.
 
 ```bash
+# Use the Node version in .nvmrc (currently 20): `nvm use`
 # Install dependencies
 npm install
 
-# Build for production
+# Build for production, then commit iris/static/dist along with your change
 npm run build
 
 # Development with hot reload (optional)
 npm run dev  # Runs Vite dev server on port 3000
 ```
+
+Do not hand-merge conflicts in `iris/static/dist`; take either side, run
+`npm run build`, and commit the result.
 
 The admin interface features:
 - **Modern React SPA** with client-side routing

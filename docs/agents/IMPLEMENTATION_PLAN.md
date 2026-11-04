@@ -234,6 +234,16 @@ champions will get pre-releases.
   build.
 - `client.js` in `dist` is a shared chunk; verify nothing references a
   hashed name.
+- Done (branch `t0.2-ship-bundle`). Findings: two consecutive `vite build`s
+  on Node 20.20.2 / vite from the lock file were byte-identical, and the
+  bundle contains no absolute paths, so the CI diff check is sound on a
+  matching toolchain; `.nvmrc` pins Node 20 and CI reads it via
+  `node-version-file`. The shared chunk is now `boot.js`, not `client.js`,
+  and both templates reference the fixed names. The CI check uses
+  `git status --porcelain` rather than `git diff` so a newly emitted chunk
+  file also fails. Not verified: whether esbuild output is identical across
+  Node minor versions (expect yes; esbuild is a pinned native binary and
+  does not depend on the Node version).
 
 ### T0.3 Chat defaults
 

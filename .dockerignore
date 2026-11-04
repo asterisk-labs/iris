@@ -1,0 +1,13 @@
+.git
+.claude
+.venv
+node_modules
+cypress/screenshots
+cypress/videos
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+build
