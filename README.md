@@ -192,6 +192,14 @@ IRIS includes a modern React-based admin interface for managing users, viewing p
 - **Quality Metrics**: View annotation scores, difficulty ratings, and time spent
 - **Modern UI**: React Single Page Application with fast navigation
 
+Each user is given a random `image_seed` when their account is created,
+which sets the order they see images in. Before November 2026 every user
+created by one server process got the same seed (the default was drawn
+once at import), so users on an older project may share an order. Existing
+databases keep their seeds; to spread users out, set `image_seed` on the
+`user` table to distinct values with any SQLite client. Users will see a
+different ordering afterwards.
+
 ### Docker
 
 You can also use Docker to deploy IRIS. The Docker image uses the modern pyproject.toml configuration for reliable dependency management.

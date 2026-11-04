@@ -1,6 +1,6 @@
 import types
 
-from iris.models import Action, User
+from iris.models import Action, User, db
 
 
 def test_user_password_roundtrip():
@@ -29,3 +29,16 @@ def test_user_to_json_counts_masks(monkeypatch, app):
     assert data['segmentation']['n_masks'] == 2
     assert data['segmentation']['score'] == 5
     assert data['segmentation']['score_unverified'] == 2
+
+
+def test_users_get_different_image_seeds(app):
+    """The seed default is drawn per row, not once at import time"""
+    with app.app_context():
+        users = [User(name=f"seed_user_{i}") for i in range(8)]
+        db.session.add_all(users)
+        db.session.commit()
+        seeds = {u.image_seed for u in users}
+        db.session.rollback()
+
+    assert all(isinstance(s, int) for s in seeds)
+    assert len(seeds) > 1
