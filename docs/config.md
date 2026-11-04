@@ -259,6 +259,37 @@ Defines how to measure the score achieved by the user for each mask. Can be
 "score": "f1"
 ```
 
+### segmentation : ai_model
+Settings for the per-image gradient boosting model behind the AI button,
+or `false` to turn the AI off. Each user can override these in their
+preferences; the project file sets the defaults. All keys are optional and
+take the values in the [default configuration file](../iris/default_config.json).
+
+- `bands`: list of band names (for example `["$Sentinel2.B2", "$Sentinel2.B3"]`)
+  to train on, or `null` for all bands.
+- `train_ratio`, `max_train_pixels`: share of each class's painted pixels
+  used for training, and a cap per class.
+- `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.
+- `n_jobs`: threads LightGBM may use. `-1` (the default) means all cores;
+  set a positive number to leave cores free for other users on a shared
+  server.
+- `use_edge_filter`, `use_superpixels`, `use_meshgrid`, `meshgrid_cells`:
+  extra per-pixel features (Sobel edges, Felzenszwalb superpixels, and the
+  pixel's cell in an `RxC` grid, or `"pixelwise"` for its position).
+- `suppression_threshold`, `suppression_filter_size`,
+  `suppression_default_class`: after prediction, pixels whose neighbourhood
+  has fewer than `suppression_threshold` percent of non-default pixels are
+  set to the default class.
+
+<i>Example:</i>
+```
+"ai_model": {
+    "n_estimators": 20,
+    "max_depth": 10,
+    "n_jobs": 4
+}
+```
+
 ## chat
 Optional. Adds a comment panel to the segmentation view, backed by
 [utterances](https://utteranc.es/): each image gets a thread stored as a

@@ -41,6 +41,22 @@ def _chat_config_error(chat):
     return None
 
 
+def _ai_model_error(segmentation):
+    """Error message for a bad segmentation.ai_model, or None."""
+    if not isinstance(segmentation, dict) or 'ai_model' not in segmentation:
+        return None
+    ai_model = segmentation['ai_model']
+    if ai_model is False:
+        return None
+    if not isinstance(ai_model, dict):
+        return 'segmentation.ai_model must be an object or false'
+    if 'n_jobs' in ai_model:
+        n_jobs = ai_model['n_jobs']
+        if isinstance(n_jobs, bool) or not isinstance(n_jobs, int) or n_jobs == 0 or n_jobs < -1:
+            return 'segmentation.ai_model.n_jobs must be a positive integer or -1 (all cores)'
+    return None
+
+
 def _cache_mb_error(images):
     """Error message for a bad images.cache_mb, or None. Optional; when
     given it must be a number of megabytes, zero or more (zero disables
@@ -277,6 +293,13 @@ def update_project_config():
                 'message': cache_error
             }), 400
 
+        ai_error = _ai_model_error(new_config['segmentation'])
+        if ai_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': ai_error
+            }), 400
+
         # Validate classes
         if not isinstance(new_config['classes'], list) or len(new_config['classes']) == 0:
             return flask.jsonify({
@@ -479,8 +502,9 @@ def validate_project_config():
                 if not isinstance(mask_area, list) or len(mask_area) != 4:
                     errors.append('segmentation.mask_area must be an array of 4 integers or null')
 
-            if 'ai_model' in seg and seg['ai_model'] is not False and not isinstance(seg['ai_model'], dict):
-                errors.append('segmentation.ai_model must be an object or false')
+            ai_error = _ai_model_error(seg)
+            if ai_error:
+                errors.append(ai_error)
 
         # Validate chat
         chat_error = _chat_config_error(config_data.get('chat'))

@@ -14,7 +14,7 @@ import markupsafe
 import numpy as np
 import rasterio as rio
 import yaml
-from matplotlib import cm
+import matplotlib
 from skimage.filters import sobel
 from skimage.io import imread
 from skimage.segmentation import felzenszwalb
@@ -164,10 +164,23 @@ class Project:
             klass['css_colour'] = f'rgba({str(klass["colour"])[1:-1]})'
 
     def _init_paths_and_files(self, filename):
-        if project not in self.config:
-            self.config['path'] = join(
-                dirname(filename), self.config['name']+'.iris'
-            )
+        default_path = join(dirname(filename), self.config['name']+'.iris')
+        if 'path' not in self.config:
+            self.config['path'] = default_path
+        else:
+            self.config['path'] = self.make_absolute(self.config['path'])
+            # Until November 2026 a configured path was ignored (the check
+            # above compared the Project object with the config keys), so
+            # projects that set one may have data in the default folder.
+            if (normpath(self.config['path']) != normpath(default_path)
+                    and exists(default_path)):
+                print(
+                    f"[CONFIG] Warning: using path '{self.config['path']}' "
+                    f"from the project file, but '{default_path}' also "
+                    "exists. Masks, user configs and the database are read "
+                    "from the configured path; move the folder if the "
+                    "default one holds your data."
+                )
 
         if self.segmentation and not self['segmentation']['path']:
             self.config['segmentation']['path'] = join(
@@ -546,7 +559,9 @@ class Project:
         rgb_bands = list(map(linear_scale, rgb_bands))
 
         if len(rgb_bands) == 1:
-            rgb_bands = cm.get_cmap(view['cmap'])(rgb_bands)[..., :3]
+            # matplotlib.colormaps raises KeyError on an unknown name where
+            # cm.get_cmap (gone in Matplotlib 3.11) raised ValueError
+            rgb_bands = matplotlib.colormaps[view['cmap']](rgb_bands)[..., :3]
 
         rgb_bands = np.dstack(rgb_bands)
         return (255*rgb_bands).astype('uint8')
@@ -673,6 +688,11 @@ class Project:
                     # Once a suitable image is found, update the list so that its
                     # next in line (this means self.get_previous_image retains expected
                     # behaviour immediately afterwards).
+                    # NOTE: this mutates self.image_ids, which every user
+                    # shares, so one user's "next" reorders the others'
+                    # sequences. The ordering rewrite in T1.2.1 of
+                    # docs/agents/IMPLEMENTATION_PLAN.md replaces this; it is
+                    # deliberately left alone here.
                     a = trial_idx
                     b = (index + 1) % len(self.image_order)
                     self.image_ids[self.image_order[a]], self.image_ids[self.image_order[b]] = \

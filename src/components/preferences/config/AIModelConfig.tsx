@@ -17,6 +17,8 @@ export interface AIModelConfigData {
   useSuperpixels: boolean;
   useMeshgrid: boolean;
   meshgridCells: string;
+  /** Not edited in the form; carried through from the loaded config */
+  nJobs?: number;
 }
 
 interface AIModelConfigProps {

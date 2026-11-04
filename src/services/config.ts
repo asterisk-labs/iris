@@ -66,6 +66,8 @@ export interface AIModelConfig {
   use_superpixels: boolean;
   use_meshgrid: boolean;
   meshgrid_cells: string;
+  /** Threads for LightGBM; -1 is all cores */
+  n_jobs?: number;
 }
 
 export interface ValidationResult {

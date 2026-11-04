@@ -55,6 +55,7 @@ const SegmentationSection = forwardRef<any, {}>((_props, ref) => {
           use_superpixels: aiConfig.useSuperpixels,
           use_meshgrid: aiConfig.useMeshgrid,
           meshgrid_cells: aiConfig.meshgridCells,
+          ...(aiConfig.nJobs !== undefined ? { n_jobs: aiConfig.nJobs } : {}),
         }
       : false,
   });
@@ -98,6 +99,7 @@ const SegmentationSection = forwardRef<any, {}>((_props, ref) => {
           useSuperpixels: m.use_superpixels ?? false,
           useMeshgrid: m.use_meshgrid ?? false,
           meshgridCells: m.meshgrid_cells ?? '3x3',
+          nJobs: typeof m.n_jobs === 'number' ? m.n_jobs : undefined,
         });
       }
     }

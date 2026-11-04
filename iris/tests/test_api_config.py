@@ -762,3 +762,38 @@ def test_put_config_rejects_bad_cache_mb(logged_in_admin, restore_config_file):
 
     assert response.status_code == 400
     assert "cache_mb" in response.json["message"]
+
+
+@pytest.mark.parametrize("bad", [0, -2, 1.5, "4", True])
+def test_validate_rejects_bad_ai_model_n_jobs(logged_in_admin, sample_valid_config, bad):
+    sample_valid_config["segmentation"]["ai_model"] = {"n_jobs": bad}
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is False
+    assert any("n_jobs" in err for err in response.json["errors"])
+
+
+@pytest.mark.parametrize("good", [-1, 1, 8])
+def test_validate_accepts_ai_model_n_jobs(logged_in_admin, sample_valid_config, good):
+    sample_valid_config["segmentation"]["ai_model"] = {"n_jobs": good}
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is True
+
+
+def test_put_config_rejects_bad_ai_model_n_jobs(logged_in_admin, restore_config_file):
+    config = logged_in_admin.get("/api/config/project").json["config"]
+    config["segmentation"]["ai_model"]["n_jobs"] = 0
+
+    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+
+    assert response.status_code == 400
+    assert "n_jobs" in response.json["message"]
