@@ -667,3 +667,59 @@ def test_workflow_chat_config_roundtrip(logged_in_admin, restore_config_file):
     assert saved_config["chat"]["enabled"] is False
     assert saved_config["chat"]["github_repo"] == "owner/repo"
     assert saved_config["chat"]["utterances_theme"] == "preferred-color-scheme"
+
+
+def test_default_config_has_chat_disabled():
+    """Shipped defaults must not post feedback anywhere: chat is off and no repo is set"""
+    default_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "default_config.json")
+    with open(default_file) as f:
+        defaults = json.load(f)
+
+    assert defaults["chat"]["enabled"] is False
+    assert defaults["chat"]["github_repo"] == ""
+
+
+def test_validate_rejects_chat_enabled_without_repo(logged_in_admin, sample_valid_config):
+    sample_valid_config["chat"] = {"enabled": True, "github_repo": "", "utterances_theme": "github-light"}
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    data = response.json
+    assert data["valid"] is False
+    assert any("github_repo" in err for err in data["errors"])
+
+
+def test_validate_accepts_chat_disabled_without_repo(logged_in_admin, sample_valid_config):
+    sample_valid_config["chat"] = {"enabled": False, "github_repo": "", "utterances_theme": "github-light"}
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is True
+
+
+def test_validate_accepts_chat_enabled_with_repo(logged_in_admin, sample_valid_config):
+    sample_valid_config["chat"] = {"enabled": True, "github_repo": "owner/repo", "utterances_theme": "github-light"}
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is True
+
+
+def test_put_config_rejects_chat_enabled_without_repo(logged_in_admin, restore_config_file):
+    response = logged_in_admin.get("/api/config/project")
+    config = response.json["config"]
+    config["chat"] = {"enabled": True, "github_repo": "", "utterances_theme": "github-light"}
+
+    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+
+    assert response.status_code == 400
+    assert "github_repo" in response.json["message"]

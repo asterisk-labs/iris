@@ -169,8 +169,8 @@
     }
   },
   "chat": {
-    "enabled": true,
-    "github_repo": "gt-sse-center/iris",
+    "enabled": false,
+    "github_repo": "",
     "utterances_theme": "github-light"
   }
 }

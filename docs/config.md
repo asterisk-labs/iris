@@ -10,6 +10,7 @@ To use IRIS, you need to define a project file in JSON or YAML format. A full-wo
   * [classes](#classes)
   * [views](#views)
   * [segmentation](#segmentation)
+  * [chat](#chat)
 
 ## name
 Optional name for this project.
@@ -243,4 +244,26 @@ Defines how to measure the score achieved by the user for each mask. Can be
 <i>Example:</i>
 ```
 "score": "f1"
+```
+
+## chat
+Optional. Adds a comment panel to the segmentation view, backed by
+[utterances](https://utteranc.es/): each image gets a thread stored as a
+GitHub issue in the repository named here. Off by default, so nothing is
+posted anywhere unless a project opts in.
+
+- `enabled`: `true` or `false`. Default `false`.
+- `github_repo`: the `owner/repository` that will hold the issues. The
+  utterances app must be installed on it. Required when `enabled` is
+  `true`; the project config is rejected otherwise. Default `""`.
+- `utterances_theme`: the widget theme, for example `github-light`,
+  `github-dark` or `preferred-color-scheme`. Default `github-light`.
+
+<i>Example:</i>
+```
+"chat": {
+    "enabled": true,
+    "github_repo": "my-org/my-labelling-project",
+    "utterances_theme": "github-light"
+}
 ```

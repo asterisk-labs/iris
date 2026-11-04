@@ -21,6 +21,25 @@ from iris.project import project
 
 config_bp = flask.Blueprint('config', __name__)
 
+
+def _chat_config_error(chat):
+    """Return an error message for a bad `chat` block, or None.
+
+    The block is optional. When it is present and `enabled` is true it
+    must name a GitHub repository, otherwise the comment widget has
+    nowhere to post.
+    """
+    if chat is None:
+        return None
+    if not isinstance(chat, dict):
+        return 'chat must be an object'
+    if chat.get('enabled'):
+        repo = chat.get('github_repo')
+        if not isinstance(repo, str) or not repo.strip():
+            return 'chat.github_repo is required when chat.enabled is true'
+    return None
+
+
 @config_bp.route('/health', methods=['GET'])
 def config_health():
     """Health check for config API"""
@@ -264,6 +283,14 @@ def update_project_config():
                 'message': 'At least one view is required'
             }), 400
 
+        # Validate chat: a repo is needed for the widget to post anywhere
+        chat_error = _chat_config_error(new_config.get('chat'))
+        if chat_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': chat_error
+            }), 400
+
         # Save configuration with backup/rollback safety
         config_file = project.file
 
@@ -430,6 +457,11 @@ def validate_project_config():
 
             if 'ai_model' in seg and seg['ai_model'] is not False and not isinstance(seg['ai_model'], dict):
                 errors.append('segmentation.ai_model must be an object or false')
+
+        # Validate chat
+        chat_error = _chat_config_error(config_data.get('chat'))
+        if chat_error:
+            errors.append(chat_error)
 
         # Validate port
         if 'port' in config_data:

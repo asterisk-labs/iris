@@ -14,7 +14,7 @@ export interface ChatSectionRef {
 
 const ChatSection = forwardRef<ChatSectionRef>((_props, ref) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
   const [githubRepo, setGithubRepo] = useState('');
   const [utterancesTheme, setUtterancesTheme] = useState('github-light');
   const s = useConfigStyles();
@@ -23,11 +23,11 @@ const ChatSection = forwardRef<ChatSectionRef>((_props, ref) => {
     getData: () => ({ enabled, github_repo: githubRepo, utterances_theme: utterancesTheme }),
     setData: (data: ChatConfig | undefined) => {
       if (data) {
-        setEnabled(data.enabled ?? true);
+        setEnabled(data.enabled ?? false);
         setGithubRepo(data.github_repo || '');
         setUtterancesTheme(data.utterances_theme || 'github-light');
       } else {
-        setEnabled(true);
+        setEnabled(false);
         setGithubRepo('');
         setUtterancesTheme('github-light');
       }
