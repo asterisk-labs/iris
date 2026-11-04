@@ -77,6 +77,19 @@ start otherwise, so leaving it out is the simplest choice.
 "shape": [384, 512]
 ```
 
+### images : cache_mb
+Optional. Loaded image bands are kept in memory so that switching views
+or re-running the AI on an image does not read the file again. This is
+the budget for that cache in megabytes, least recently used images being
+dropped first. Default is `1024`; `0` turns the cache off. A file that is
+rewritten on disk while IRIS is running is read again, so the cache
+never serves a stale image.
+
+<i>Example:</i>
+```
+"cache_mb": 4096
+```
+
 ### images : thumbnails
 Optional thumbnail files for the images. Path must contain a placeholder `{id}`. If you cannot provide any thumbnail, just leave it out or set it to `false`.
 

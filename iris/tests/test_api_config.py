@@ -723,3 +723,42 @@ def test_put_config_rejects_chat_enabled_without_repo(logged_in_admin, restore_c
 
     assert response.status_code == 400
     assert "github_repo" in response.json["message"]
+
+
+def test_get_config_includes_images_cache_mb(logged_in_admin):
+    response = logged_in_admin.get("/api/config/project")
+    assert response.status_code == 200
+    assert response.json["config"]["images"]["cache_mb"] == 1024
+
+
+def test_validate_rejects_bad_cache_mb(logged_in_admin, sample_valid_config):
+    sample_valid_config["images"]["cache_mb"] = -1
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is False
+    assert any("cache_mb" in err for err in response.json["errors"])
+
+
+def test_validate_accepts_zero_cache_mb(logged_in_admin, sample_valid_config):
+    sample_valid_config["images"]["cache_mb"] = 0
+
+    response = logged_in_admin.post(
+        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    assert response.json["valid"] is True
+
+
+def test_put_config_rejects_bad_cache_mb(logged_in_admin, restore_config_file):
+    config = logged_in_admin.get("/api/config/project").json["config"]
+    config["images"]["cache_mb"] = "lots"
+
+    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+
+    assert response.status_code == 400
+    assert "cache_mb" in response.json["message"]

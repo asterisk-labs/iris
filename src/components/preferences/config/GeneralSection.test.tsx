@@ -119,6 +119,21 @@ describe('GeneralSection', () => {
       expect(screen.getByDisplayValue('meta/{id}.json')).toBeInTheDocument();
     });
 
+    it('carries images.cache_mb through getData without a field for it', () => {
+      const ref = React.createRef<any>();
+      render(<GeneralSection ref={ref} />);
+
+      expect(ref.current?.getData().images).not.toHaveProperty('cache_mb');
+
+      act(() => {
+        ref.current?.setData({
+          name: 'p', images: { path: 'data/{id}.tif', cache_mb: 4096 },
+        });
+      });
+
+      expect(ref.current?.getData().images.cache_mb).toBe(4096);
+    });
+
     it('enables thumbnails checkbox when path provided', () => {
       const ref = React.createRef<any>();
       render(<GeneralSection ref={ref} />);

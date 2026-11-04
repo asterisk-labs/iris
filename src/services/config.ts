@@ -16,6 +16,8 @@ export interface ProjectConfig {
     shape?: [number, number] | null;
     thumbnails?: string | false;
     metadata?: string | false;
+    /** Budget for the server's image cache in megabytes; 0 disables it */
+    cache_mb?: number;
   };
   classes: Array<{
     name: string;

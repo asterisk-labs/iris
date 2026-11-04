@@ -16,6 +16,7 @@ from copy import deepcopy
 
 import flask
 
+from iris.imagecache import DEFAULT_CACHE_MB
 from iris.models import User
 from iris.project import project
 
@@ -37,6 +38,18 @@ def _chat_config_error(chat):
         repo = chat.get('github_repo')
         if not isinstance(repo, str) or not repo.strip():
             return 'chat.github_repo is required when chat.enabled is true'
+    return None
+
+
+def _cache_mb_error(images):
+    """Error message for a bad images.cache_mb, or None. Optional; when
+    given it must be a number of megabytes, zero or more (zero disables
+    the image cache)."""
+    if not isinstance(images, dict) or 'cache_mb' not in images:
+        return None
+    value = images['cache_mb']
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return 'images.cache_mb must be a number of megabytes, 0 or more'
     return None
 
 
@@ -126,6 +139,7 @@ def get_project_config():
                 'shape': deepcopy(project.configured_shape),
                 'thumbnails': make_relative(project.config['images'].get('thumbnails', False), base_dir),
                 'metadata': make_relative(project.config['images'].get('metadata', False), base_dir),
+                'cache_mb': project.config['images'].get('cache_mb', DEFAULT_CACHE_MB),
             },
             'classes': deepcopy(project.config.get('classes', [])),
             'views': deepcopy(project.config.get('views', {})),
@@ -256,6 +270,12 @@ def update_project_config():
         # images.shape is optional (derived from the images); drop an empty one
         if new_config['images'].get('shape') in (None, [], [0, 0]):
             new_config['images'].pop('shape', None)
+        cache_error = _cache_mb_error(new_config['images'])
+        if cache_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': cache_error
+            }), 400
 
         # Validate classes
         if not isinstance(new_config['classes'], list) or len(new_config['classes']) == 0:
@@ -385,6 +405,10 @@ def validate_project_config():
                 or not all(isinstance(v, int) and v > 0 for v in shape)
             ):
                 errors.append('images.shape, if given, must be [height, width] (two positive integers); it can be left out and is then read from the images')
+
+            cache_error = _cache_mb_error(config_data['images'])
+            if cache_error:
+                errors.append(cache_error)
 
         # Validate classes
         if 'classes' in config_data:
