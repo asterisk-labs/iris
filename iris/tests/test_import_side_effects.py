@@ -6,8 +6,13 @@ from pathlib import Path
 
 
 def _run(code, cwd):
+    # Typer's help output contains box-drawing characters; on Windows a child
+    # process defaults to the console code page (cp1252), which cannot encode
+    # them. Run the child in UTF-8 so the check is about the CLI, not encodings.
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
     return subprocess.run(
-        [sys.executable, "-c", code], cwd=cwd, capture_output=True, text=True, timeout=120
+        [sys.executable, "-c", code], cwd=cwd, capture_output=True, text=True,
+        encoding="utf-8", timeout=120, env=env,
     )
 
 
