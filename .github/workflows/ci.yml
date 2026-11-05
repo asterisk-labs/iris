@@ -89,7 +89,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "latest"
 
@@ -117,8 +117,9 @@ jobs:
         run: |
           # Importing iris and running the CLI must not depend on the cwd
           cd "${RUNNER_TEMP}"
-          "${GITHUB_WORKSPACE}/.venv/bin/python" -c "import iris; from iris.cli import app; print('import ok')"
-          "${GITHUB_WORKSPACE}/.venv/bin/iris" --help > /dev/null
+          if [ "${RUNNER_OS}" = "Windows" ]; then BIN="${GITHUB_WORKSPACE}/.venv/Scripts"; else BIN="${GITHUB_WORKSPACE}/.venv/bin"; fi
+          "${BIN}/python" -c "import iris; from iris.cli import app; print('import ok')"
+          "${BIN}/iris" --help > /dev/null
 
       - name: Run pytest (Ubuntu only for coverage)
         if: matrix.os == 'ubuntu-latest'
