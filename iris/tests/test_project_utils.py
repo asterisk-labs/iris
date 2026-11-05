@@ -77,22 +77,19 @@ def test_set_image_seed_reproducible(project_snapshot):
     assert list(project.image_order) != first
 
 
-@pytest.mark.parametrize(
-    "fake_img,ans",
-    [
-        (
-            {"file1": {"B1": 1, "B2": 2}, "file2": {"R": 1}},
-            ["$file1.B1", "$file1.B2", "$file2.R"],
-        ),
-        ({"c3": 1}, ["c3"]),
-        ({"file1": {"B1": 1, "B2": 2}, "C3": 3}, ["$file1.B1", "$file1.B2", "C3"]),
-    ],
-)
-def test_get_image_bands_monkeypatched(monkeypatch, fake_img, ans):
-    monkeypatch.setattr(project, "get_image", lambda image_id: fake_img)
-    bands = project.get_image_bands("any")
-    print(bands)
-    assert bands == ans
+def test_get_image_bands_from_headers(monkeypatch):
+    """Band names come from the file headers; no pixels are read."""
+    import rasterio as rio
+
+    monkeypatch.setattr(project, "load_image", lambda *a, **k: pytest.fail("pixels were loaded"))
+    image_id = project.image_ids[0]
+    expected = []
+    for file_id, filename in project.get_image_path(image_id).items():
+        with rio.open(filename) as f:
+            expected.extend(f"${file_id}.B{i+1}" for i in range(f.count))
+
+    assert project.get_image_bands(image_id) == expected
+    assert len(expected) > 3
 
 
 def test_load_image_npy_and_png(tmp_path):

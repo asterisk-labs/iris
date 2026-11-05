@@ -29,8 +29,11 @@ class User(JsonSerializable, db.Model):
     created = db.Column(
         db.DateTime, index=True, default=datetime.utcnow
     )
-    # Each user should start with a different random image
-    image_seed = db.Column(db.Integer, default=randint(0, 10_000_000))
+    # Each user starts at a different random image. The default must be a
+    # callable: a bare randint() is evaluated once at import and every user
+    # created by that process would share one seed. Databases created
+    # before this fix keep whatever seeds they have.
+    image_seed = db.Column(db.Integer, default=lambda: randint(0, 10_000_000))
     admin = db.Column(db.Boolean,
                       index=False,
                       unique=False,

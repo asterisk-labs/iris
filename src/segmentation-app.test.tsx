@@ -67,17 +67,12 @@ describe('SegmentationApp - URL Parameter Handling', () => {
   let originalLocation: Location;
 
   /**
-   * beforeEach runs before each test in this describe block.
-   * We use it to set up a clean test environment:
-   * 1. Save the real window.location so we can restore it later
-   * 2. Mock window.init_segmentation (legacy function the app expects)
-   * 3. Mock window.vars (legacy global variable the app expects)
+   * Save the real window.location so each test can replace it and the
+   * afterEach can restore it.
    */
   beforeEach(() => {
     originalLocation = window.location;
-    (window as any).init_segmentation = vi.fn();
-    (window as any).vars = {};
-    
+
     // Mock fetch for authentication check - fix the URL to match what the app actually calls
     global.fetch = vi.fn((url) => {
       if (url === '/user/get/current') {
@@ -97,23 +92,11 @@ describe('SegmentationApp - URL Parameter Handling', () => {
     }) as any;
   });
 
-  /**
-   * afterEach runs after each test in this describe block.
-   * We use it to clean up and restore the original state:
-   * 1. Restore the real window.location
-   * 2. Remove the mocked functions/variables we added
-   * This prevents tests from affecting each other.
-   */
   afterEach(() => {
     Object.defineProperty(window, 'location', {
       value: originalLocation,
       writable: true,
     });
-    delete (window as any).init_segmentation;
-    delete (window as any).vars;
-    delete (window as any).openLogin;
-    delete (window as any).openUserProfile;
-    delete (window as any).irisReactApp;
     vi.restoreAllMocks();
   });
 

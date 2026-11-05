@@ -98,6 +98,8 @@ export interface AIModelConfig {
   meshgrid_cells: string;
   use_superpixels: boolean;
   bands: string[];
+  /** Threads for LightGBM; -1 is all cores. Set server-side, not edited here */
+  n_jobs?: number;
   suppression_filter_size: number;
   suppression_threshold: number;
   suppression_default_class: number;

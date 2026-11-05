@@ -16,10 +16,58 @@ from copy import deepcopy
 
 import flask
 
+from iris.imagecache import DEFAULT_CACHE_MB
 from iris.models import User
 from iris.project import project
 
 config_bp = flask.Blueprint('config', __name__)
+
+
+def _chat_config_error(chat):
+    """Return an error message for a bad `chat` block, or None.
+
+    The block is optional. When it is present and `enabled` is true it
+    must name a GitHub repository, otherwise the comment widget has
+    nowhere to post.
+    """
+    if chat is None:
+        return None
+    if not isinstance(chat, dict):
+        return 'chat must be an object'
+    if chat.get('enabled'):
+        repo = chat.get('github_repo')
+        if not isinstance(repo, str) or not repo.strip():
+            return 'chat.github_repo is required when chat.enabled is true'
+    return None
+
+
+def _ai_model_error(segmentation):
+    """Error message for a bad segmentation.ai_model, or None."""
+    if not isinstance(segmentation, dict) or 'ai_model' not in segmentation:
+        return None
+    ai_model = segmentation['ai_model']
+    if ai_model is False:
+        return None
+    if not isinstance(ai_model, dict):
+        return 'segmentation.ai_model must be an object or false'
+    if 'n_jobs' in ai_model:
+        n_jobs = ai_model['n_jobs']
+        if isinstance(n_jobs, bool) or not isinstance(n_jobs, int) or n_jobs == 0 or n_jobs < -1:
+            return 'segmentation.ai_model.n_jobs must be a positive integer or -1 (all cores)'
+    return None
+
+
+def _cache_mb_error(images):
+    """Error message for a bad images.cache_mb, or None. Optional; when
+    given it must be a number of megabytes, zero or more (zero disables
+    the image cache)."""
+    if not isinstance(images, dict) or 'cache_mb' not in images:
+        return None
+    value = images['cache_mb']
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return 'images.cache_mb must be a number of megabytes, 0 or more'
+    return None
+
 
 @config_bp.route('/health', methods=['GET'])
 def config_health():
@@ -107,6 +155,7 @@ def get_project_config():
                 'shape': deepcopy(project.configured_shape),
                 'thumbnails': make_relative(project.config['images'].get('thumbnails', False), base_dir),
                 'metadata': make_relative(project.config['images'].get('metadata', False), base_dir),
+                'cache_mb': project.config['images'].get('cache_mb', DEFAULT_CACHE_MB),
             },
             'classes': deepcopy(project.config.get('classes', [])),
             'views': deepcopy(project.config.get('views', {})),
@@ -237,6 +286,19 @@ def update_project_config():
         # images.shape is optional (derived from the images); drop an empty one
         if new_config['images'].get('shape') in (None, [], [0, 0]):
             new_config['images'].pop('shape', None)
+        cache_error = _cache_mb_error(new_config['images'])
+        if cache_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': cache_error
+            }), 400
+
+        ai_error = _ai_model_error(new_config['segmentation'])
+        if ai_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': ai_error
+            }), 400
 
         # Validate classes
         if not isinstance(new_config['classes'], list) or len(new_config['classes']) == 0:
@@ -262,6 +324,14 @@ def update_project_config():
             return flask.jsonify({
                 'error': 'Invalid configuration',
                 'message': 'At least one view is required'
+            }), 400
+
+        # Validate chat: a repo is needed for the widget to post anywhere
+        chat_error = _chat_config_error(new_config.get('chat'))
+        if chat_error:
+            return flask.jsonify({
+                'error': 'Invalid configuration',
+                'message': chat_error
             }), 400
 
         # Save configuration with backup/rollback safety
@@ -359,6 +429,10 @@ def validate_project_config():
             ):
                 errors.append('images.shape, if given, must be [height, width] (two positive integers); it can be left out and is then read from the images')
 
+            cache_error = _cache_mb_error(config_data['images'])
+            if cache_error:
+                errors.append(cache_error)
+
         # Validate classes
         if 'classes' in config_data:
             if not isinstance(config_data['classes'], list):
@@ -428,8 +502,14 @@ def validate_project_config():
                 if not isinstance(mask_area, list) or len(mask_area) != 4:
                     errors.append('segmentation.mask_area must be an array of 4 integers or null')
 
-            if 'ai_model' in seg and seg['ai_model'] is not False and not isinstance(seg['ai_model'], dict):
-                errors.append('segmentation.ai_model must be an object or false')
+            ai_error = _ai_model_error(seg)
+            if ai_error:
+                errors.append(ai_error)
+
+        # Validate chat
+        chat_error = _chat_config_error(config_data.get('chat'))
+        if chat_error:
+            errors.append(chat_error)
 
         # Validate port
         if 'port' in config_data:

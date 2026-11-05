@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 
 from iris.models import Action, User, db
 from iris.project import project
+from iris.segmentation.training import filter_training_pixels, meshgrid_features
 from iris.user import requires_auth
 
 segmentation_app = flask.Blueprint(
@@ -350,8 +351,12 @@ def predict_mask(image_id):
     image = image[mask_area]
 
     data = json.loads(flask.request.data)
-    user_indices = np.array(data['user_pixels'])
-    user_labels = np.array(data['user_labels'])
+    try:
+        user_indices, user_labels = filter_training_pixels(
+            data['user_pixels'], data['user_labels']
+        )
+    except ValueError as error:
+        return flask.make_response(str(error), 400)
 
     inputs = [image]
     if config['ai_model']['use_edge_filter']:
@@ -362,16 +367,9 @@ def predict_mask(image_id):
         inputs.append(edges)
 
     if config['ai_model']['use_meshgrid']:
-        if config['ai_model']['meshgrid_cells'] == "pixelwise":
-            x_size, y_size = image.shape[0], image.shape[1]
-        else:
-            x_size, y_size = map(int, config['ai_model']['meshgrid_cells'].split('x'))
-        y_size = 3
-        x = np.repeat(np.arange(x_size), int(image.shape[0]/x_size)+1)
-        y = np.repeat(np.arange(y_size), int(image.shape[1]/y_size)+1)
-        x_grid, y_grid = np.meshgrid(x[:image.shape[0]], y[:image.shape[1]])
-        inputs.append(x_grid[..., np.newaxis])
-        inputs.append(y_grid[..., np.newaxis])
+        inputs.extend(meshgrid_features(
+            image.shape, config['ai_model']['meshgrid_cells']
+        ))
 
     if config['ai_model']['use_superpixels']:
         super_pixels = felzenszwalb(
@@ -396,7 +394,7 @@ def predict_mask(image_id):
         tree_learner='data',
         learning_rate=0.05,
         n_estimators=config['ai_model']['n_estimators'],
-        n_jobs=10,
+        n_jobs=config['ai_model'].get('n_jobs', -1),
     )
     early_stopping = lgb.early_stopping(4, verbose=False)
     gbm.fit(

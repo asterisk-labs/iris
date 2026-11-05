@@ -16,6 +16,8 @@ export interface ProjectConfig {
     shape?: [number, number] | null;
     thumbnails?: string | false;
     metadata?: string | false;
+    /** Budget for the server's image cache in megabytes; 0 disables it */
+    cache_mb?: number;
   };
   classes: Array<{
     name: string;
@@ -64,6 +66,8 @@ export interface AIModelConfig {
   use_superpixels: boolean;
   use_meshgrid: boolean;
   meshgrid_cells: string;
+  /** Threads for LightGBM; -1 is all cores */
+  n_jobs?: number;
 }
 
 export interface ValidationResult {

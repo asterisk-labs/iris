@@ -10,6 +10,7 @@ To use IRIS, you need to define a project file in JSON or YAML format. A full-wo
   * [classes](#classes)
   * [views](#views)
   * [segmentation](#segmentation)
+  * [chat](#chat)
 
 ## name
 Optional name for this project.
@@ -74,6 +75,19 @@ one project may differ in size. If you do give a shape it must be
 start otherwise, so leaving it out is the simplest choice.
 ```
 "shape": [384, 512]
+```
+
+### images : cache_mb
+Optional. Loaded image bands are kept in memory so that switching views
+or re-running the AI on an image does not read the file again. This is
+the budget for that cache in megabytes, least recently used images being
+dropped first. Default is `1024`; `0` turns the cache off. A file that is
+rewritten on disk while IRIS is running is read again, so the cache
+never serves a stale image.
+
+<i>Example:</i>
+```
+"cache_mb": 4096
 ```
 
 ### images : thumbnails
@@ -243,4 +257,57 @@ Defines how to measure the score achieved by the user for each mask. Can be
 <i>Example:</i>
 ```
 "score": "f1"
+```
+
+### segmentation : ai_model
+Settings for the per-image gradient boosting model behind the AI button,
+or `false` to turn the AI off. Each user can override these in their
+preferences; the project file sets the defaults. All keys are optional and
+take the values in the [default configuration file](../iris/default_config.json).
+
+- `bands`: list of band names (for example `["$Sentinel2.B2", "$Sentinel2.B3"]`)
+  to train on, or `null` for all bands.
+- `train_ratio`, `max_train_pixels`: share of each class's painted pixels
+  used for training, and a cap per class.
+- `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.
+- `n_jobs`: threads LightGBM may use. `-1` (the default) means all cores;
+  set a positive number to leave cores free for other users on a shared
+  server.
+- `use_edge_filter`, `use_superpixels`, `use_meshgrid`, `meshgrid_cells`:
+  extra per-pixel features (Sobel edges, Felzenszwalb superpixels, and the
+  pixel's cell in an `RxC` grid, or `"pixelwise"` for its position).
+- `suppression_threshold`, `suppression_filter_size`,
+  `suppression_default_class`: after prediction, pixels whose neighbourhood
+  has fewer than `suppression_threshold` percent of non-default pixels are
+  set to the default class.
+
+<i>Example:</i>
+```
+"ai_model": {
+    "n_estimators": 20,
+    "max_depth": 10,
+    "n_jobs": 4
+}
+```
+
+## chat
+Optional. Adds a comment panel to the segmentation view, backed by
+[utterances](https://utteranc.es/): each image gets a thread stored as a
+GitHub issue in the repository named here. Off by default, so nothing is
+posted anywhere unless a project opts in.
+
+- `enabled`: `true` or `false`. Default `false`.
+- `github_repo`: the `owner/repository` that will hold the issues. The
+  utterances app must be installed on it. Required when `enabled` is
+  `true`; the project config is rejected otherwise. Default `""`.
+- `utterances_theme`: the widget theme, for example `github-light`,
+  `github-dark` or `preferred-color-scheme`. Default `github-light`.
+
+<i>Example:</i>
+```
+"chat": {
+    "enabled": true,
+    "github_repo": "my-org/my-labelling-project",
+    "utterances_theme": "github-light"
+}
 ```

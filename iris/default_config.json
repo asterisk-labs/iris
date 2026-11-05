@@ -2,7 +2,8 @@
     "port": 5000,
     "images": {
         "thumbnails": false,
-        "metadata": false
+        "metadata": false,
+        "cache_mb": 1024
     },
     "segmentation": {
         "mask_encoding": "rgb",
@@ -23,12 +24,13 @@
             "use_edge_filter": false,
             "use_superpixels": false,
             "use_meshgrid": false,
-            "meshgrid_cells": "3x3"
+            "meshgrid_cells": "3x3",
+            "n_jobs": -1
         }
     },
     "chat": {
-        "enabled": true,
-        "github_repo": "gt-sse-center/iris",
+        "enabled": false,
+        "github_repo": "",
         "utterances_theme": "github-light"
     }
 }

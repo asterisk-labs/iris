@@ -5,10 +5,9 @@ This module provides the command-line interface for IRIS using Typer,
 which offers better type hints, automatic help generation, and cleaner code.
 """
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
 import typer
-from typing_extensions import Annotated
 
 app = typer.Typer(
     name="iris",

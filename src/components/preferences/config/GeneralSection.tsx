@@ -13,6 +13,8 @@ const GeneralSection = forwardRef<any, {}>((_props, ref) => {
   const [metadataEnabled, setMetadataEnabled] = useState(false);
   const [metadataPath, setMetadataPath] = useState('');
   const [isOpen, setIsOpen] = useState(true);
+  // Not edited here; carried through so saving the form keeps it
+  const [cacheMb, setCacheMb] = useState<number | undefined>(undefined);
   const pathListRef = useRef<any>(null);
   const s = useConfigStyles();
 
@@ -26,6 +28,7 @@ const GeneralSection = forwardRef<any, {}>((_props, ref) => {
         shape: shape1 || shape2 ? [parseInt(shape1) || 0, parseInt(shape2) || 0] : null,
         thumbnails: thumbnailsEnabled ? thumbnailsPath : false,
         metadata: metadataEnabled ? metadataPath : false,
+        ...(cacheMb !== undefined ? { cache_mb: cacheMb } : {}),
       },
     };
   };
@@ -48,6 +51,7 @@ const GeneralSection = forwardRef<any, {}>((_props, ref) => {
         if (data.images.metadata === false) { setMetadataEnabled(false); setMetadataPath(''); }
         else { setMetadataEnabled(true); setMetadataPath(data.images.metadata); }
       }
+      if (typeof data.images.cache_mb === 'number') setCacheMb(data.images.cache_mb);
     }
   };
 

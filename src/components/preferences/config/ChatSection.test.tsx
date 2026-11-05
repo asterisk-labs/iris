@@ -32,6 +32,21 @@ describe('ChatSection', () => {
     expect(screen.getByRole('combobox')).toHaveValue('github-dark');
   });
 
+  it('starts disabled with no repo when the project has no chat block', () => {
+    const ref = createRef<any>();
+    renderWithTheme(<ChatSection ref={ref} />);
+
+    act(() => {
+      ref.current?.setData(undefined);
+    });
+
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByPlaceholderText('owner/repository')).toHaveValue('');
+    expect(ref.current?.getData()).toEqual({
+      enabled: false, github_repo: '', utterances_theme: 'github-light'
+    });
+  });
+
   it('disables fields when chat is disabled', () => {
     const ref = createRef<any>();
     renderWithTheme(<ChatSection ref={ref} />);

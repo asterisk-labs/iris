@@ -166,6 +166,11 @@ uv run iris launch <project-name>
 
 # Remove a project (with confirmation prompt)
 uv run iris rm <project-name>
+
+# Export every annotated image as a GeoTIFF with its merged mask
+# (to ./exports by default; -o picks another folder)
+uv run iris export-all <your-config-file>
+uv run iris export-all demo -o /path/to/exports
 ```
 
 The `launch` command will:
@@ -191,6 +196,14 @@ IRIS includes a modern React-based admin interface for managing users, viewing p
 - **Image Progress**: Monitor which images have been annotated and by whom  
 - **Quality Metrics**: View annotation scores, difficulty ratings, and time spent
 - **Modern UI**: React Single Page Application with fast navigation
+
+Each user is given a random `image_seed` when their account is created,
+which sets the order they see images in. Before November 2026 every user
+created by one server process got the same seed (the default was drawn
+once at import), so users on an older project may share an order. Existing
+databases keep their seeds; to spread users out, set `image_seed` on the
+`user` table to distinct values with any SQLite client. Users will see a
+different ordering afterwards.
 
 ### Docker
 
@@ -249,7 +262,7 @@ The admin interface features:
 IRIS includes a comprehensive test suite using pytest. The tests are located in `iris/tests/` and include fixtures for Flask app testing and project state management.
 
 ```bash
-# Run all tests (includes frontend build verification)
+# Run the Python test suite
 uv run pytest iris/tests/
 
 # Run tests with verbose output

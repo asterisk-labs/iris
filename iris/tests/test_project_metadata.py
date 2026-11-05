@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 import yaml
 from skimage.io import imsave
 
@@ -49,10 +50,16 @@ def test_get_thumbnail_and_image_path_and_bands(tmp_path, project_snapshot, monk
     pth = project.get_image_path("X")
     assert "{id}" not in pth
 
-    # get_image_bands: monkeypatch get_image to simulate multi-file dict
-    def fake_get_image(image_id):
-        return {"file": {"B1": 1, "B2": 2}, "$B1": np.ones((2, 2))}
+    # get_image_bands reads band counts from the file headers, for a single
+    # file and for a dict of files, without loading pixels
+    np.save(str(tmp_path / "1.npy"), np.zeros((2, 2, 3), dtype=np.uint8), allow_pickle=False)
+    np.save(str(tmp_path / "1_other.npy"), np.zeros((2, 2), dtype=np.uint8), allow_pickle=False)
+    monkeypatch.setattr(project, "load_image", lambda *a, **k: pytest.fail("pixels were loaded"))
 
-    monkeypatch.setattr(project, "get_image", fake_get_image)
-    bands = project.get_image_bands("1")
-    assert any("B1" in b for b in bands)
+    assert project.get_image_bands("1") == ["$B1", "$B2", "$B3"]
+
+    project["images"] = {"path": {
+        "main": str(tmp_path / "{id}.npy"),
+        "other": str(tmp_path / "{id}_other.npy"),
+    }}
+    assert project.get_image_bands("1") == ["$main.B1", "$main.B2", "$main.B3", "$other.B1"]

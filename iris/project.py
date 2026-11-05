@@ -11,14 +11,15 @@ from os.path import basename, dirname, exists, getmtime, isabs, join, normpath
 from pprint import pprint
 
 import markupsafe
+import matplotlib
 import numpy as np
 import rasterio as rio
 import yaml
-from matplotlib import cm
 from skimage.filters import sobel
 from skimage.io import imread
 from skimage.segmentation import felzenszwalb
 
+from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
 from iris.utils import merge_deep_dicts
 
 
@@ -33,6 +34,11 @@ class Project:
         # images.shape as written in the config file (None when derived)
         self.configured_shape = None
         self._shape_cache = {}
+        # Band counts per image file, keyed on (path, mtime)
+        self._band_count_cache = {}
+        # Loaded band arrays, see iris.imagecache. Sized from images.cache_mb
+        # once a config is loaded.
+        self._image_cache = ImageCache.from_mb(DEFAULT_CACHE_MB)
 
     def load_from(self, filename):
         if not isabs(filename):
@@ -75,6 +81,14 @@ class Project:
 
         # Default seed
         self.set_image_seed(0)
+
+        # A reload may point at different images: start the caches afresh,
+        # sized from the new config.
+        self._shape_cache = {}
+        self._band_count_cache = {}
+        self._image_cache = ImageCache.from_mb(
+            self.config['images'].get('cache_mb', DEFAULT_CACHE_MB)
+        )
 
         self._init_image_shape()
 
@@ -150,10 +164,23 @@ class Project:
             klass['css_colour'] = f'rgba({str(klass["colour"])[1:-1]})'
 
     def _init_paths_and_files(self, filename):
-        if project not in self.config:
-            self.config['path'] = join(
-                dirname(filename), self.config['name']+'.iris'
-            )
+        default_path = join(dirname(filename), self.config['name']+'.iris')
+        if 'path' not in self.config:
+            self.config['path'] = default_path
+        else:
+            self.config['path'] = self.make_absolute(self.config['path'])
+            # Until November 2026 a configured path was ignored (the check
+            # above compared the Project object with the config keys), so
+            # projects that set one may have data in the default folder.
+            if (normpath(self.config['path']) != normpath(default_path)
+                    and exists(default_path)):
+                print(
+                    f"[CONFIG] Warning: using path '{self.config['path']}' "
+                    f"from the project file, but '{default_path}' also "
+                    "exists. Masks, user configs and the database are read "
+                    "from the configured path; move the folder if the "
+                    "default one holds your data."
+                )
 
         if self.segmentation and not self['segmentation']['path']:
             self.config['segmentation']['path'] = join(
@@ -295,6 +322,29 @@ class Project:
         self._shape_cache[image_id] = shape
         return shape
 
+    def count_image_bands(self, filename):
+        """Number of bands in one image file, read from its header.
+
+        Cached per (path, mtime). npy files are memory-mapped so only the
+        header is touched; GDAL formats come from the dataset metadata.
+        Other formats fall back to reading the image.
+        """
+        key = (filename, getmtime(filename))
+        if key in self._band_count_cache:
+            return self._band_count_cache[key]
+        lower = filename.lower()
+        if lower.endswith('npy'):
+            array = np.load(filename, mmap_mode='r', allow_pickle=False)
+            count = 1 if array.ndim == 2 else int(array.shape[-1])
+        elif lower.endswith(('.tif', '.tiff', '.vrt')):
+            with rio.open(filename) as file:
+                count = int(file.count)
+        else:
+            array = imread(filename)
+            count = 1 if array.ndim == 2 else int(array.shape[-1])
+        self._band_count_cache[key] = count
+        return count
+
     def get_mask_area(self, image_id):
         """[x0, y0, x1, y1] of the mask area for an image.
 
@@ -335,19 +385,16 @@ class Project:
             array = np.load(filename, mmap_mode='r', allow_pickle=False)
             if bands is not None:
                 array = array[..., bands]
-        elif filename.lower().endswith('vrt'):
-            with rio.open(filename) as file:
-                array = file.read(bands)
-                array = np.moveaxis(array, 0, -1)
-        elif filename.lower().endswith(('.tif', '.tiff')):
-            with rio.open(filename) as file:
+        elif filename.lower().endswith(('.tif', '.tiff', '.vrt')):
+            # Let GDAL decode compressed tiles on all cores: a 64-band zstd
+            # tile went from 1.2 s to 0.04 s with this.
+            with rio.Env(GDAL_NUM_THREADS='ALL_CPUS'), rio.open(filename) as file:
                 if bands is not None:
                     rio_bands = [b + 1 for b in bands]
                     array = file.read(rio_bands)
-                    array = np.moveaxis(array, 0, -1)
                 else:
                     array = file.read()
-                    array = np.moveaxis(array, 0, -1)
+                array = np.moveaxis(array, 0, -1)
         else:
             array = imread(filename)
             if len(array.shape) == 2:
@@ -364,6 +411,22 @@ class Project:
         }
         return data
 
+    def _load_image_cached(self, image_id, source, filename, bands):
+        """load_image through the image cache.
+
+        Keyed on the image, the source file id, the exact band selection
+        and the file's mtime, so a rewritten file is read again. The
+        returned arrays are shared and read-only; copy before writing.
+        """
+        key = (
+            image_id, source,
+            None if bands is None else tuple(bands),
+            getmtime(filename),
+        )
+        return self._image_cache.get_or_load(
+            key, lambda: self.load_image(filename, bands=bands)
+        )
+
     def get_image(self, image_id, bands=None):
         """Get the image data as dictionary
 
@@ -374,7 +437,8 @@ class Project:
 
         Returns:
             A dict with bands. The keys are either "$B1"..."$Bn" or
-            "$FileIdentifier.B1".
+            "$FileIdentifier.B1". The arrays come from the image cache and
+            are read-only.
         """
 
         if isinstance(self['images']['path'], dict):
@@ -391,14 +455,15 @@ class Project:
                     if not file_bands:
                         continue
 
-                image = self.load_image(
-                    filename.format(id=image_id), bands=file_bands
+                image = self._load_image_cached(
+                    image_id, file_id, filename.format(id=image_id),
+                    file_bands
                 )
                 data[file_id] = image
         else:
-            data = self.load_image(
-                self['images']['path'].format(id=image_id),
-                bands=bands
+            data = self._load_image_cached(
+                image_id, None, self['images']['path'].format(id=image_id),
+                bands
             )
             data = {
                 '$'+key: value
@@ -408,16 +473,17 @@ class Project:
         return data
 
     def get_image_bands(self, image_id):
-        # TODO: probably we could do this faster:
-        image = self.get_image(image_id)
-
-        bands = []
-        for band in image:
-            if isinstance(image[band], dict):
-                bands.extend([f'${band}.{subband}' for subband in image[band]])
-            else:
-                bands.append(f'{band}')
-        return bands
+        """Band names of an image, "$B1".."$Bn" or "$File.B1".., from the
+        file headers; no pixels are read."""
+        path = self.get_image_path(image_id)
+        if isinstance(path, dict):
+            bands = []
+            for file_id, filename in path.items():
+                count = self.count_image_bands(filename)
+                bands.extend(f'${file_id}.B{i+1}' for i in range(count))
+            return bands
+        count = self.count_image_bands(path)
+        return [f'$B{i+1}' for i in range(count)]
 
     def get_image_path(self, image_id):
         if isinstance(self['images']['path'], dict):
@@ -493,7 +559,9 @@ class Project:
         rgb_bands = list(map(linear_scale, rgb_bands))
 
         if len(rgb_bands) == 1:
-            rgb_bands = cm.get_cmap(view['cmap'])(rgb_bands)[..., :3]
+            # matplotlib.colormaps raises KeyError on an unknown name where
+            # cm.get_cmap (gone in Matplotlib 3.11) raised ValueError
+            rgb_bands = matplotlib.colormaps[view['cmap']](rgb_bands)[..., :3]
 
         rgb_bands = np.dstack(rgb_bands)
         return (255*rgb_bands).astype('uint8')
@@ -620,6 +688,11 @@ class Project:
                     # Once a suitable image is found, update the list so that its
                     # next in line (this means self.get_previous_image retains expected
                     # behaviour immediately afterwards).
+                    # NOTE: this mutates self.image_ids, which every user
+                    # shares, so one user's "next" reorders the others'
+                    # sequences. The ordering rewrite in T1.2.1 of
+                    # docs/agents/IMPLEMENTATION_PLAN.md replaces this; it is
+                    # deliberately left alone here.
                     a = trial_idx
                     b = (index + 1) % len(self.image_order)
                     self.image_ids[self.image_order[a]], self.image_ids[self.image_order[b]] = \
