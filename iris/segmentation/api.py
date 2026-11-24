@@ -8,6 +8,7 @@ import json
 import flask
 
 from iris.project import current_project
+from iris.segmentation.navigation import next_image_id, user_image_order
 from iris.user import requires_auth
 
 api_bp = flask.Blueprint(
@@ -68,7 +69,8 @@ def save_user_config():
 @requires_auth
 def list_images():
     """
-    Get list of all images with their annotation status.
+    Get list of all images with their annotation status, in the order the
+    logged-in user works through them.
 
     Returns:
         JSON response with format:
@@ -96,7 +98,8 @@ def list_images():
 
     # Build image status map
     images_data = []
-    for image_id in project.image_ids:
+    _, order = user_image_order()
+    for image_id in order:
         # Get actions for this image
         image_actions = [a for a in all_actions if a.image_id == image_id]
         user_actions = [a for a in image_actions if a.user_id == user_id]
@@ -115,6 +118,18 @@ def list_images():
         'images': images_data,
         'current_image_id': current_image_id
     })
+
+
+@api_bp.route('/images/next', methods=['GET'])
+@requires_auth
+def next_image():
+    """The image after ?image_id= for this user; null if there is no other."""
+    user, order = user_image_order()
+    image_id = flask.request.args.get('image_id')
+    if image_id not in order:
+        return flask.jsonify({'error': 'Image not found'}), 404
+    target = next_image_id(user, order, image_id)
+    return flask.jsonify({'image_id': target if target != image_id else None})
 
 
 @api_bp.route('/export-geotiff/<image_id>', methods=['GET'])

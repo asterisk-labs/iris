@@ -123,7 +123,7 @@ export interface NavigationSlice {
   showDialogueBeforeNextImage: boolean;
   setImages: (images: ImageInfo[]) => void;
   setCurrentImage: (imageId: string) => void;
-  getNextImageId: () => string | null;
+  /** The image before this one in the user's order, wrapping round. */
   getPrevImageId: () => string | null;
   setShowDialogueBeforeNextImage: (show: boolean) => void;
 }

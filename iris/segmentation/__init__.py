@@ -16,13 +16,9 @@ from sklearn.metrics import accuracy_score, f1_score, jaccard_score
 from sklearn.model_selection import train_test_split
 
 from iris.models import Action, User, db
-from iris.ordering import (
-    annotation_counts,
-    least_annotated_next,
-    next_in_order,
-    previous_in_order,
-)
+from iris.ordering import previous_in_order
 from iris.project import current_project
+from iris.segmentation.navigation import next_image_id, user_image_order
 from iris.segmentation.training import filter_training_pixels, meshgrid_features
 from iris.user import requires_auth
 
@@ -59,53 +55,30 @@ def register_segmentation_blueprints(app):
 # Original index route removed - now handled by SPA blueprint
 # The SPA blueprint (spa.py) handles the main /segmentation/ route
 
-def _user_order_and_image():
-    """The current user's image order and the image they are on.
+def _redirect_to(image_id):
+    return flask.redirect(
+        flask.url_for('segmentation_spa.segmentation_spa', image_id=image_id)
+    )
 
-    Answers 404 for an image id the project does not have, rather than the
-    500 the old list lookups raised.
-    """
-    project = current_project()
-    user = User.query.get(flask.session['user_id'])
-    order = project.image_order(user.image_seed)
+
+def _requested_image(order):
     image_id = flask.request.args.get('image_id', order[0])
     if image_id not in order:
         flask.abort(404, 'Unknown image id!')
-    return project, user, order, image_id
+    return image_id
 
 
 @segmentation_app.route('/next_image', methods=['GET'])
 @requires_auth
 def next_image():
-    project, user, order, image_id = _user_order_and_image()
-
-    # prioritise_unmarked_images: go to the next image in the user's order
-    # with the fewest annotations, counting the user's own as many.
-    if project['segmentation']['prioritise_unmarked_images']:
-        annotations = [
-            (action.image_id, action.user_id) for action in Action.query.all()
-        ]
-        image_id = least_annotated_next(
-            order, image_id, annotation_counts(annotations, user.id)
-        )
-    else:
-        image_id = next_in_order(order, image_id)
-
-    return flask.redirect(
-        flask.url_for('segmentation_spa.segmentation_spa', image_id=image_id)
-    )
+    user, order = user_image_order()
+    return _redirect_to(next_image_id(user, order, _requested_image(order)))
 
 @segmentation_app.route('/previous_image', methods=['GET'])
 @requires_auth
 def previous_image():
-    _, _, order, image_id = _user_order_and_image()
-
-    return flask.redirect(
-        flask.url_for(
-            'segmentation_spa.segmentation_spa',
-            image_id=previous_in_order(order, image_id),
-        )
-    )
+    _, order = user_image_order()
+    return _redirect_to(previous_in_order(order, _requested_image(order)))
 
 def get_mask_filenames(image_id, user_id=None):
     """Get final and user mask filenames"""

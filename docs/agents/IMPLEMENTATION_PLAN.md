@@ -150,7 +150,7 @@ Status (2026-11-24): 0.2.A and 0.2.B are done in PR #1 (`finish-migration`),
 whose detailed plan is in `FINISH_MIGRATION_PLAN.md`. The stores became
 slices of one Zustand store under `src/stores/segmentation/` rather than
 separate stores, and `src/test/no-legacy-globals.test.ts` fails if a window
-global or bridge function comes back. 0.2.C to 0.2.G are not started. D to G
+global or bridge function comes back. 0.2.C and 0.2.E to 0.2.G are not started. D to G
 are being done together on branch `part0-remaining` as one PR, which is an
 exception to the one-task-per-PR convention below; C is left out of it.
 
@@ -161,19 +161,22 @@ reason. The order of images is computed per request by the pure functions in
 `iris/ordering.py`, so `Project` holds no ordering state and nothing reorders
 `image_ids`. A seed gives the same order as before, and the least-annotated
 choice of `/next_image` matches the old one on 500 random cases (the old code
-looped forever on a one-image project). `/previous_image` now steps back in
-the user's own order; before, it went back to the image the swap had moved,
-which mostly gave the same answer for one user and a wrong one for others.
+looped forever on a one-image project).
 
-Found whilst doing this: the React UI does not use the per-user order at all.
-Enter, Backspace and the toolbar arrows take the neighbour in the image list
-from `/segmentation/api/images/list`, which is `image_ids`, sorted by id. This
-predates the migration (the gt-sse-center template did the same), so
-`prioritise_unmarked_images`, which is on by default, and the per-user
-shuffle only affect the first image a new user is shown. Restoring them means
-serving the list in the user's order and asking the server for "next"; that
-is a behaviour change users of the fork would notice, so it needs a decision
-first.
+The React UI ignored the per-user order. ESA's original page called
+`/next_image` and `/previous_image`, but gt-sse-center's React port took the
+neighbour in the image list, which was sorted by id, so the shuffle and
+`prioritise_unmarked_images` only affected the first image a new user was
+shown. The image list is now served in the user's order, and "next" is asked
+of the server (`/segmentation/api/images/next`) each time, because it depends
+on what has been annotated so far. "Next" and "previous" wrap round, as they
+did in the original.
+
+The old swap existed so that "previous" returned to the image a prioritised
+"next" had come from. The UI now remembers its own steps per browser tab
+(`src/segmentation/trail.ts`) and falls back to the user's order when the
+trail does not lead to the current image. The `/previous_image` redirect,
+which the UI does not call, has no trail and only steps back in the order.
 
 If only two of these can be done, do 0.2.A and 0.2.D. They are the two that every
 T1 task otherwise has to work around.

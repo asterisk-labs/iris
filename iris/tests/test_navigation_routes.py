@@ -98,3 +98,35 @@ def test_unknown_image_is_404(app, client, six_images):
     _login(client, "u1")
     assert client.get('/segmentation/next_image?image_id=nope').status_code == 404
     assert client.get('/segmentation/previous_image?image_id=nope').status_code == 404
+
+
+def test_api_next_agrees_with_redirect_and_changes_with_annotations(app, client, six_images):
+    _set_prioritise(six_images, True)
+    _add_user(app, 1, "u1", seed=0)
+    _login(client, "u1")
+    order = seeded_order(IDS, 0)
+    url = f'/segmentation/api/images/next?image_id={order[0]}'
+    assert client.get(url).json == {'image_id': order[1]}
+
+    with app.app_context():
+        db.session.add(Action(type='segmentation', image_id=order[1], user_id=1))
+        db.session.commit()
+    assert client.get(url).json == {'image_id': order[2]}
+    assert _go(client, 'next_image', order[0]) == order[2]
+
+
+def test_api_next_without_another_image(app, client, six_images):
+    six_images.image_ids = ['a']
+    _add_user(app, 1, "u1", seed=0)
+    _login(client, "u1")
+    assert client.get('/segmentation/api/images/next?image_id=a').json == {'image_id': None}
+    assert client.get('/segmentation/api/images/next?image_id=z').status_code == 404
+
+
+def test_image_list_is_in_the_users_order(app, client, six_images, monkeypatch):
+    monkeypatch.setattr(six_images, 'get_image_shape', lambda i: (2, 2))
+    monkeypatch.setattr(six_images, 'get_mask_area', lambda i: [0, 0, 2, 2])
+    _add_user(app, 1, "u1", seed=123)
+    _login(client, "u1")
+    images = client.get('/segmentation/api/images/list').json['images']
+    assert [i['image_id'] for i in images] == seeded_order(IDS, 123)

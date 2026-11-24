@@ -19,18 +19,10 @@ export const createNavigationSlice: SliceCreator<NavigationSlice> = (set, get) =
     set({ currentImageId: imageId, currentImageIndex: get().images.findIndex(img => img.image_id === imageId) });
   },
 
-  getNextImageId: () => {
-    const { images, currentImageIndex } = get();
-    return currentImageIndex >= 0 && currentImageIndex < images.length - 1
-      ? images[currentImageIndex + 1].image_id
-      : null;
-  },
-
   getPrevImageId: () => {
     const { images, currentImageIndex } = get();
-    return currentImageIndex > 0 && currentImageIndex < images.length
-      ? images[currentImageIndex - 1].image_id
-      : null;
+    if (currentImageIndex < 0 || images.length < 2) return null;
+    return images[(currentImageIndex - 1 + images.length) % images.length].image_id;
   },
 
   setShowDialogueBeforeNextImage: (show) => set({ showDialogueBeforeNextImage: show }),

@@ -94,21 +94,19 @@ describe('filter slice', () => {
 describe('navigation slice', () => {
   const images = ['a', 'b', 'c'].map(image_id => ({ image_id, has_user_annotation: false, has_any_annotation: false, annotation_count: 0 }));
 
-  it('finds the previous and next image', () => {
+  it('finds the previous image, wrapping round', () => {
     store().setCurrentImage('b');
     store().setImages(images);
     expect(store().currentImageIndex).toBe(1);
     expect(store().getPrevImageId()).toBe('a');
-    expect(store().getNextImageId()).toBe('c');
-    store().setCurrentImage('c');
-    expect(store().getNextImageId()).toBeNull();
+    store().setCurrentImage('a');
+    expect(store().getPrevImageId()).toBe('c');
   });
 
   it('handles an image that is not in the list', () => {
     store().setImages(images);
     store().setCurrentImage('zzz');
     expect(store().currentImageIndex).toBe(-1);
-    expect(store().getNextImageId()).toBeNull();
     expect(store().getPrevImageId()).toBeNull();
   });
 

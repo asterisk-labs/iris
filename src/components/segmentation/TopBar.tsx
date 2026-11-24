@@ -28,7 +28,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   const { saveCurrentMask, isLoading, maskChanged } = useSegmentationStore(useShallow(s => ({ saveCurrentMask: s.saveCurrentMask, isLoading: s.isLoading, maskChanged: s.maskChanged })));
   
   const hasPrev = useSegmentationStore(s => s.getPrevImageId() !== null);
-  const hasNext = useSegmentationStore(s => s.getNextImageId() !== null);
+  const hasNext = useSegmentationStore(s => s.currentImageIndex >= 0 && s.images.length > 1);
 
   const handleNavigateToImage = (imageId: string) => {
     void goToPickedImage(imageId);
