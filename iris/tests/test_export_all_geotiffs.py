@@ -7,12 +7,12 @@ and CLI command.
 
 
 class TestExportAllGeoTIFFsAPI:
-    """Test /admin/api/export-all-geotiffs endpoint."""
+    """Test /api/v1/admin/export-all-geotiffs endpoint."""
 
     def test_export_all_requires_admin(self, client, logged_in_user):
         """Test that only admins can export all GeoTIFFs."""
         response = client.post(
-            "/admin/api/export-all-geotiffs", json={"output_dir": "exports"}, content_type="application/json"
+            "/api/v1/admin/export-all-geotiffs", json={"output_dir": "exports"}, content_type="application/json"
         )
         assert response.status_code == 403
 
@@ -31,7 +31,7 @@ class TestExportAllGeoTIFFsAPI:
 
         # The endpoint should at least be accessible (may fail due to missing project data)
         response = client.post(
-            "/admin/api/export-all-geotiffs", json={"output_dir": output_dir}, content_type="application/json"
+            "/api/v1/admin/export-all-geotiffs", json={"output_dir": output_dir}, content_type="application/json"
         )
 
         # Should either succeed (200) or fail gracefully (500), but not 403

@@ -47,7 +47,7 @@ describe('navigation', () => {
       return new Response(JSON.stringify({ image_id: 'a' }));
     });
     await saveThenGo('next');
-    expect(fetchMock.mock.calls[0][0]).toBe('/segmentation/api/images/next?image_id=b');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/images/b/next');
     expect(location.href).toBe('/segmentation/?image_id=a');
   });
 
@@ -120,7 +120,7 @@ describe('navigation', () => {
     fetchMock.mockResolvedValueOnce(new Response('ok'));
     await act(async () => { fireEvent.click(screen.getByText('Save and continue')); });
     const [url, init] = fetchMock.mock.calls[1];
-    expect(url).toBe('/set_action_info/7');
+    expect(url).toBe('/api/v1/actions/7');
     expect(JSON.parse(init.body)).toEqual({ complete: true, difficulty: 2, notes: 'hm' });
     expect(location.href).toBe('/segmentation/?image_id=a');
   });

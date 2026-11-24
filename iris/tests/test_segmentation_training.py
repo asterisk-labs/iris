@@ -79,7 +79,7 @@ def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user, pro
     pixels, labels = _training_pixels(width * height, [40, 40, 1], np.random.RandomState(0))
 
     response = client.post(
-        f"/segmentation/predict_mask/{image_id}",
+        f"/api/v1/images/{image_id}/predict",
         data=json.dumps({"user_pixels": pixels, "user_labels": labels}),
         content_type="application/json",
     )
@@ -97,7 +97,7 @@ def test_predict_mask_rejects_a_single_usable_class(client, logged_in_user, proj
     pixels, labels = _training_pixels(width * height, [40, 3], np.random.RandomState(1))
 
     response = client.post(
-        f"/segmentation/predict_mask/{image_id}",
+        f"/api/v1/images/{image_id}/predict",
         data=json.dumps({"user_pixels": pixels, "user_labels": labels}),
         content_type="application/json",
     )
@@ -120,7 +120,7 @@ def test_predict_mask_with_meshgrid_and_edges(client, logged_in_user, monkeypatc
     pixels, labels = _training_pixels(width * height, [40, 40], np.random.RandomState(2))
 
     response = client.post(
-        f"/segmentation/predict_mask/{image_id}",
+        f"/api/v1/images/{image_id}/predict",
         data=json.dumps({"user_pixels": pixels, "user_labels": labels}),
         content_type="application/json",
     )

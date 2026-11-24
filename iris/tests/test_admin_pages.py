@@ -29,7 +29,7 @@ class TestAdminPages:
 
     def login_user(self, client, username, password):
         """Helper to login a user."""
-        return client.post('/user/login',
+        return client.post('/api/v1/auth/login',
             data=json.dumps({'username': username, 'password': password}),
             content_type='application/json'
         )
@@ -62,11 +62,11 @@ class TestAdminPages:
         assert response.location.endswith('/segmentation/')
 
     def test_admin_api_users_returns_data(self, client):
-        """Test that /admin/api/users returns user data for authenticated users."""
+        """Test that /api/v1/admin/users returns user data for authenticated users."""
         login_response = self.login_user(client, 'admin_user', 'admin123')
         assert login_response.status_code == 200
 
-        response = client.get('/admin/api/users')
+        response = client.get('/api/v1/admin/users')
         assert response.status_code == 200
 
         data = json.loads(response.data)
@@ -76,5 +76,5 @@ class TestAdminPages:
 
     def test_admin_api_requires_authentication(self, client):
         """Test that admin API endpoints require authentication."""
-        response = client.get('/admin/api/users')
+        response = client.get('/api/v1/admin/users')
         assert response.status_code in [302, 401, 403]

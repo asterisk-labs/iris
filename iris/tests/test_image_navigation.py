@@ -30,7 +30,7 @@ class TestImageNavigationAPI:
 
         Expected: 403 Forbidden response
         """
-        response = client.get('/segmentation/api/images/list')
+        response = client.get('/api/v1/images')
         assert response.status_code == 403
 
     def test_list_images_returns_all_project_images(self, client, logged_in_user, project):
@@ -42,7 +42,7 @@ class TestImageNavigationAPI:
 
         Expected: Number of images matches project.image_ids length
         """
-        response = client.get('/segmentation/api/images/list?current_image_id=image_001')
+        response = client.get('/api/v1/images?current_image_id=image_001')
         data = response.get_json()
 
         # Should return all images from the project
@@ -69,7 +69,7 @@ class TestImageNavigationAPI:
         first_image_id = project.image_ids[0]
 
         # Initially, no annotations should exist
-        response = client.get(f'/segmentation/api/images/list?current_image_id={first_image_id}')
+        response = client.get(f'/api/v1/images?current_image_id={first_image_id}')
         data = response.get_json()
 
         first_image = next(img for img in data['images'] if img['image_id'] == first_image_id)
@@ -89,7 +89,7 @@ class TestImageNavigationAPI:
             db.session.commit()
 
         # Now the image should show user annotation
-        response = client.get(f'/segmentation/api/images/list?current_image_id={first_image_id}')
+        response = client.get(f'/api/v1/images?current_image_id={first_image_id}')
         data = response.get_json()
 
         first_image = next(img for img in data['images'] if img['image_id'] == first_image_id)
@@ -131,7 +131,7 @@ class TestImageNavigationAPI:
             db.session.commit()
 
         # Current user checks the list
-        response = client.get(f'/segmentation/api/images/list?current_image_id={second_image_id}')
+        response = client.get(f'/api/v1/images?current_image_id={second_image_id}')
         data = response.get_json()
 
         second_image = next(img for img in data['images'] if img['image_id'] == second_image_id)
@@ -151,7 +151,7 @@ class TestImageNavigationAPI:
             db.session.commit()
 
         # Check again
-        response = client.get(f'/segmentation/api/images/list?current_image_id={second_image_id}')
+        response = client.get(f'/api/v1/images?current_image_id={second_image_id}')
         data = response.get_json()
 
         second_image = next(img for img in data['images'] if img['image_id'] == second_image_id)

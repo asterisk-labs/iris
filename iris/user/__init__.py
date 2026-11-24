@@ -10,13 +10,6 @@ from iris.project import current_project
 user_app = flask.Blueprint("user", __name__, template_folder="templates", static_folder="static")
 
 
-def register_user_api(app):
-    """Register user API blueprint."""
-    from iris.user.api import api_bp
-
-    app.register_blueprint(api_bp)
-
-
 @user_app.route("/")
 def index():
     pass
@@ -57,7 +50,6 @@ def requires_admin(func):
     return decorated
 
 
-@user_app.route("/get/<user_id>", methods=["GET"])
 @requires_auth
 def get(user_id):
     project = current_project()
@@ -74,7 +66,6 @@ def get(user_id):
     return flask.jsonify(json_user)
 
 
-@user_app.route("/set/<user_id>", methods=["POST"])
 @requires_auth
 def set(user_id):
     if user_id == "current":
@@ -102,7 +93,6 @@ def set(user_id):
     return flask.make_response("Saved new user info successfully")
 
 
-@user_app.route("/save_config", methods=["POST"])
 @requires_auth
 def save_config():
     project = current_project()
@@ -111,7 +101,6 @@ def save_config():
     return flask.make_response("Saved user config successfully!")
 
 
-@user_app.route("/register", methods=["POST"])
 def register():
     import re
 
@@ -162,7 +151,6 @@ def register():
         return flask.make_response(f"{new_user} successfully created!")
 
 
-@user_app.route("/login", methods=["POST"])
 def login():
     data = json.loads(flask.request.data)
 
@@ -179,7 +167,6 @@ def login():
     return flask.make_response("Successful login!")
 
 
-@user_app.route("/logout")
 def logout():
     # remove the username from the session if it's there
     if "user_id" in flask.session:
@@ -188,7 +175,6 @@ def logout():
     return flask.make_response("Successful logout!")
 
 
-@user_app.route("/request-password-reset", methods=["POST"])
 def request_password_reset():
     """User requests a password reset by providing their username."""
     from iris.models import PasswordResetRequest

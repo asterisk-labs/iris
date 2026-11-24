@@ -41,7 +41,7 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
         setError(null);
 
         try {
-          const response = await fetch(`${mainUrl}metadata/${imageId}?safe_html=True`);
+          const response = await fetch(`${mainUrl}api/v1/images/${encodeURIComponent(imageId)}/metadata?safe_html=True`);
           if (response.status >= 400) {
             setError(await response.text());
           } else {
@@ -172,7 +172,7 @@ const ImageInfoModal: React.FC<ImageInfoModalProps> = ({ isOpen, onClose }) => {
             marginBottom: '20px',
           }}>
             <img
-              src={`${mainUrl}thumbnail/${imageId}?size=256x256`}
+              src={`${mainUrl}api/v1/images/${encodeURIComponent(imageId)}/thumbnail?size=256x256`}
               alt={`Thumbnail of ${imageId}`}
               style={{
                 maxWidth: '256px',

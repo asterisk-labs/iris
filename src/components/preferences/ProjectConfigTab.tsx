@@ -111,7 +111,7 @@ const ProjectConfigTab: React.FC<ProjectConfigTabProps> = ({ onStateChange }) =>
     if (viewGroupsRef.current?.setData) viewGroupsRef.current.setData(config.view_groups);
     if (segmentationRef.current?.setData) segmentationRef.current.setData(config.segmentation);
     if (chatRef.current?.setData) {
-      chatRef.current.setData(config.chat);
+      chatRef.current.setData(config.chat ?? undefined);
     }
   };
 

@@ -5,9 +5,9 @@ Provides REST API endpoints for managing IRIS project configuration files.
 Admin-only access with support for both JWT (React frontend) and Flask session (legacy UI) authentication.
 
 Endpoints:
-- GET /api/config/project - Retrieve current project configuration
-- PUT /api/config/project - Update project configuration (with backup/rollback)
-- POST /api/config/project/validate - Validate configuration without saving
+- GET /api/v1/project-config - Retrieve current project configuration
+- PUT /api/v1/project-config - Update project configuration (with backup/rollback)
+- POST /api/v1/project-config/validate - Validate configuration without saving
 """
 
 import json
@@ -16,85 +16,11 @@ from copy import deepcopy
 
 import flask
 
-from iris.expressions import ExpressionError, parse
 from iris.imagecache import DEFAULT_CACHE_MB
-from iris.models import User
 from iris.project import current_project
+from iris.schema import check_config
+from iris.user import requires_admin
 
-config_bp = flask.Blueprint('config', __name__)
-
-
-def _chat_config_error(chat):
-    """Return an error message for a bad `chat` block, or None.
-
-    The block is optional. When it is present and `enabled` is true it
-    must name a GitHub repository, otherwise the comment widget has
-    nowhere to post.
-    """
-    if chat is None:
-        return None
-    if not isinstance(chat, dict):
-        return 'chat must be an object'
-    if chat.get('enabled'):
-        repo = chat.get('github_repo')
-        if not isinstance(repo, str) or not repo.strip():
-            return 'chat.github_repo is required when chat.enabled is true'
-    return None
-
-
-def _ai_model_error(segmentation):
-    """Error message for a bad segmentation.ai_model, or None."""
-    if not isinstance(segmentation, dict) or 'ai_model' not in segmentation:
-        return None
-    ai_model = segmentation['ai_model']
-    if ai_model is False:
-        return None
-    if not isinstance(ai_model, dict):
-        return 'segmentation.ai_model must be an object or false'
-    if 'n_jobs' in ai_model:
-        n_jobs = ai_model['n_jobs']
-        if isinstance(n_jobs, bool) or not isinstance(n_jobs, int) or n_jobs == 0 or n_jobs < -1:
-            return 'segmentation.ai_model.n_jobs must be a positive integer or -1 (all cores)'
-    return None
-
-
-def _cache_mb_error(images):
-    """Error message for a bad images.cache_mb, or None. Optional; when
-    given it must be a number of megabytes, zero or more (zero disables
-    the image cache)."""
-    if not isinstance(images, dict) or 'cache_mb' not in images:
-        return None
-    value = images['cache_mb']
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
-        return 'images.cache_mb must be a number of megabytes, 0 or more'
-    return None
-
-
-@config_bp.route('/health', methods=['GET'])
-def config_health():
-    """Health check for config API"""
-    return flask.jsonify({'status': 'ok', 'message': 'Config API is accessible'}), 200
-
-def require_admin():
-    """
-    Check if current user has admin privileges via Flask session.
-
-    Returns:
-        User object if admin, or tuple (error_response, status_code) if not authorized
-    """
-    if 'user_id' not in flask.session:
-        return flask.jsonify({'error': 'Not authenticated'}), 401
-
-    current_user_id = flask.session['user_id']
-    user = User.query.get(current_user_id)
-
-    if not user:
-        return flask.jsonify({'error': 'User not found'}), 401
-
-    if not user.admin:
-        return flask.jsonify({'error': 'Admin privileges required'}), 403
-
-    return user
 
 def make_relative(path, base_dir):
     """Convert absolute path to relative path from base directory"""
@@ -115,10 +41,10 @@ def make_relative(path, base_dir):
         return path
     return path
 
-@config_bp.route('/project', methods=['GET'])
+@requires_admin
 def get_project_config():
     """
-    GET /api/config/project
+    GET /api/v1/project-config
 
     Retrieve the current project configuration for editing.
     Cleans internal fields added by the system (css_colour, name, stretch, etc.)
@@ -132,16 +58,6 @@ def get_project_config():
     """
     project = current_project()
     try:
-        flask.current_app.logger.info("Config endpoint called")
-
-        # Check admin privileges
-        admin_check = require_admin()
-        if isinstance(admin_check, tuple):  # Error response
-            flask.current_app.logger.warning(f"Admin check failed: {admin_check}")
-            return admin_check
-
-        flask.current_app.logger.info(f"Admin check passed for user: {admin_check.name}")
-
         # Get base directory for relative path conversion
         base_dir = os.path.dirname(project.file)
 
@@ -237,10 +153,10 @@ def get_project_config():
             'message': str(e)
         }), 500
 
-@config_bp.route('/project', methods=['PUT'])
+@requires_admin
 def update_project_config():
     """
-    PUT /api/config/project
+    PUT /api/v1/project-config
 
     Update the project configuration file.
 
@@ -259,11 +175,6 @@ def update_project_config():
     """
     project = current_project()
     try:
-        # Check admin privileges
-        admin_check = require_admin()
-        if isinstance(admin_check, tuple):  # Error response
-            return admin_check
-
         new_config = flask.request.get_json()
         if not new_config:
             return flask.jsonify({
@@ -271,70 +182,16 @@ def update_project_config():
                 'message': 'Configuration data is required'
             }), 400
 
-        # Validate required fields
-        required_fields = ['name', 'images', 'classes', 'views', 'segmentation']
-        for field in required_fields:
-            if field not in new_config:
-                return flask.jsonify({
-                    'error': 'Invalid configuration',
-                    'message': f'Missing required field: {field}'
-                }), 400
-
-        # Validate images configuration
-        if 'path' not in new_config['images']:
-            return flask.jsonify({
-                'error': 'Invalid configuration',
-                'message': 'images.path is required'
-            }), 400
         # images.shape is optional (derived from the images); drop an empty one
-        if new_config['images'].get('shape') in (None, [], [0, 0]):
-            new_config['images'].pop('shape', None)
-        cache_error = _cache_mb_error(new_config['images'])
-        if cache_error:
+        images = new_config.get('images') if isinstance(new_config, dict) else None
+        if isinstance(images, dict) and images.get('shape') in (None, [], [0, 0]):
+            images.pop('shape', None)
+
+        errors, _ = check_config(new_config)
+        if errors:
             return flask.jsonify({
                 'error': 'Invalid configuration',
-                'message': cache_error
-            }), 400
-
-        ai_error = _ai_model_error(new_config['segmentation'])
-        if ai_error:
-            return flask.jsonify({
-                'error': 'Invalid configuration',
-                'message': ai_error
-            }), 400
-
-        # Validate classes
-        if not isinstance(new_config['classes'], list) or len(new_config['classes']) == 0:
-            return flask.jsonify({
-                'error': 'Invalid configuration',
-                'message': 'At least one class is required'
-            }), 400
-
-        for class_item in new_config['classes']:
-            if 'name' not in class_item or 'colour' not in class_item:
-                return flask.jsonify({
-                    'error': 'Invalid configuration',
-                    'message': 'Each class must have name and colour fields'
-                }), 400
-            if not isinstance(class_item['colour'], list) or len(class_item['colour']) != 4:
-                return flask.jsonify({
-                    'error': 'Invalid configuration',
-                    'message': 'Class colour must be an array of 4 integers (RGBA)'
-                }), 400
-
-        # Validate views
-        if not isinstance(new_config['views'], dict) or len(new_config['views']) == 0:
-            return flask.jsonify({
-                'error': 'Invalid configuration',
-                'message': 'At least one view is required'
-            }), 400
-
-        # Validate chat: a repo is needed for the widget to post anywhere
-        chat_error = _chat_config_error(new_config.get('chat'))
-        if chat_error:
-            return flask.jsonify({
-                'error': 'Invalid configuration',
-                'message': chat_error
+                'message': '; '.join(errors)
             }), 400
 
         # Save configuration with backup/rollback safety
@@ -380,10 +237,10 @@ def update_project_config():
             'message': str(e)
         }), 500
 
-@config_bp.route('/project/validate', methods=['POST'])
+@requires_admin
 def validate_project_config():
     """
-    POST /api/config/project/validate
+    POST /api/v1/project-config/validate
 
     Validate a project configuration without saving it.
     Checks required fields, data types, and referential integrity.
@@ -395,11 +252,6 @@ def validate_project_config():
         500: Server error
     """
     try:
-        # Check admin privileges
-        admin_check = require_admin()
-        if isinstance(admin_check, tuple):  # Error response
-            return admin_check
-
         config_data = flask.request.get_json()
         if not config_data:
             return flask.jsonify({
@@ -407,131 +259,9 @@ def validate_project_config():
                 'message': 'Configuration data is required'
             }), 400
 
-        errors = []
-        warnings = []
-
-        # Validate required root fields
-        required_fields = ['name', 'images', 'classes', 'views', 'segmentation']
-        for field in required_fields:
-            if field not in config_data:
-                errors.append(f'Missing required field: {field}')
-
-        # Validate images
-        if 'images' in config_data:
-            if 'path' not in config_data['images']:
-                errors.append('images.path is required')
-            elif isinstance(config_data['images']['path'], str):
-                path_str = config_data['images']['path']
-                if '{id}' not in path_str and path_str != '':
-                    warnings.append('images.path should contain {id} placeholder')
-
-            shape = config_data['images'].get('shape')
-            if shape is not None and (
-                not isinstance(shape, list) or len(shape) != 2
-                or not all(isinstance(v, int) and v > 0 for v in shape)
-            ):
-                errors.append('images.shape, if given, must be [height, width] (two positive integers); it can be left out and is then read from the images')
-
-            cache_error = _cache_mb_error(config_data['images'])
-            if cache_error:
-                errors.append(cache_error)
-
-        # Validate classes
-        if 'classes' in config_data:
-            if not isinstance(config_data['classes'], list):
-                errors.append('classes must be an array')
-            elif len(config_data['classes']) == 0:
-                errors.append('At least one class is required')
-            else:
-                for i, class_item in enumerate(config_data['classes']):
-                    if 'name' not in class_item:
-                        errors.append(f'Class {i}: name is required')
-                    if 'colour' not in class_item:
-                        errors.append(f'Class {i}: colour is required')
-                    elif not isinstance(class_item['colour'], list) or len(class_item['colour']) != 4:
-                        errors.append(f'Class {i}: colour must be an array of 4 integers (RGBA)')
-                    else:
-                        for j, val in enumerate(class_item['colour']):
-                            if not isinstance(val, int) or val < 0 or val > 255:
-                                errors.append(f'Class {i}: colour[{j}] must be an integer between 0 and 255')
-
-                    if 'user_colour' in class_item:
-                        user_colour = class_item['user_colour']
-                        if not isinstance(user_colour, list) or len(user_colour) != 4:
-                            errors.append(f'Class {i}: user_colour must be an array of 4 integers (RGBA)')
-
-        # Validate views
-        if 'views' in config_data:
-            if not isinstance(config_data['views'], dict):
-                errors.append('views must be an object')
-            elif len(config_data['views']) == 0:
-                errors.append('At least one view is required')
-            else:
-                for view_name, view_data in config_data['views'].items():
-                    if 'type' not in view_data:
-                        errors.append(f'View {view_name}: type is required')
-                    elif view_data['type'] == 'bingmap':
-                        warnings.append(f'View {view_name}: Bing maps are no longer supported, so it is ignored')
-                    elif view_data['type'] != 'image':
-                        errors.append(f'View {view_name}: type must be "image"')
-
-                    if view_data.get('type') == 'image' and 'data' not in view_data:
-                        errors.append(f'View {view_name}: data is required for image views')
-
-                    if view_data.get('type') == 'image' and 'data' in view_data:
-                        data = view_data['data']
-                        for expression in data if isinstance(data, list) else [data]:
-                            try:
-                                parse(expression)
-                            except ExpressionError as error:
-                                errors.append(f'View {view_name}: {error}')
-
-
-        # Validate view_groups
-        if 'view_groups' in config_data:
-            if not isinstance(config_data['view_groups'], dict):
-                errors.append('view_groups must be an object')
-            else:
-                available_views = list(config_data.get('views', {}).keys())
-                for group_name, view_list in config_data['view_groups'].items():
-                    if not isinstance(view_list, list):
-                        errors.append(f'View group {group_name}: must be an array of view names')
-                    else:
-                        for view_ref in view_list:
-                            if view_ref not in available_views:
-                                errors.append(f'View group {group_name}: references non-existent view "{view_ref}"')
-
-        # Validate segmentation
-        if 'segmentation' in config_data:
-            seg = config_data['segmentation']
-
-            if 'path' not in seg:
-                errors.append('segmentation.path is required')
-
-            if 'mask_area' in seg and seg['mask_area'] is not None:
-                mask_area = seg['mask_area']
-                if not isinstance(mask_area, list) or len(mask_area) != 4:
-                    errors.append('segmentation.mask_area must be an array of 4 integers or null')
-
-            ai_error = _ai_model_error(seg)
-            if ai_error:
-                errors.append(ai_error)
-
-        # Validate chat
-        chat_error = _chat_config_error(config_data.get('chat'))
-        if chat_error:
-            errors.append(chat_error)
-
-        # Validate port
-        if 'port' in config_data:
-            port = config_data['port']
-            if not isinstance(port, int) or port < 0 or port > 65535:
-                errors.append('port must be an integer between 0 and 65535')
-
-        is_valid = len(errors) == 0
-
+        errors, warnings = check_config(config_data)
         return flask.jsonify({
-            'valid': is_valid,
+            'valid': not errors,
             'errors': errors,
             'warnings': warnings
         }), 200

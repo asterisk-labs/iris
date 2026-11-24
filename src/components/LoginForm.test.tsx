@@ -92,7 +92,7 @@ describe('LoginForm', () => {
     fireEvent.click(submitButton);
     
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/user/login', expect.objectContaining({
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/auth/login', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: 'testuser', password: 'password123' })

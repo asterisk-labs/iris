@@ -38,7 +38,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/user/api/profile/${userId}`);
+        const response = await fetch(`/api/v1/users/${userId}/profile`);
         if (!response.ok) throw new Error(`Failed to load profile: ${response.statusText}`);
         setProfile(await response.json());
       } catch (err) {
@@ -62,7 +62,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/user/logout');
+      const response = await fetch('/api/v1/auth/logout');
       if (response.ok) window.location.href = '/';
     } catch { setError('Failed to logout'); }
   };
@@ -77,7 +77,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (passwordForm.newPassword !== passwordForm.confirmPassword) { setPasswordError('New passwords do not match'); return; }
     setChangingPassword(true);
     try {
-      const response = await fetch('/user/api/change-password', {
+      const response = await fetch('/api/v1/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

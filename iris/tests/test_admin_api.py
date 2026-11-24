@@ -91,7 +91,7 @@ class TestAdminAPIEndpoints:
     def login_admin(self, client):
         """Helper to login as admin user."""
         return client.post(
-            "/user/login",
+            "/api/v1/auth/login",
             data=json.dumps({"username": "admin", "password": "admin123"}),
             content_type="application/json",
         )
@@ -99,19 +99,19 @@ class TestAdminAPIEndpoints:
     def login_regular(self, client):
         """Helper to login as regular user."""
         return client.post(
-            "/user/login",
+            "/api/v1/auth/login",
             data=json.dumps({"username": "annotator", "password": "password123"}),
             content_type="application/json",
         )
 
 
 class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
-    """Test /admin/api/users endpoint."""
+    """Test /api/v1/admin/users endpoint."""
 
     def test_users_endpoint_returns_json(self, client):
         """Test that users endpoint returns valid JSON."""
         self.login_admin(client)
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
 
         assert response.status_code == 200
         assert response.content_type == "application/json"
@@ -123,7 +123,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_returns_all_users(self, client):
         """Test that all users are returned."""
         self.login_admin(client)
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
         data = json.loads(response.data)
 
         assert len(data["users"]) == 3
@@ -135,7 +135,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_includes_segmentation_stats(self, client):
         """Test that user data includes segmentation statistics."""
         self.login_admin(client)
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
         data = json.loads(response.data)
 
         # Find the admin user
@@ -149,7 +149,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_excludes_password_hash(self, client):
         """Test that password hashes are not exposed in API response."""
         self.login_admin(client)
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
         data = json.loads(response.data)
 
         for user in data["users"]:
@@ -159,7 +159,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_sorting_by_id_ascending(self, client):
         """Test sorting users by ID in ascending order."""
         self.login_admin(client)
-        response = client.get("/admin/api/users?order_by=id&ascending=true")
+        response = client.get("/api/v1/admin/users?order_by=id&ascending=true")
         data = json.loads(response.data)
 
         user_ids = [user["id"] for user in data["users"]]
@@ -168,7 +168,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_sorting_by_id_descending(self, client):
         """Test sorting users by ID in descending order."""
         self.login_admin(client)
-        response = client.get("/admin/api/users?order_by=id&ascending=false")
+        response = client.get("/api/v1/admin/users?order_by=id&ascending=false")
         data = json.loads(response.data)
 
         user_ids = [user["id"] for user in data["users"]]
@@ -177,7 +177,7 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
     def test_users_endpoint_sorting_by_name(self, client):
         """Test sorting users by name."""
         self.login_admin(client)
-        response = client.get("/admin/api/users?order_by=name&ascending=true")
+        response = client.get("/api/v1/admin/users?order_by=name&ascending=true")
         data = json.loads(response.data)
 
         usernames = [user["name"] for user in data["users"]]
@@ -185,18 +185,18 @@ class TestUsersAPIEndpoint(TestAdminAPIEndpoints):
 
     def test_users_endpoint_requires_authentication(self, client):
         """Test that unauthenticated requests are rejected."""
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
         # Should redirect to login or return 401/403
         assert response.status_code in [302, 401, 403]
 
 
 class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
-    """Test /admin/api/actions/<type> endpoint."""
+    """Test /api/v1/admin/actions/<type> endpoint."""
 
     def test_actions_endpoint_returns_json(self, client):
         """Test that actions endpoint returns valid JSON."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
 
         assert response.status_code == 200
         assert response.content_type == "application/json"
@@ -207,23 +207,18 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
         assert isinstance(data["actions"], list)
 
     def test_actions_endpoint_filters_by_type(self, client):
-        """Test that actions are filtered by type parameter."""
+        """Test that actions are limited to segmentation."""
         self.login_admin(client)
 
         # Get segmentation actions
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         data = json.loads(response.data)
         assert len(data["actions"]) == 3  # 3 segmentation actions
-
-        # Get classification actions
-        response = client.get("/admin/api/actions/classification")
-        data = json.loads(response.data)
-        assert len(data["actions"]) == 1  # 1 classification action
 
     def test_actions_endpoint_includes_username(self, client):
         """Test that actions include username from joined User table."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         data = json.loads(response.data)
 
         for action in data["actions"]:
@@ -233,7 +228,7 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
     def test_actions_endpoint_includes_all_fields(self, client):
         """Test that all action fields are included in response."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         data = json.loads(response.data)
 
         action = data["actions"][0]
@@ -257,7 +252,7 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
     def test_actions_endpoint_image_stats(self, client):
         """Test that image statistics are calculated correctly."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         data = json.loads(response.data)
 
         assert "image_stats" in data
@@ -271,7 +266,7 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
     def test_actions_endpoint_sorting_by_user_id(self, client):
         """Test sorting actions by user_id."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation?order_by=user_id&ascending=true")
+        response = client.get("/api/v1/admin/actions?order_by=user_id&ascending=true")
         data = json.loads(response.data)
 
         user_ids = [action["user_id"] for action in data["actions"]]
@@ -280,7 +275,7 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
     def test_actions_endpoint_sorting_by_score_descending(self, client):
         """Test sorting actions by score in descending order."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation?order_by=score&ascending=false")
+        response = client.get("/api/v1/admin/actions?order_by=score&ascending=false")
         data = json.loads(response.data)
 
         scores = [action["score"] for action in data["actions"]]
@@ -289,7 +284,7 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
     def test_actions_endpoint_returns_order_params(self, client):
         """Test that response includes order_by and ascending parameters."""
         self.login_admin(client)
-        response = client.get("/admin/api/actions/segmentation?order_by=score&ascending=false")
+        response = client.get("/api/v1/admin/actions?order_by=score&ascending=false")
         data = json.loads(response.data)
 
         assert data["order_by"] == "score"
@@ -297,17 +292,17 @@ class TestActionsAPIEndpoint(TestAdminAPIEndpoints):
 
     def test_actions_endpoint_requires_authentication(self, client):
         """Test that unauthenticated requests are rejected."""
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         assert response.status_code in [302, 401, 403]
 
 
 class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
-    """Test /admin/api/images endpoint."""
+    """Test /api/v1/admin/images endpoint."""
 
     def test_images_endpoint_returns_json(self, client):
         """Test that images endpoint returns valid JSON."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
 
         assert response.status_code == 200
         assert response.content_type == "application/json"
@@ -319,7 +314,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_aggregates_by_image_id(self, client):
         """Test that actions are aggregated by image_id."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         # The images endpoint only returns images that exist in project.image_ids
@@ -373,7 +368,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
             db.session.commit()
 
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         # Find our test image
@@ -389,7 +384,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_includes_all_stats(self, client):
         """Test that all statistics are included."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         image = data["images"][0]
@@ -406,7 +401,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_time_spent_in_hours(self, client):
         """Test that time_spent is converted to hours."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         # Find an image with actions
@@ -420,7 +415,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_rounds_values(self, client):
         """Test that values are rounded to 2 decimal places."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         for image in data["images"]:
@@ -434,7 +429,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_groups_by_action_type(self, client):
         """Test that different action types are grouped separately."""
         self.login_admin(client)
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
 
         # Find image_003 which has a classification action
@@ -445,7 +440,7 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
     def test_images_endpoint_returns_order_params(self, client):
         """Test that response includes order_by and ascending parameters."""
         self.login_admin(client)
-        response = client.get("/admin/api/images?order_by=image_id&ascending=true")
+        response = client.get("/api/v1/admin/images?order_by=image_id&ascending=true")
         data = json.loads(response.data)
 
         assert data["order_by"] == "image_id"
@@ -453,19 +448,19 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
 
     def test_images_endpoint_requires_authentication(self, client):
         """Test that unauthenticated requests are rejected."""
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         assert response.status_code in [302, 401, 403]
 
 
 class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
-    """Test /admin/api/export-merged-geotiff/<image_id> endpoint."""
+    """Test /api/v1/admin/images/<image_id> endpoint./merged-geotiff"""
 
     def test_export_requires_admin_privileges(self, client):
         """Test that only admins can export merged GeoTIFF."""
         # Login as regular user
         self.login_regular(client)
 
-        response = client.get("/admin/api/export-merged-geotiff/image_001")
+        response = client.get("/api/v1/admin/images/image_001/merged-geotiff")
         assert response.status_code == 403
 
         # The @requires_admin decorator returns plain text, not JSON
@@ -475,7 +470,7 @@ class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
         """Test that export validates image_id exists in project."""
         self.login_admin(client)
 
-        response = client.get("/admin/api/export-merged-geotiff/nonexistent_image")
+        response = client.get("/api/v1/admin/images/nonexistent_image/merged-geotiff")
         assert response.status_code == 404
 
         data = json.loads(response.data)
@@ -505,7 +500,7 @@ class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
                         os.remove(mask_file)
 
         self.login_admin(client)
-        response = client.get(f"/admin/api/export-merged-geotiff/{test_image_id}")
+        response = client.get(f"/api/v1/admin/images/{test_image_id}/merged-geotiff")
 
         # Should return 404 - either image not found or no masks
         assert response.status_code == 404
@@ -539,7 +534,7 @@ class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
             np.save(final_mask_file, mock_mask, allow_pickle=False)
 
         self.login_admin(client)
-        response = client.get(f"/admin/api/export-merged-geotiff/{test_image_id}")
+        response = client.get(f"/api/v1/admin/images/{test_image_id}/merged-geotiff")
 
         # Should return a file download
         if response.status_code == 200:
@@ -556,9 +551,9 @@ class TestAdminAPIIntegration(TestAdminAPIEndpoints):
         self.login_admin(client)
 
         endpoints = [
-            "/admin/api/users",
-            "/admin/api/actions/segmentation",
-            "/admin/api/images",
+            "/api/v1/admin/users",
+            "/api/v1/admin/actions",
+            "/api/v1/admin/images",
         ]
 
         for endpoint in endpoints:
@@ -571,7 +566,7 @@ class TestAdminAPIIntegration(TestAdminAPIEndpoints):
 
         # The @requires_auth decorator allows any authenticated user
         # If you want admin-only access, you'd need a different decorator
-        response = client.get("/admin/api/users")
+        response = client.get("/api/v1/admin/users")
         # This should succeed if @requires_auth only checks authentication
         # Adjust assertion based on your actual authorization requirements
         assert response.status_code in [200, 403]
@@ -582,9 +577,9 @@ class TestAdminAPIIntegration(TestAdminAPIEndpoints):
 
         # All endpoints should return JSON
         endpoints = [
-            "/admin/api/users",
-            "/admin/api/actions/segmentation",
-            "/admin/api/images",
+            "/api/v1/admin/users",
+            "/api/v1/admin/actions",
+            "/api/v1/admin/images",
         ]
 
         for endpoint in endpoints:
@@ -603,12 +598,12 @@ class TestAdminAPIIntegration(TestAdminAPIEndpoints):
         self.login_admin(client)
 
         # Actions endpoint should return empty list
-        response = client.get("/admin/api/actions/segmentation")
+        response = client.get("/api/v1/admin/actions")
         data = json.loads(response.data)
         assert data["actions"] == []
         assert data["image_stats"]["processed"] == 0
 
         # Images endpoint should return empty or minimal data
-        response = client.get("/admin/api/images")
+        response = client.get("/api/v1/admin/images")
         data = json.loads(response.data)
         assert isinstance(data["images"], list)

@@ -216,7 +216,7 @@ describe('UserProfileModal - Password Change', () => {
 
     // Verify API was called with correct data
     expect(global.fetch).toHaveBeenCalledWith(
-      '/user/api/change-password',
+      '/api/v1/auth/change-password',
       expect.objectContaining({
         method: 'POST',
         headers: {

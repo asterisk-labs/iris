@@ -38,6 +38,7 @@ dependencies = [
     "matplotlib>=3.6.2",
     "gevent>=22.8.0",
     "typer>=0.9.0",
+    "pydantic>=2.5",
 ]
 dynamic = ["version"]
 

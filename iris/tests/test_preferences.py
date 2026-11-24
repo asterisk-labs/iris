@@ -30,7 +30,7 @@ class TestPreferencesAPI:
 
         Expected: 403 Forbidden response
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         assert response.status_code == 403
 
     def test_save_user_config_requires_auth(self, client):
@@ -41,7 +41,7 @@ class TestPreferencesAPI:
 
         Expected: 403 Forbidden response
         """
-        response = client.post('/segmentation/api/user-config',
+        response = client.post('/api/v1/user-config',
                               json={'test': 'data'})
         assert response.status_code == 403
 
@@ -54,7 +54,7 @@ class TestPreferencesAPI:
 
         Expected: 200 OK with JSON containing 'config' and 'all_bands' keys
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         assert response.status_code == 200
 
         data = response.get_json()
@@ -72,7 +72,7 @@ class TestPreferencesAPI:
 
         Expected: All 13 AI model parameters are present in the response
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         data = response.get_json()
 
         ai_model = data['config']['segmentation']['ai_model']
@@ -107,7 +107,7 @@ class TestPreferencesAPI:
         Expected: Settings are saved and can be retrieved with the new values
         """
         # First, get the current config
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         original_config = response.get_json()['config']
 
         # Modify a parameter (change number of estimators from default to 150)
@@ -115,12 +115,12 @@ class TestPreferencesAPI:
         modified_config['segmentation']['ai_model']['n_estimators'] = 150
 
         # Save the modified config
-        response = client.post('/segmentation/api/user-config',
+        response = client.post('/api/v1/user-config',
                               json=modified_config)
         assert response.status_code == 200, "Save should succeed"
 
         # Verify the config was actually saved by fetching it again
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         saved_config = response.get_json()['config']
         assert saved_config['segmentation']['ai_model']['n_estimators'] == 150, \
             "Saved value should persist"
@@ -134,7 +134,7 @@ class TestPreferencesAPI:
 
         Expected: bands list is populated with all available bands from the project
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         data = response.get_json()
 
         # If bands is None in the original config, API should populate it
@@ -169,14 +169,14 @@ class TestPreferencesValidation:
         Expected: Request succeeds (validation is frontend responsibility)
         """
         # Get current config
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         config = response.get_json()['config']
 
         # Set bands to empty list (invalid but should not crash)
         config['segmentation']['ai_model']['bands'] = []
 
         # Backend accepts this (frontend does validation)
-        response = client.post('/segmentation/api/user-config', json=config)
+        response = client.post('/api/v1/user-config', json=config)
         assert response.status_code == 200, \
             "Backend should accept empty bands (frontend validates)"
 
@@ -189,7 +189,7 @@ class TestPreferencesValidation:
 
         Expected: All parameters save and load correctly with their new values
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         config = response.get_json()['config']
 
         # Test various parameter types and ranges
@@ -209,11 +209,11 @@ class TestPreferencesValidation:
             config['segmentation']['ai_model'][param] = value
 
         # Save the config
-        response = client.post('/segmentation/api/user-config', json=config)
+        response = client.post('/api/v1/user-config', json=config)
         assert response.status_code == 200, "Save should succeed with valid parameters"
 
         # Verify all parameters were saved correctly
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         saved_config = response.get_json()['config']
 
         for param, expected_value in test_params.items():
@@ -240,7 +240,7 @@ class TestPreferencesIntegration:
         Expected: Config structure matches what legacy templates expected
         """
         # Get config from new API
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         api_config = response.get_json()['config']
 
         # Verify the structure matches what the legacy system expects
@@ -277,7 +277,7 @@ class TestPreferencesIntegration:
 
         Expected: Bands can be added to and removed from the selection
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         data = response.get_json()
 
         all_bands = data['all_bands']
@@ -291,11 +291,11 @@ class TestPreferencesIntegration:
             config = data['config']
             config['segmentation']['ai_model']['bands'] = new_bands
 
-            response = client.post('/segmentation/api/user-config', json=config)
+            response = client.post('/api/v1/user-config', json=config)
             assert response.status_code == 200, "Adding band should succeed"
 
             # Verify the band was added
-            response = client.get('/segmentation/api/user-config')
+            response = client.get('/api/v1/user-config')
             updated_config = response.get_json()['config']
             assert excluded_bands[0] in updated_config['segmentation']['ai_model']['bands'], \
                 "Added band should appear in config"
@@ -310,7 +310,7 @@ class TestPreferencesIntegration:
 
         Expected: All data required by each accordion section is present and valid
         """
-        response = client.get('/segmentation/api/user-config')
+        response = client.get('/api/v1/user-config')
         data = response.get_json()
 
         ai_model = data['config']['segmentation']['ai_model']

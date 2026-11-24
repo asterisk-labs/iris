@@ -2,7 +2,7 @@
 Test suite to verify the privilege escalation vulnerability is fixed.
 
 This test ensures that regular users cannot escalate their privileges to admin
-by calling the /user/set/current endpoint with {"admin": true}.
+by calling the /api/v1/users/current endpoint with {"admin": true}.
 """
 import json
 
@@ -38,7 +38,7 @@ class TestPrivilegeEscalationFix:
     def test_regular_user_cannot_escalate_own_privileges(self, client):
         """Test that a regular user cannot make themselves admin."""
         # Login as regular user
-        login_response = client.post('/user/login',
+        login_response = client.post('/api/v1/auth/login',
             data=json.dumps({
                 'username': 'regular_user',
                 'password': 'password123'
@@ -48,7 +48,7 @@ class TestPrivilegeEscalationFix:
         assert login_response.status_code == 200
 
         # Attempt privilege escalation - this should fail
-        escalation_response = client.post('/user/set/current',
+        escalation_response = client.post('/api/v1/users/current',
             data=json.dumps({'admin': True}),
             content_type='application/json'
         )
@@ -65,7 +65,7 @@ class TestPrivilegeEscalationFix:
     def test_regular_user_cannot_escalate_other_user_privileges(self, client):
         """Test that a regular user cannot make another user admin."""
         # Login as regular user
-        login_response = client.post('/user/login',
+        login_response = client.post('/api/v1/auth/login',
             data=json.dumps({
                 'username': 'regular_user',
                 'password': 'password123'
@@ -75,7 +75,7 @@ class TestPrivilegeEscalationFix:
         assert login_response.status_code == 200
 
         # Attempt to escalate another user's privileges - should fail
-        escalation_response = client.post('/user/set/2',  # admin_user's ID
+        escalation_response = client.post('/api/v1/users/2',  # admin_user's ID
             data=json.dumps({'admin': True}),
             content_type='application/json'
         )
@@ -87,7 +87,7 @@ class TestPrivilegeEscalationFix:
     def test_admin_can_modify_admin_privileges(self, client):
         """Test that admins can still modify admin privileges (legitimate use case)."""
         # Login as admin user
-        login_response = client.post('/user/login',
+        login_response = client.post('/api/v1/auth/login',
             data=json.dumps({
                 'username': 'admin_user',
                 'password': 'admin123'
@@ -97,7 +97,7 @@ class TestPrivilegeEscalationFix:
         assert login_response.status_code == 200
 
         # Admin should be able to modify admin privileges
-        response = client.post('/user/set/1',  # regular_user's ID
+        response = client.post('/api/v1/users/1',  # regular_user's ID
             data=json.dumps({'admin': True}),
             content_type='application/json'
         )
@@ -114,7 +114,7 @@ class TestPrivilegeEscalationFix:
     def test_admin_can_revoke_admin_privileges(self, client):
         """Test that admins can revoke admin privileges."""
         # Login as admin user
-        login_response = client.post('/user/login',
+        login_response = client.post('/api/v1/auth/login',
             data=json.dumps({
                 'username': 'admin_user',
                 'password': 'admin123'
@@ -124,7 +124,7 @@ class TestPrivilegeEscalationFix:
         assert login_response.status_code == 200
 
         # Admin should be able to revoke their own admin privileges
-        response = client.post('/user/set/current',
+        response = client.post('/api/v1/users/current',
             data=json.dumps({'admin': False}),
             content_type='application/json'
         )
@@ -141,7 +141,7 @@ class TestPrivilegeEscalationFix:
     def test_unauthenticated_user_cannot_escalate(self, client):
         """Test that unauthenticated users cannot access the endpoint."""
         # Don't login - attempt privilege escalation without authentication
-        response = client.post('/user/set/current',
+        response = client.post('/api/v1/users/current',
             data=json.dumps({'admin': True}),
             content_type='application/json'
         )
@@ -157,7 +157,7 @@ class TestPrivilegeEscalationFix:
         db.session.commit()
 
         # Register first user - should automatically become admin
-        response = client.post('/user/register',
+        response = client.post('/api/v1/auth/register',
             data=json.dumps({
                 'username': 'first_user',
                 'password': 'password123',
@@ -184,7 +184,7 @@ class TestPrivilegeEscalationFix:
         db.session.commit()
 
         # Register second user - should NOT become admin
-        response = client.post('/user/register',
+        response = client.post('/api/v1/auth/register',
             data=json.dumps({
                 'username': 'second_user',
                 'password': 'password123',

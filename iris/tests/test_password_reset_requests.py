@@ -19,7 +19,7 @@ def test_request_password_reset_success(client, app):
         user_id = user.id
 
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": "testuser"}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": "testuser"}), content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -45,7 +45,7 @@ def test_request_password_reset_no_email(client, app):
         db.session.commit()
 
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": "noemail"}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": "noemail"}), content_type="application/json"
     )
 
     assert response.status_code == 400
@@ -69,7 +69,7 @@ def test_request_password_reset_duplicate(client, app):
 
     # Try to create second request
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": "testuser2"}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": "testuser2"}), content_type="application/json"
     )
 
     assert response.status_code == 400
@@ -79,7 +79,7 @@ def test_request_password_reset_duplicate(client, app):
 def test_request_password_reset_invalid_username(client, app):
     """Invalid username returns 404."""
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": "nonexistent"}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": "nonexistent"}), content_type="application/json"
     )
 
     assert response.status_code == 404
@@ -89,7 +89,7 @@ def test_request_password_reset_invalid_username(client, app):
 def test_request_password_reset_empty_username(client, app):
     """Empty username returns 400."""
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": ""}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": ""}), content_type="application/json"
     )
 
     assert response.status_code == 400
@@ -98,7 +98,7 @@ def test_request_password_reset_empty_username(client, app):
 
 def test_request_password_reset_missing_username(client, app):
     """Missing username field returns 400."""
-    response = client.post("/user/request-password-reset", data=json.dumps({}), content_type="application/json")
+    response = client.post("/api/v1/auth/request-password-reset", data=json.dumps({}), content_type="application/json")
 
     assert response.status_code == 400
     assert b"required" in response.data.lower()
@@ -121,7 +121,7 @@ def test_request_password_reset_after_resolved(client, app):
 
     # Should be able to create new request
     response = client.post(
-        "/user/request-password-reset", data=json.dumps({"username": "testuser3"}), content_type="application/json"
+        "/api/v1/auth/request-password-reset", data=json.dumps({"username": "testuser3"}), content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -152,11 +152,11 @@ def test_get_password_reset_requests_as_admin(client, app):
 
     # Login as admin
     client.post(
-        "/user/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
+        "/api/v1/auth/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
     )
 
     # Get reset requests
-    response = client.get("/admin/api/password-reset-requests")
+    response = client.get("/api/v1/admin/password-reset-requests")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -179,20 +179,20 @@ def test_get_password_reset_requests_as_non_admin(client, app):
 
     # Login as regular user
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "regularuser", "password": "userpass"}),
         content_type="application/json",
     )
 
     # Try to get reset requests
-    response = client.get("/admin/api/password-reset-requests")
+    response = client.get("/api/v1/admin/password-reset-requests")
 
     assert response.status_code == 403
 
 
 def test_get_password_reset_requests_not_authenticated(client, app):
     """Unauthenticated user cannot view password reset requests."""
-    response = client.get("/admin/api/password-reset-requests")
+    response = client.get("/api/v1/admin/password-reset-requests")
     assert response.status_code == 403
 
 
@@ -223,11 +223,11 @@ def test_generate_temporary_password_success(client, app):
 
     # Login as admin
     client.post(
-        "/user/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
+        "/api/v1/auth/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
     )
 
     # Generate temporary password
-    response = client.post(f"/admin/api/password-reset-requests/{request_id}/generate-password")
+    response = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/generate-password")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -279,11 +279,11 @@ def test_generate_temporary_password_already_resolved(client, app):
 
     # Login as admin
     client.post(
-        "/user/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
+        "/api/v1/auth/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
     )
 
     # Try to generate password
-    response = client.post(f"/admin/api/password-reset-requests/{request_id}/generate-password")
+    response = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/generate-password")
 
     assert response.status_code == 400
     data = json.loads(response.data)
@@ -302,11 +302,11 @@ def test_generate_temporary_password_nonexistent_request(client, app):
 
     # Login as admin
     client.post(
-        "/user/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
+        "/api/v1/auth/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
     )
 
     # Try to generate password for non-existent request
-    response = client.post("/admin/api/password-reset-requests/99999/generate-password")
+    response = client.post("/api/v1/admin/password-reset-requests/99999/generate-password")
 
     assert response.status_code == 404
 
@@ -333,20 +333,20 @@ def test_generate_temporary_password_as_non_admin(client, app):
 
     # Login as regular user
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "regularuser", "password": "userpass"}),
         content_type="application/json",
     )
 
     # Try to generate password
-    response = client.post(f"/admin/api/password-reset-requests/{request_id}/generate-password")
+    response = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/generate-password")
 
     assert response.status_code == 403
 
 
 def test_generate_temporary_password_not_authenticated(client, app):
     """Unauthenticated user cannot generate temporary passwords."""
-    response = client.post("/admin/api/password-reset-requests/1/generate-password")
+    response = client.post("/api/v1/admin/password-reset-requests/1/generate-password")
     assert response.status_code == 403
 
 
@@ -376,12 +376,12 @@ def test_temporary_password_is_cryptographically_secure(client, app):
 
     # Login as admin
     client.post(
-        "/user/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
+        "/api/v1/auth/login", data=json.dumps({"username": "admin", "password": "adminpass"}), content_type="application/json"
     )
 
     # Generate passwords for all requests
     for request_id in request_ids:
-        response = client.post(f"/admin/api/password-reset-requests/{request_id}/generate-password")
+        response = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/generate-password")
         data = json.loads(response.data)
         passwords.append(data["temporary_password"])
 

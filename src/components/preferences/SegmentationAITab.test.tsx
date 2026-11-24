@@ -23,6 +23,7 @@ const mockConfig: UserConfig = {
       use_meshgrid: false,
       meshgrid_cells: '5x5',
       use_superpixels: false,
+      n_jobs: -1,
     },
   },
   classes: [

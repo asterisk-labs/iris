@@ -342,7 +342,7 @@ const SegmentationAITab: React.FC<SegmentationAITabProps> = ({
             onChange={(e) => updateAIModelConfig('suppression_default_class', parseInt(e.target.value))}
           >
             {config.classes.map((cls, index) => (
-              <option key={index} value={index} style={{ backgroundColor: cls.css_colour }}>
+              <option key={index} value={index} style={{ backgroundColor: cls.css_colour ?? undefined }}>
                 {cls.name}
               </option>
             ))}

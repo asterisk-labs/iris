@@ -17,7 +17,7 @@ const ActionsPage: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/admin/api/actions/${type}?order_by=${orderBy}&ascending=${isAscending}`
+        `/api/v1/admin/actions?order_by=${orderBy}&ascending=${isAscending}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

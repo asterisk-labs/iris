@@ -57,8 +57,8 @@ def sample_valid_config():
 
 def test_get_project_config_requires_auth(client):
     """Test that getting project config requires authentication"""
-    response = client.get("/api/config/project")
-    assert response.status_code == 401
+    response = client.get("/api/v1/project-config")
+    assert response.status_code == 403
 
 
 def test_get_project_config_requires_admin(app, client):
@@ -76,14 +76,14 @@ def test_get_project_config_requires_admin(app, client):
         sess["user_id"] = user_id
 
     # Try to get config
-    response = client.get("/api/config/project")
+    response = client.get("/api/v1/project-config")
     assert response.status_code == 403
-    assert "Admin privileges required" in response.json["error"]
+    assert b"no admin rights" in response.data
 
 
 def test_get_project_config_success(logged_in_admin):
     """Test successful retrieval of project configuration"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
 
     assert response.status_code == 200
     data = response.json
@@ -101,11 +101,11 @@ def test_get_project_config_success(logged_in_admin):
 def test_validate_project_config_success(logged_in_admin):
     """Test configuration validation endpoint with valid config"""
     # Get current config
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     config = response.json["config"]
 
     # Validate it
-    response = logged_in_admin.post("/api/config/project/validate", json=config, content_type="application/json")
+    response = logged_in_admin.post("/api/v1/project-config/validate", json=config, content_type="application/json")
 
     assert response.status_code == 200
     data = response.json
@@ -123,7 +123,7 @@ def test_validate_detects_missing_required_fields(logged_in_admin):
     }
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=invalid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=invalid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -145,7 +145,7 @@ def test_validate_detects_invalid_colour_arrays(logged_in_admin):
         "segmentation": {"path": "", "ai_model": False},
     }
 
-    response = logged_in_admin.post("/api/config/project/validate", json=config, content_type="application/json")
+    response = logged_in_admin.post("/api/v1/project-config/validate", json=config, content_type="application/json")
 
     assert response.status_code == 200
     data = response.json
@@ -160,7 +160,7 @@ def test_validate_detects_invalid_colour_arrays(logged_in_admin):
 
 def test_get_config_removes_internal_view_fields(logged_in_admin):
     """Test that internal fields are removed from views (css_colour, name, stretch)"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
 
     config = response.json["config"]
@@ -174,7 +174,7 @@ def test_get_config_removes_internal_view_fields(logged_in_admin):
 
 def test_get_config_removes_internal_class_fields(logged_in_admin):
     """Test that internal fields are removed from classes (css_colour)"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
 
     config = response.json["config"]
@@ -186,7 +186,7 @@ def test_get_config_removes_internal_class_fields(logged_in_admin):
 
 def test_get_config_json_serializable(logged_in_admin):
     """Test that returned config is fully JSON serializable"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
 
     config = response.json["config"]
@@ -208,14 +208,14 @@ def test_get_config_json_serializable(logged_in_admin):
 def test_put_config_success(logged_in_admin, restore_config_file):
     """Test successful configuration update"""
     # Get current valid config
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     config = response.json["config"]
 
     # Modify the config
     config["name"] = "updated_project_name"
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 200
     assert "message" in response.json
@@ -225,14 +225,14 @@ def test_put_config_success(logged_in_admin, restore_config_file):
 def test_put_config_creates_backup(logged_in_admin, restore_config_file, app, project):
     """Test that PUT creates backup before updating"""
     # Get current config first
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     original_config = response.json["config"]
     original_name = original_config["name"]
 
     # Modify and save
     original_config["name"] = "modified_name"
-    response = logged_in_admin.put("/api/config/project", json=original_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=original_config, content_type="application/json")
 
     assert response.status_code == 200
 
@@ -252,14 +252,14 @@ def test_put_config_creates_backup(logged_in_admin, restore_config_file, app, pr
 def test_put_config_reloads_project(logged_in_admin, restore_config_file, project):
     """Test that project reloads after successful update"""
     # Get current config
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     config = response.json["config"]
     original_name = project.config.get("name")
 
     # Update with new name
     config["name"] = "newly_updated_project"
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 200
 
@@ -276,7 +276,7 @@ def test_put_config_missing_required_field(logged_in_admin):
         # Missing classes, views, segmentation
     }
 
-    response = logged_in_admin.put("/api/config/project", json=invalid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=invalid_config, content_type="application/json")
 
     assert response.status_code == 400
     assert "error" in response.json
@@ -295,7 +295,7 @@ def test_put_config_invalid_class_colour(logged_in_admin):
         "segmentation": {"path": "", "ai_model": False},
     }
 
-    response = logged_in_admin.put("/api/config/project", json=invalid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=invalid_config, content_type="application/json")
 
     assert response.status_code == 400
     assert "error" in response.json
@@ -312,7 +312,7 @@ def test_put_config_empty_classes(logged_in_admin):
         "segmentation": {"path": "", "ai_model": False},
     }
 
-    response = logged_in_admin.put("/api/config/project", json=invalid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=invalid_config, content_type="application/json")
 
     assert response.status_code == 400
     assert "error" in response.json
@@ -320,7 +320,7 @@ def test_put_config_empty_classes(logged_in_admin):
 
 def test_put_config_missing_json_data(logged_in_admin):
     """Test that PUT rejects request with no JSON data"""
-    response = logged_in_admin.put("/api/config/project", data="not json", content_type="text/plain")
+    response = logged_in_admin.put("/api/v1/project-config", data="not json", content_type="text/plain")
 
     # Should return error (400 or 500 depending on Flask's JSON parsing)
     assert response.status_code in [400, 500]
@@ -329,9 +329,9 @@ def test_put_config_missing_json_data(logged_in_admin):
 
 def test_put_config_requires_auth(client):
     """Test that PUT requires authentication"""
-    response = client.put("/api/config/project", json={"name": "test"}, content_type="application/json")
+    response = client.put("/api/v1/project-config", json={"name": "test"}, content_type="application/json")
 
-    assert response.status_code == 401
+    assert response.status_code == 403
 
 
 def test_put_config_requires_admin(app, client):
@@ -346,7 +346,7 @@ def test_put_config_requires_admin(app, client):
     with client.session_transaction() as sess:
         sess["user_id"] = user_id
 
-    response = client.put("/api/config/project", json={"name": "test"}, content_type="application/json")
+    response = client.put("/api/v1/project-config", json={"name": "test"}, content_type="application/json")
 
     assert response.status_code == 403
 
@@ -394,7 +394,7 @@ def test_load_from_normalizes_images_path(tmp_path, sample_valid_config):
 def test_full_workflow_get_modify_validate_put_get(logged_in_admin, restore_config_file):
     """Test complete workflow: GET → modify → validate → PUT → GET"""
     # Step 1: GET current config
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     config = response.json["config"]
     original_name = config["name"]
@@ -404,16 +404,16 @@ def test_full_workflow_get_modify_validate_put_get(logged_in_admin, restore_conf
     config["port"] = 8080
 
     # Step 3: Validate modified config
-    response = logged_in_admin.post("/api/config/project/validate", json=config, content_type="application/json")
+    response = logged_in_admin.post("/api/v1/project-config/validate", json=config, content_type="application/json")
     assert response.status_code == 200
     assert response.json["valid"] is True
 
     # Step 4: PUT modified config
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
     assert response.status_code == 200
 
     # Step 5: GET again to verify changes
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     updated_config = response.json["config"]
     assert updated_config["name"] == "workflow_test_project"
@@ -428,13 +428,13 @@ def test_workflow_validate_fails_put_not_attempted(logged_in_admin, sample_valid
 
     # Validate should fail
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
     assert response.status_code == 200
     assert response.json["valid"] is False
 
     # PUT should also fail
-    response = logged_in_admin.put("/api/config/project", json=sample_valid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=sample_valid_config, content_type="application/json")
     # PUT doesn't validate port, but project reload might fail
     # At minimum, validation endpoint caught the issue
 
@@ -452,7 +452,7 @@ def test_validate_detects_missing_view_type(logged_in_admin, sample_valid_config
     }
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -466,7 +466,7 @@ def test_validate_detects_missing_images_path(logged_in_admin, sample_valid_conf
     del sample_valid_config["images"]["path"]
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -480,7 +480,7 @@ def test_validate_accepts_missing_images_shape(logged_in_admin, sample_valid_con
     del sample_valid_config["images"]["shape"]
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -500,7 +500,7 @@ def test_put_config_validates_images_path_and_shape(logged_in_admin):
         "segmentation": {"path": "", "ai_model": False},
     }
 
-    response = logged_in_admin.put("/api/config/project", json=invalid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=invalid_config, content_type="application/json")
 
     assert response.status_code == 400
     assert "error" in response.json
@@ -520,7 +520,7 @@ def test_put_config_validates_class_structure(logged_in_admin):
         "segmentation": {"path": "", "ai_model": False},
     }
 
-    response = logged_in_admin.put("/api/config/project", json=invalid_config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=invalid_config, content_type="application/json")
 
     assert response.status_code == 400
     assert "error" in response.json
@@ -528,9 +528,9 @@ def test_put_config_validates_class_structure(logged_in_admin):
 
 def test_health_endpoint_accessible(client):
     """Test that health check endpoint is accessible without auth"""
-    response = client.get("/api/config/health")
+    response = client.get("/api/v1/health")
     assert response.status_code == 200
-    assert response.json["status"] == "ok"
+    assert response.json["status"] == "healthy"
 
 
 # ============================================================================
@@ -550,7 +550,7 @@ def test_validate_multiple_errors_reported(logged_in_admin):
     }
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=invalid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=invalid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -561,12 +561,12 @@ def test_validate_multiple_errors_reported(logged_in_admin):
 
 
 def test_get_config_returns_relative_paths(app, logged_in_admin):
-    """Test that GET /api/config/project returns relative paths, not absolute paths"""
+    """Test that GET /api/v1/project-config returns relative paths, not absolute paths"""
     client = logged_in_admin
 
     with app.app_context():
         # Get the config
-        response = client.get("/api/config/project")
+        response = client.get("/api/v1/project-config")
         assert response.status_code == 200
 
         data = response.get_json()
@@ -601,7 +601,7 @@ def test_get_config_returns_relative_paths(app, logged_in_admin):
 
 def test_get_config_includes_chat_when_present(logged_in_admin, project):
     """Test that GET returns chat config when it exists in project config"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
 
     config = response.json["config"]
@@ -616,17 +616,17 @@ def test_get_config_includes_chat_when_present(logged_in_admin, project):
 
 def test_put_config_accepts_chat_configuration(logged_in_admin, restore_config_file):
     """Test that PUT accepts and saves chat configuration"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     config = response.json["config"]
 
     config["chat"] = {"enabled": True, "github_repo": "test-org/test-repo", "utterances_theme": "github-dark"}
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 200
 
     # Verify chat config was saved
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     updated_config = response.json["config"]
     assert "chat" in updated_config
     assert updated_config["chat"]["enabled"] is True
@@ -636,31 +636,31 @@ def test_put_config_accepts_chat_configuration(logged_in_admin, restore_config_f
 
 def test_put_config_chat_optional(logged_in_admin, restore_config_file):
     """Test that chat config is optional - config without it should still work"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     config = response.json["config"]
 
     # Remove chat if present
     config.pop("chat", None)
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 200
 
 
 def test_workflow_chat_config_roundtrip(logged_in_admin, restore_config_file):
     """Test complete workflow: add chat config, save, retrieve, verify"""
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     config = response.json["config"]
 
     # Add chat configuration
     config["chat"] = {"enabled": False, "github_repo": "owner/repo", "utterances_theme": "preferred-color-scheme"}
 
     # Save
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
     assert response.status_code == 200
 
     # Retrieve and verify exact values
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     saved_config = response.json["config"]
 
     assert "chat" in saved_config
@@ -683,7 +683,7 @@ def test_validate_rejects_chat_enabled_without_repo(logged_in_admin, sample_vali
     sample_valid_config["chat"] = {"enabled": True, "github_repo": "", "utterances_theme": "github-light"}
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -696,7 +696,7 @@ def test_validate_accepts_chat_disabled_without_repo(logged_in_admin, sample_val
     sample_valid_config["chat"] = {"enabled": False, "github_repo": "", "utterances_theme": "github-light"}
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -707,7 +707,7 @@ def test_validate_accepts_chat_enabled_with_repo(logged_in_admin, sample_valid_c
     sample_valid_config["chat"] = {"enabled": True, "github_repo": "owner/repo", "utterances_theme": "github-light"}
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -715,18 +715,18 @@ def test_validate_accepts_chat_enabled_with_repo(logged_in_admin, sample_valid_c
 
 
 def test_put_config_rejects_chat_enabled_without_repo(logged_in_admin, restore_config_file):
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     config = response.json["config"]
     config["chat"] = {"enabled": True, "github_repo": "", "utterances_theme": "github-light"}
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 400
     assert "github_repo" in response.json["message"]
 
 
 def test_get_config_includes_images_cache_mb(logged_in_admin):
-    response = logged_in_admin.get("/api/config/project")
+    response = logged_in_admin.get("/api/v1/project-config")
     assert response.status_code == 200
     assert response.json["config"]["images"]["cache_mb"] == 1024
 
@@ -735,7 +735,7 @@ def test_validate_rejects_bad_cache_mb(logged_in_admin, sample_valid_config):
     sample_valid_config["images"]["cache_mb"] = -1
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -747,7 +747,7 @@ def test_validate_accepts_zero_cache_mb(logged_in_admin, sample_valid_config):
     sample_valid_config["images"]["cache_mb"] = 0
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -755,10 +755,10 @@ def test_validate_accepts_zero_cache_mb(logged_in_admin, sample_valid_config):
 
 
 def test_put_config_rejects_bad_cache_mb(logged_in_admin, restore_config_file):
-    config = logged_in_admin.get("/api/config/project").json["config"]
+    config = logged_in_admin.get("/api/v1/project-config").json["config"]
     config["images"]["cache_mb"] = "lots"
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 400
     assert "cache_mb" in response.json["message"]
@@ -769,7 +769,7 @@ def test_validate_rejects_bad_ai_model_n_jobs(logged_in_admin, sample_valid_conf
     sample_valid_config["segmentation"]["ai_model"] = {"n_jobs": bad}
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -782,7 +782,7 @@ def test_validate_accepts_ai_model_n_jobs(logged_in_admin, sample_valid_config, 
     sample_valid_config["segmentation"]["ai_model"] = {"n_jobs": good}
 
     response = logged_in_admin.post(
-        "/api/config/project/validate", json=sample_valid_config, content_type="application/json"
+        "/api/v1/project-config/validate", json=sample_valid_config, content_type="application/json"
     )
 
     assert response.status_code == 200
@@ -790,10 +790,10 @@ def test_validate_accepts_ai_model_n_jobs(logged_in_admin, sample_valid_config, 
 
 
 def test_put_config_rejects_bad_ai_model_n_jobs(logged_in_admin, restore_config_file):
-    config = logged_in_admin.get("/api/config/project").json["config"]
+    config = logged_in_admin.get("/api/v1/project-config").json["config"]
     config["segmentation"]["ai_model"]["n_jobs"] = 0
 
-    response = logged_in_admin.put("/api/config/project", json=config, content_type="application/json")
+    response = logged_in_admin.put("/api/v1/project-config", json=config, content_type="application/json")
 
     assert response.status_code == 400
     assert "n_jobs" in response.json["message"]

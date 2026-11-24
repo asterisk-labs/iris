@@ -84,7 +84,7 @@ def test_deep_and_long_expressions_are_rejected():
 
 def test_image_route_reports_bad_expressions(client, logged_in_user, project, project_snapshot):
     project.config['views']['bad'] = {'name': 'bad', 'data': ['$Sentinel2.B1.tofile(1)']}
-    response = client.get(f'/image/{project.image_ids[0]}/bad')
+    response = client.get(f'/api/v1/images/{project.image_ids[0]}/views/bad')
     assert response.status_code == 400
-    assert client.get(f'/image/{project.image_ids[0]}/nope').status_code == 404
-    assert client.get('/image/nope/RGB').status_code == 404
+    assert client.get(f'/api/v1/images/{project.image_ids[0]}/views/nope').status_code == 404
+    assert client.get('/api/v1/images/nope/views/RGB').status_code == 404

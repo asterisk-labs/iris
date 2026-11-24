@@ -305,14 +305,11 @@ def register_extensions(app):
     register_segmentation_blueprints(app)
     from iris.admin import register_admin_blueprints
     register_admin_blueprints(app)
-    from iris.user import register_user_api, user_app
+    from iris.user import user_app
     app.register_blueprint(user_app, url_prefix="/user")
-    register_user_api(app)
 
-    # Register REST API blueprint
-    from iris.api import create_api_blueprint
-    api_bp = create_api_blueprint()
-    app.register_blueprint(api_bp)
+    from iris.api import register_api
+    register_api(app)
 
 # Importing the package has no side effects: no project is loaded and no
 # app is created until `start_server` or `build_app` is called. The models

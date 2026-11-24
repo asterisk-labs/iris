@@ -10,7 +10,7 @@ from iris.models import User
 def test_register_with_valid_email(client, app):
     """User can register with valid email."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": "newuser@example.com"}),
         content_type="application/json",
     )
@@ -28,7 +28,7 @@ def test_register_with_valid_email(client, app):
 def test_register_without_email(client, app):
     """Registration requires email field."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123"}),
         content_type="application/json",
     )
@@ -40,7 +40,7 @@ def test_register_without_email(client, app):
 def test_register_with_empty_email(client, app):
     """Registration rejects empty email."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": ""}),
         content_type="application/json",
     )
@@ -52,7 +52,7 @@ def test_register_with_empty_email(client, app):
 def test_register_with_whitespace_email(client, app):
     """Registration rejects whitespace-only email."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": "   "}),
         content_type="application/json",
     )
@@ -76,7 +76,7 @@ def test_register_with_invalid_email_format(client, app):
 
     for invalid_email in invalid_emails:
         response = client.post(
-            "/user/register",
+            "/api/v1/auth/register",
             data=json.dumps({"username": f"user_{invalid_email}", "password": "password123", "email": invalid_email}),
             content_type="application/json",
         )
@@ -98,7 +98,7 @@ def test_register_with_valid_email_formats(client, app):
 
     for i, valid_email in enumerate(valid_emails):
         response = client.post(
-            "/user/register",
+            "/api/v1/auth/register",
             data=json.dumps({"username": f"user{i}", "password": "password123", "email": valid_email}),
             content_type="application/json",
         )
@@ -111,7 +111,7 @@ def test_register_with_email_too_long(client, app):
     long_email = "a" * 250 + "@example.com"  # 262 characters
 
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": long_email}),
         content_type="application/json",
     )
@@ -130,7 +130,7 @@ def test_register_first_user_becomes_admin(client, app):
         db.session.commit()
 
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "firstuser", "password": "password123", "email": "first@example.com"}),
         content_type="application/json",
     )
@@ -161,7 +161,7 @@ def test_register_second_user_not_admin(client, app):
         db.session.commit()
 
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "seconduser", "password": "password123", "email": "second@example.com"}),
         content_type="application/json",
     )
@@ -180,7 +180,7 @@ def test_register_second_user_not_admin(client, app):
 def test_register_email_case_preserved(client, app):
     """Email case is preserved during registration."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": "User.Name@Example.COM"}),
         content_type="application/json",
     )
@@ -203,7 +203,7 @@ def test_register_existing_username_with_email(client, app):
         db.session.commit()
 
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "existinguser", "password": "password123", "email": "different@example.com"}),
         content_type="application/json",
     )
@@ -215,7 +215,7 @@ def test_register_existing_username_with_email(client, app):
 def test_register_validates_email_before_username(client, app):
     """Email validation happens before checking username availability."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps({"username": "newuser", "password": "password123", "email": "invalid-email"}),
         content_type="application/json",
     )
@@ -228,7 +228,7 @@ def test_register_validates_email_before_username(client, app):
 def test_register_validates_email_before_password(client, app):
     """Password validation happens before email validation in current implementation."""
     response = client.post(
-        "/user/register",
+        "/api/v1/auth/register",
         data=json.dumps(
             {
                 "username": "newuser",

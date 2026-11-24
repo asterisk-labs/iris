@@ -103,7 +103,7 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetch('/segmentation/api/user-config');
+      const response = await fetch('/api/v1/user-config');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data: UserConfigApiResponse = await response.json();
       setConfig(data.config);
@@ -147,7 +147,7 @@ const PreferencesModalContent: React.FC<PreferencesModalProps> = ({ isOpen, onCl
     setIsSaving(true);
     setError('');
     try {
-      const response = await fetch('/segmentation/api/user-config', {
+      const response = await fetch('/api/v1/user-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

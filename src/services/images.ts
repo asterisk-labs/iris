@@ -8,7 +8,7 @@ import { appUrls, ensureOk } from './http';
  */
 export async function getNextImageId(imageId: string): Promise<string | null> {
   const response = await ensureOk(await fetch(
-    `${appUrls().segmentation}api/images/next?image_id=${encodeURIComponent(imageId)}`,
+    `${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/next`,
     { credentials: 'same-origin' },
   ));
   return (await response.json()).image_id;

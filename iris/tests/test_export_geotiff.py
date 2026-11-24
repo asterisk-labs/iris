@@ -82,7 +82,7 @@ class TestGeoTIFFExport:
                 )
 
                 # Execute the export request
-                response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+                response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
                 # Verify successful export
                 assert response.status_code == 200
@@ -122,7 +122,7 @@ class TestGeoTIFFExport:
             # Simulate missing mask file (user hasn't annotated this image yet)
             mock_read.side_effect = FileNotFoundError('Mask file not found')
 
-            response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+            response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
             # Verify appropriate error response
             assert response.status_code == 404
@@ -148,7 +148,7 @@ class TestGeoTIFFExport:
             mock_project.image_ids = [image_id]
 
             # Attempt export without authentication (no session)
-            response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+            response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
             # Verify authentication is required
             # The @requires_auth decorator returns 403 Forbidden

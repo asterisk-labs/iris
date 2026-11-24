@@ -60,7 +60,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
     const fail = (message: string) => store.showErrorModal(`Could not export GeoTIFF: ${message}`);
     try {
       store.showNotice('Exporting GeoTIFF...');
-      const response = await fetch(`/segmentation/api/export-geotiff/${imageId}`, {
+      const response = await fetch(`/api/v1/images/${encodeURIComponent(imageId)}/geotiff`, {
         method: 'GET',
         credentials: 'same-origin'
       });

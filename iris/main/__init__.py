@@ -24,7 +24,7 @@ def index():
         flask.url_for('segmentation_spa.segmentation_spa')
     )
 
-@main_app.route('/image/<image_id>/<view>')
+@requires_auth
 def image(image_id, view):
     project = current_project()
     if image_id not in project.image_ids or view not in project['views']:
@@ -35,7 +35,6 @@ def image(image_id, view):
         return flask.make_response(f"View '{view}': {error}", 400)
     return array_to_png(image)
 
-@main_app.route('/image_info/<image_id>')
 @requires_auth
 def image_info(image_id):
     user_id = flask.session['user_id']
@@ -52,16 +51,14 @@ def image_info(image_id):
     data['id'] = image_id
     return flask.jsonify(data)
 
-@main_app.route('/get_action_info/<image_id>/<action_type>')
 @requires_auth
-def get_action_info(image_id, action_type):
+def get_action_info(image_id):
     user_id = flask.session['user_id']
 
-    action = Action.query.filter_by(image_id=image_id, user_id=user_id, type=action_type).first_or_404()
+    action = Action.query.filter_by(image_id=image_id, user_id=user_id, type='segmentation').first_or_404()
 
     return flask.jsonify(action.to_json())
 
-@main_app.route('/set_action_info/<action_id>', methods=['POST'])
 @requires_auth
 def set_action_info(action_id):
     action = Action.query.get_or_404(action_id)
@@ -81,9 +78,11 @@ def set_action_info(action_id):
 
     return flask.make_response("Saved new action info successfully")
 
-@main_app.route('/metadata/<image_id>', methods=['GET'])
+@requires_auth
 def metadata(image_id):
     project = current_project()
+    if image_id not in project.image_ids:
+        return flask.make_response('Unknown image id!', 404)
     metadata = project.get_metadata(image_id)
 
     if not metadata:
@@ -97,14 +96,15 @@ def metadata(image_id):
 
     return flask.jsonify(metadata)
 
-@main_app.route('/thumbnail/<image_id>', methods=['GET'])
+@requires_auth
 def thumbnail(image_id):
     project = current_project()
+    if image_id not in project.image_ids:
+        return flask.make_response('Unknown image id!', 404)
     size = flask.request.args.get("size", None)
     array = project.get_thumbnail(image_id)
 
     if size is not None:
-        print(size, tuple(size.split("x")))
         size = map(int, size.split("x"))
         array = resize(array, size)
 

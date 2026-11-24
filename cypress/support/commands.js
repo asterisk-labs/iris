@@ -190,7 +190,7 @@ Cypress.Commands.add('openPreferences', () => {
   cy.wait(1000);
   
   // Intercept config fetch to know when modal is ready
-  cy.intercept('GET', '/segmentation/api/user-config').as('getUserConfig');
+  cy.intercept('GET', '/api/v1/user-config').as('getUserConfig');
   
   // Click preferences button (force: true bypasses visibility checks for clipped elements)
   cy.get(SELECTORS.PREFERENCES_BUTTON)
@@ -213,7 +213,7 @@ Cypress.Commands.add('openPreferences', () => {
  */
 Cypress.Commands.add('savePreferences', () => {
   // Intercept save API call
-  cy.intercept('POST', '/segmentation/api/user-config').as('saveConfig');
+  cy.intercept('POST', '/api/v1/user-config').as('saveConfig');
   
   // Click save button (force: true to handle modal overflow/positioning)
   cy.get(SELECTORS.SAVE_BUTTON).click({ force: true });

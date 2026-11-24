@@ -12,7 +12,7 @@ const UsersPage: React.FC = () => {
     try {
       // Map TypeScript property names back to API property names for sorting
       const apiOrderBy = orderBy === 'isAdmin' ? 'admin' : orderBy;
-      const response = await fetch(`/admin/api/users?order_by=${apiOrderBy}&ascending=${isAscending}`);
+      const response = await fetch(`/api/v1/admin/users?order_by=${apiOrderBy}&ascending=${isAscending}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -38,7 +38,7 @@ const UsersPage: React.FC = () => {
 
   const setAdminStatus = async (userId: number, isAdmin: boolean): Promise<void> => {
     try {
-      const response = await fetch(`/user/set/${userId}`, {
+      const response = await fetch(`/api/v1/users/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

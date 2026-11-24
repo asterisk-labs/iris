@@ -83,7 +83,7 @@ def logged_in_user(app, client):
         db.session.commit()
 
         # Login the user
-        login_response = client.post('/user/login',
+        login_response = client.post('/api/v1/auth/login',
             data=json.dumps({'username': 'test_user', 'password': 'password123'}),
             content_type='application/json'
         )

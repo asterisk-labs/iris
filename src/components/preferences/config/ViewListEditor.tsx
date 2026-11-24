@@ -18,7 +18,7 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
     if (view.type === 'RGB') d.data = [view.dataR, view.dataG, view.dataB];
     else if (view.type === 'Monochrome') d.data = view.data;
     if (view.cmap.trim()) d.cmap = view.cmap;
-    if (view.clip.trim()) d.clip = parseFloat(view.clip) || view.clip;
+    if (view.clip.trim()) d.clip = Number.isNaN(parseFloat(view.clip)) ? view.clip : parseFloat(view.clip);
     if (view.vmin.trim()) d.vmin = parseFloat(view.vmin);
     if (view.vmax.trim()) d.vmax = parseFloat(view.vmax);
     acc[view.key] = d;

@@ -21,13 +21,7 @@ from iris.models import Action, User
 from iris.project import current_project
 from iris.user import requires_admin, requires_auth
 
-api_bp = flask.Blueprint(
-    'admin_api', __name__,
-    url_prefix='/admin/api'
-)
 
-
-@api_bp.route('/users', methods=['GET'])
 @requires_auth
 def users():
     """
@@ -80,17 +74,13 @@ def users():
     return flask.jsonify({'users': users_json})
 
 
-@api_bp.route('/actions/<type>', methods=['GET'])
 @requires_auth
-def actions(type):
+def actions():
     """
     Get list of actions (annotations) as JSON for the React ActionsPage component.
 
     This endpoint provides action/annotation data with user information and progress statistics.
     Replaces the legacy admin/fragments/actions/<type> HTML endpoint.
-
-    URL Parameters:
-        type (str): Action type to filter by ('segmentation' is the only one)
 
     Query Parameters:
         order_by (str): Column to sort by (user_id, score, difficulty, last_modification, etc.)
@@ -131,6 +121,7 @@ def actions(type):
         - Calculates progress statistics for progress bar
     """
     project = current_project()
+    type = 'segmentation'
     # Parse query parameters for sorting
     order_by = flask.request.args.get('order_by', 'user_id')
     ascending = flask.request.args.get('ascending', 'true')
@@ -166,7 +157,6 @@ def actions(type):
     })
 
 
-@api_bp.route('/images', methods=['GET'])
 @requires_auth
 def images():
     """
@@ -285,7 +275,6 @@ def images():
     })
 
 
-@api_bp.route('/password-reset-requests', methods=['GET'])
 @requires_admin
 def get_password_reset_requests():
     """
@@ -332,7 +321,6 @@ def get_password_reset_requests():
     return flask.jsonify({'requests': requests_json})
 
 
-@api_bp.route('/password-reset-requests/<int:request_id>/generate-password', methods=['POST'])
 @requires_admin
 def generate_temporary_password(request_id):
     """
@@ -386,7 +374,6 @@ def generate_temporary_password(request_id):
     })
 
 
-@api_bp.route('/export-merged-geotiff/<image_id>', methods=['GET'])
 @requires_admin
 def export_merged_geotiff(image_id):
     """
@@ -562,7 +549,6 @@ def export_merged_geotiff(image_id):
         }), 500
 
 
-@api_bp.route('/export-all-geotiffs', methods=['POST'])
 @requires_admin
 def export_all_geotiffs():
     """

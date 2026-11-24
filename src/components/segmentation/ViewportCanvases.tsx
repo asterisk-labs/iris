@@ -66,7 +66,7 @@ const ViewportCanvases: React.FC<ViewportCanvasesProps> = ({ view, imageId }) =>
     image.onerror = () => {
       if (!cancelled) setStatus('error');
     };
-    image.src = `${appUrls().main}image/${imageId}/${view.name}`;
+    image.src = `${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/views/${encodeURIComponent(view.name)}`;
     return () => {
       cancelled = true;
       canvasController.setImage(id, null);

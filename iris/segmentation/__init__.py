@@ -28,8 +28,7 @@ segmentation_app = flask.Blueprint(
     static_folder='static'
 )
 
-# Import SPA and API blueprints
-from .api import api_bp  # noqa: E402
+# Import SPA blueprint
 from .spa import spa_bp  # noqa: E402
 
 
@@ -38,17 +37,13 @@ def register_segmentation_blueprints(app):
     Register all segmentation blueprints with the Flask app.
 
     IMPORTANT: Registration order matters!
-    1. segmentation_app: Handles API routes (/segmentation/next_image, /load_mask, etc.)
-    2. api_bp: Handles JSON API routes (/segmentation/api/*)
-    3. spa_bp: Handles main SPA route (/segmentation/) - registered last to take precedence
+    1. segmentation_app: Redirects to the next or previous image, static files
+    2. spa_bp: Handles main SPA route (/segmentation/) - registered last to take precedence
 
     Both blueprints use /segmentation prefix but handle different route patterns.
     The SPA blueprint's / route overrides the removed segmentation_app.index route.
     """
-    # Register original blueprint for API routes (/segmentation/next_image, /segmentation/load_mask, etc.)
     app.register_blueprint(segmentation_app, url_prefix="/segmentation")
-    # Register JSON API blueprint for React frontend (/segmentation/api/*)
-    app.register_blueprint(api_bp)
     # Register SPA blueprint for main route (/segmentation/) - must be last for route precedence
     app.register_blueprint(spa_bp)
 
@@ -233,7 +228,6 @@ def encode_mask(mask, mode='binary'):
 
     return encoded_mask.astype(np.uint8)
 
-@segmentation_app.route('/load_mask/<image_id>')
 @requires_auth
 def load_mask(image_id):
     user_id = flask.session.get('user_id')
@@ -256,7 +250,6 @@ def load_mask(image_id):
     except Exception:
         return flask.make_response("No user mask available!", 404)
 
-@segmentation_app.route('/save_mask/<image_id>', methods=['POST'])
 @requires_auth
 def save_mask(image_id):
     project = current_project()
@@ -327,7 +320,6 @@ def image_dict_to_array(image_dict):
         [image_dict_to_array(v) for v in image_dict.values()]
     )
 
-@segmentation_app.route('/predict_mask/<image_id>', methods=['POST'])
 @requires_auth
 def predict_mask(image_id):
     project = current_project()

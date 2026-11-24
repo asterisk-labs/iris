@@ -12,7 +12,7 @@ are to the current tree.
 
 Progress is recorded at the end of each task as a "Done" or "Status" line,
 with the PR that landed it. As of 2026-11-24, 0.2.A, 0.2.B and T0.1 to T0.8
-are merged; 0.2.D is next.
+are merged, and 0.2.C to 0.2.G are on `part0-remaining`; T0.9 is next.
 
 ---
 
@@ -150,9 +150,9 @@ Status (2026-11-24): 0.2.A and 0.2.B are done in PR #1 (`finish-migration`),
 whose detailed plan is in `FINISH_MIGRATION_PLAN.md`. The stores became
 slices of one Zustand store under `src/stores/segmentation/` rather than
 separate stores, and `src/test/no-legacy-globals.test.ts` fails if a window
-global or bridge function comes back. 0.2.C and 0.2.E to 0.2.G are not started. D to G
-are being done together on branch `part0-remaining` as one PR, which is an
-exception to the one-task-per-PR convention below; C is left out of it.
+global or bridge function comes back. C to G
+are done together on branch `part0-remaining` as one PR, which is an
+exception to the one-task-per-PR convention below.
 
 0.2.D on `part0-remaining`: `create_app` builds a `Project` and keeps it in
 `app.extensions['iris']`, and every route calls `current_project()`; there is
@@ -195,6 +195,21 @@ because existing databases have it as NOT NULL without a default and dropping
 it would break adding users; `Action.type` stays and is always
 `segmentation`. Dropping both needs a database migration, which IRIS has no
 mechanism for yet.
+
+0.2.C on `part0-remaining`: `iris/schema.py` (Pydantic) is the one description
+of the project config. It validates saves and the form's check, and on load
+prints what is wrong without refusing the project. The TypeScript types in
+`src/types/config.generated.ts` are generated from it (`python -m iris.schema`;
+a test fails when they are stale). All API routes are listed in
+`iris/api/__init__.py` under `/api/v1` and every one needs a login unless
+marked public, image rendering, thumbnails and metadata included. Old paths
+redirect (307). Not done: the form does not use the JSON schema in the browser
+but asks the server, and the types of API responses other than the config are
+still written by hand.
+
+0.2.G on `part0-remaining`: the vitest half was done with 0.2.A (brush geometry,
+mask IO, canvas). `cypress/e2e/annotate.cy.js` paints two classes, predicts,
+saves, reloads and compares the mask, and checks Enter and Backspace.
 
 If only two of these can be done, do 0.2.A and 0.2.D. They are the two that every
 T1 task otherwise has to work around.

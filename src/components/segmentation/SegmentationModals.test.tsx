@@ -7,7 +7,7 @@ describe('SegmentationModals', () => {
     // Mock fetch to prevent URL parsing errors
     global.fetch = vi.fn((url) => {
       const urlString = typeof url === 'string' ? url : url.toString();
-      if (urlString.includes('/segmentation/api/user-config')) {
+      if (urlString.includes('/api/v1/user-config')) {
         return Promise.resolve(new Response(JSON.stringify({
           config: {
             segmentation: {

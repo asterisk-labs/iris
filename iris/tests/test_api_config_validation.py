@@ -1,7 +1,7 @@
 """
 Tests for configuration API validation endpoint
 
-Tests the POST /api/config/project/validate endpoint which validates
+Tests the POST /api/v1/project-config/validate endpoint which validates
 project configuration without saving it.
 """
 
@@ -76,7 +76,7 @@ def test_validate_detects_invalid_port_too_high(logged_in_admin, sample_valid_co
     """Test that validation detects port numbers above 65535"""
     sample_valid_config['port'] = 99999
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -91,7 +91,7 @@ def test_validate_detects_negative_port(logged_in_admin, sample_valid_config):
     """Test that validation detects negative port numbers"""
     sample_valid_config['port'] = -1
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -106,7 +106,7 @@ def test_validate_detects_invalid_images_shape(logged_in_admin, sample_valid_con
     """Test that validation detects invalid images.shape (not 2 elements)"""
     sample_valid_config['images']['shape'] = [512]  # Only 1 element
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -121,7 +121,7 @@ def test_validate_warns_missing_id_placeholder(logged_in_admin, sample_valid_con
     """Test that validation warns when images.path lacks {id} placeholder"""
     sample_valid_config['images']['path'] = 'test/image.tif'  # No {id}
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -136,7 +136,7 @@ def test_validate_detects_colour_value_out_of_range(logged_in_admin, sample_vali
     """Test that validation detects colour values outside 0-255 range"""
     sample_valid_config['classes'][0]['colour'] = [256, 0, 0, 255]  # 256 is too high
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -151,7 +151,7 @@ def test_validate_detects_negative_colour_value(logged_in_admin, sample_valid_co
     """Test that validation detects negative colour values"""
     sample_valid_config['classes'][0]['colour'] = [-1, 0, 0, 255]
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -169,7 +169,7 @@ def test_validate_detects_invalid_view_type(logged_in_admin, sample_valid_config
         'data': '$B1'
     }
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -187,7 +187,7 @@ def test_validate_detects_missing_data_in_image_view(logged_in_admin, sample_val
         # Missing 'data' field
     }
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -205,7 +205,7 @@ def test_validate_warns_about_bingmap_view(logged_in_admin, sample_valid_config)
         'data': '$B1'  # Not used for bingmap
     }
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -220,7 +220,7 @@ def test_validate_detects_invalid_view_group_reference(logged_in_admin, sample_v
     """Test that validation detects view_groups referencing non-existent views"""
     sample_valid_config['view_groups']['BadGroup'] = ['RGB', 'NonExistentView']
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -235,7 +235,7 @@ def test_validate_accepts_ai_model_as_false(logged_in_admin, sample_valid_config
     """Test that validation accepts ai_model as False"""
     sample_valid_config['segmentation']['ai_model'] = False
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -252,7 +252,7 @@ def test_validate_accepts_ai_model_as_dict(logged_in_admin, sample_valid_config)
         'max_depth': 5
     }
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -269,7 +269,7 @@ def test_validate_detects_missing_class_name(logged_in_admin, sample_valid_confi
         # Missing 'name'
     })
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -287,7 +287,7 @@ def test_validate_detects_missing_class_colour(logged_in_admin, sample_valid_con
         # Missing 'colour'
     })
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -302,7 +302,7 @@ def test_validate_detects_invalid_user_colour(logged_in_admin, sample_valid_conf
     """Test that validation detects invalid user_colour arrays"""
     sample_valid_config['classes'][0]['user_colour'] = [255, 0]  # Only 2 values
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -317,7 +317,7 @@ def test_validate_detects_classes_not_array(logged_in_admin, sample_valid_config
     """Test that validation detects when classes is not an array"""
     sample_valid_config['classes'] = {'invalid': 'structure'}
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -332,7 +332,7 @@ def test_validate_detects_views_not_object(logged_in_admin, sample_valid_config)
     """Test that validation detects when views is not an object"""
     sample_valid_config['views'] = ['invalid', 'structure']
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -351,7 +351,7 @@ def test_validate_detects_empty_views(logged_in_admin, sample_valid_config):
     """Test that validation detects empty views object"""
     sample_valid_config['views'] = {}
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -366,7 +366,7 @@ def test_validate_detects_view_groups_not_object(logged_in_admin, sample_valid_c
     """Test that validation detects when view_groups is not an object"""
     sample_valid_config['view_groups'] = ['invalid']
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -381,7 +381,7 @@ def test_validate_detects_view_group_not_array(logged_in_admin, sample_valid_con
     """Test that validation detects when view_group value is not an array"""
     sample_valid_config['view_groups']['BadGroup'] = 'not_an_array'
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -396,7 +396,7 @@ def test_validate_detects_missing_segmentation_path(logged_in_admin, sample_vali
     """Test that validation detects missing segmentation.path"""
     del sample_valid_config['segmentation']['path']
 
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         json=sample_valid_config,
         content_type='application/json'
     )
@@ -409,12 +409,12 @@ def test_validate_detects_missing_segmentation_path(logged_in_admin, sample_vali
 
 def test_validate_requires_auth(client):
     """Test that validate endpoint requires authentication"""
-    response = client.post('/api/config/project/validate',
+    response = client.post('/api/v1/project-config/validate',
         json={'name': 'test'},
         content_type='application/json'
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
 
 
 def test_validate_requires_admin(app, client):
@@ -429,7 +429,7 @@ def test_validate_requires_admin(app, client):
     with client.session_transaction() as sess:
         sess['user_id'] = user_id
 
-    response = client.post('/api/config/project/validate',
+    response = client.post('/api/v1/project-config/validate',
         json={'name': 'test'},
         content_type='application/json'
     )
@@ -439,7 +439,7 @@ def test_validate_requires_admin(app, client):
 
 def test_validate_missing_json_data(logged_in_admin):
     """Test that validate rejects request with no JSON data"""
-    response = logged_in_admin.post('/api/config/project/validate',
+    response = logged_in_admin.post('/api/v1/project-config/validate',
         data='not json',
         content_type='text/plain'
     )

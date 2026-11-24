@@ -15,7 +15,6 @@ def test_segmentation_spa_blueprint_registration():
 
     Critical checks:
     - React SPA route replaces old Flask template route
-    - All existing API endpoints are preserved for legacy JavaScript
     - No route conflicts between old and new blueprints
     """
     import flask
@@ -31,13 +30,8 @@ def test_segmentation_spa_blueprint_registration():
     assert 'segmentation.index' not in endpoints, "Old Flask template route should be removed"
     assert 'segmentation_spa.segmentation_spa' in endpoints, "React SPA route should exist"
 
-    # All existing API endpoints must be preserved (used by legacy JavaScript)
-    required_api_endpoints = [
-        'segmentation.next_image', 'segmentation.previous_image',
-        'segmentation.load_mask', 'segmentation.save_mask', 'segmentation.predict_mask'
-    ]
-    for endpoint in required_api_endpoints:
-        assert endpoint in endpoints, f"API endpoint {endpoint} required for legacy JS"
+    for endpoint in ['segmentation.next_image', 'segmentation.previous_image']:
+        assert endpoint in endpoints
 
 
 def test_segmentation_spa_blueprint_configuration():

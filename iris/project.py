@@ -20,6 +20,7 @@ from skimage.io import imread
 from iris.expressions import evaluate, find_bands
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
 from iris.ordering import seeded_order
+from iris.schema import check_config, without_bing
 from iris.utils import merge_deep_dicts
 
 
@@ -76,6 +77,13 @@ class Project:
             # Non-fatal; leave config as-is on error
             print(f"Warning: Failed to normalize images.path: {e}")
 
+        # An existing project may break a rule that was not checked before, so
+        # say what is wrong rather than refuse to load it.
+        errors, warnings = check_config(self.config)
+        for message in errors + warnings:
+            print(f'Warning: {basename(filename)}: {message}')
+        self.config, _ = without_bing(self.config)
+
         self._init_paths_and_files(filename)
 
         # A reload may point at different images: start the caches afresh,
@@ -122,8 +130,6 @@ class Project:
             if self['segmentation']['score'] not in ['f1', 'jaccard', 'accuracy']:
                 raise Exception('Unknown segmentation score!', self['segmentation']['score'])
 
-        self._drop_bing_views()
-
         # Make sure the HTML is understood in the descriptions:
         for name, view in self.config['views'].items():
             view['name'] = name
@@ -152,18 +158,6 @@ class Project:
 
     def __setitem__(self, key, value):
         self.config[key] = value
-
-    def _drop_bing_views(self):
-        """Bing views are no longer supported: load the project without them."""
-        bing = [
-            name for name, view in self.config['views'].items()
-            if view.get('type') == 'bingmap'
-        ]
-        for name in bing:
-            print(f"Warning: view '{name}' is a Bing map, which is no longer supported; ignoring it")
-            del self.config['views'][name]
-        for group, names in self.config.get('view_groups', {}).items():
-            self.config['view_groups'][group] = [n for n in names if n not in bing]
 
     def _normalise_classes(self, data):
         if "classes" not in data:

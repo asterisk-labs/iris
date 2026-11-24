@@ -67,7 +67,7 @@ export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = (
 
   const getThumbnailUrl = (imageId: string) => {
     // Use the same thumbnail endpoint as ImageInfoModal
-    return `/thumbnail/${imageId}?size=32x32`;
+    return `/api/v1/images/${encodeURIComponent(imageId)}/thumbnail?size=32x32`;
   };
 
   return (

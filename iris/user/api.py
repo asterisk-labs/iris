@@ -11,10 +11,7 @@ from iris import db
 from iris.models import Action, User
 from iris.user import requires_auth
 
-api_bp = flask.Blueprint("user_api", __name__, url_prefix="/user/api")
 
-
-@api_bp.route("/current", methods=["GET"])
 def get_current_user():
     """Get current logged-in user info or null if not authenticated."""
     user_id = flask.session.get("user_id", None)
@@ -30,7 +27,6 @@ def get_current_user():
     return flask.jsonify({"user": user.to_json()})
 
 
-@api_bp.route("/profile/<user_id>", methods=["GET"])
 @requires_auth
 def get_profile(user_id):
     """Get user profile with segmentation stats and history."""
@@ -101,7 +97,6 @@ def get_profile(user_id):
     return flask.jsonify(user_data)
 
 
-@api_bp.route("/change-password", methods=["POST"])
 @requires_auth
 def change_password():
     """Allow user to change their own password."""

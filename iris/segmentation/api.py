@@ -11,13 +11,7 @@ from iris.project import current_project
 from iris.segmentation.navigation import next_image_id, user_image_order
 from iris.user import requires_auth
 
-api_bp = flask.Blueprint(
-    'segmentation_api', __name__,
-    url_prefix='/segmentation/api'
-)
 
-
-@api_bp.route('/config', methods=['GET'])
 @requires_auth
 def get_config():
     """Get project configuration as JSON."""
@@ -28,7 +22,6 @@ def get_config():
     return flask.jsonify(config)
 
 
-@api_bp.route('/user-config', methods=['GET'])
 @requires_auth
 def get_user_config():
     """Get current user configuration as JSON."""
@@ -51,7 +44,6 @@ def get_user_config():
     })
 
 
-@api_bp.route('/user-config', methods=['POST'])
 @requires_auth
 def save_user_config():
     """Save user configuration."""
@@ -65,7 +57,6 @@ def save_user_config():
 
 
 
-@api_bp.route('/images/list', methods=['GET'])
 @requires_auth
 def list_images():
     """
@@ -120,19 +111,16 @@ def list_images():
     })
 
 
-@api_bp.route('/images/next', methods=['GET'])
 @requires_auth
-def next_image():
-    """The image after ?image_id= for this user; null if there is no other."""
+def next_image(image_id):
+    """The image after this one for the user; null if there is no other."""
     user, order = user_image_order()
-    image_id = flask.request.args.get('image_id')
     if image_id not in order:
         return flask.jsonify({'error': 'Image not found'}), 404
     target = next_image_id(user, order, image_id)
     return flask.jsonify({'image_id': target if target != image_id else None})
 
 
-@api_bp.route('/export-geotiff/<image_id>', methods=['GET'])
 @requires_auth
 def export_geotiff(image_id):
     """Export image with mask as GeoTIFF."""

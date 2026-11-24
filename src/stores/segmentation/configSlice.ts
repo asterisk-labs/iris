@@ -1,5 +1,4 @@
 import type { ClassConfig } from '../../types/iris';
-import { validateConfig } from '../../config/validate';
 import type { ConfigSlice, SliceCreator } from './types';
 
 const isValidClass = (cls: ClassConfig) =>
@@ -15,7 +14,9 @@ export const createConfigSlice: SliceCreator<ConfigSlice> = (set, get) => ({
   maskDimensions: null,
 
   setConfig: (config) => {
-    if (!validateConfig(config)) {
+    // The server checks the config against iris/schema.py when it loads it;
+    // this only guards against a response that is not a config at all
+    if (!config?.name || !Array.isArray(config.classes) || !config.views) {
       console.error('[IRIS] setConfig: Invalid config structure', config);
       return;
     }
