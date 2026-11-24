@@ -1,3 +1,4 @@
+import contextlib
 import json
 import re
 from pathlib import Path
@@ -87,10 +88,8 @@ FRONTEND_URLS = sorted({
 @pytest.mark.parametrize('url', FRONTEND_URLS)
 def test_urls_used_by_the_frontend_exist(app, url):
     from werkzeug.exceptions import MethodNotAllowed
-    try:
+    with contextlib.suppress(MethodNotAllowed):  # exists, with another method
         app.url_map.bind('').match(url)
-    except MethodNotAllowed:
-        pass  # exists, with another method
 
 
 def test_frontend_urls_were_found():
