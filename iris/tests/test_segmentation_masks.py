@@ -3,11 +3,10 @@ from os.path import dirname
 
 import numpy as np
 
-from iris.project import project
 from iris.segmentation import get_mask_filenames, read_masks
 
 
-def test_get_mask_filenames_and_read_masks(tmp_path, project_snapshot):
+def test_get_mask_filenames_and_read_masks(tmp_path, project_snapshot, project):
     project["path"] = str(tmp_path)
     final, user = get_mask_filenames("IMG", "u1")
     assert "u1_final" in final and "u1_user" in user

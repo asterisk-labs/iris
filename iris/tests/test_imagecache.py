@@ -87,7 +87,6 @@ def _project_with_npy(tmp_path, image_id="1", shape=(4, 4, 3)):
     np.save(str(tmp_path / f"{image_id}.npy"),
             np.arange(np.prod(shape), dtype=np.uint8).reshape(shape), allow_pickle=False)
     p.image_ids = [image_id]
-    p.image_order = [0]
     return p
 
 
@@ -143,9 +142,8 @@ def test_budget_from_config_bounds_memory(tmp_path):
     assert p._image_cache.nbytes <= p._image_cache.max_bytes
 
 
-def test_load_from_resets_cache_and_reads_budget(app):
+def test_load_from_resets_cache_and_reads_budget(app, project):
     from iris import get_demo_file
-    from iris.project import project
 
     project.get_image(project.image_ids[0], bands=["$Sentinel2.B1"])
     assert len(project._image_cache) >= 1
@@ -162,8 +160,7 @@ def test_load_from_resets_cache_and_reads_budget(app):
     assert project._image_cache.max_bytes == 1024 * 1024 * 1024
 
 
-def test_demo_render_hits_cache_second_time(app):
-    from iris.project import project
+def test_demo_render_hits_cache_second_time(app, project):
 
     project._image_cache.clear()
     image_id = project.image_ids[0]

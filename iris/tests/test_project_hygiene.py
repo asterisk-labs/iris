@@ -57,23 +57,21 @@ def test_no_warning_without_a_stale_default_folder(tmp_path, capsys):
     assert "Warning: using path" not in capsys.readouterr().out
 
 
-def test_render_image_uses_own_shape_not_global(tmp_path, app):
-    """A standalone Project renders from its own config even when the global
+def test_render_image_uses_own_shape_not_global(tmp_path, project):
+    """A standalone Project renders from its own config even when the app's
     project (the demo) has a different image size."""
-    from iris.project import project as global_project
 
     np.save(str(tmp_path / "1.npy"), np.zeros((3, 5, 1), dtype=np.uint8), allow_pickle=False)
     p = Project()
     p.file = str(tmp_path / "pr.json")
     p.config = {"images": {"path": str(tmp_path / "{id}.npy")}, "views": {}, "name": "x"}
     p.image_ids = ["1"]
-    p.image_order = [0]
 
     # A constant expression has no shape of its own, so the shape must come
     # from this project's image, not the demo's
     out = p.render_image("1", {"name": "c", "data": ["1", "0.5", "0"]})
     assert out.shape == (3, 5, 3)
-    assert out.shape[:2] != global_project.get_image_shape(global_project.image_ids[0])
+    assert out.shape[:2] != project.get_image_shape(project.image_ids[0])
 
 
 def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
@@ -84,7 +82,6 @@ def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
     p.file = str(tmp_path / "pr.json")
     p.config = {"images": {"path": str(tmp_path / "{id}.npy")}, "views": {}, "name": "x"}
     p.image_ids = ["1"]
-    p.image_order = [0]
 
     out = p.render_image("1", {"name": "g", "data": ["$B1"], "cmap": "viridis"})
     expected = (255 * matplotlib.colormaps["viridis"](np.arange(16).reshape(4, 4) / 15)[..., :3]).astype("uint8")

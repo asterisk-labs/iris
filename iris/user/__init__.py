@@ -5,7 +5,7 @@ import flask
 
 from iris import db
 from iris.models import User
-from iris.project import project
+from iris.project import current_project
 
 user_app = flask.Blueprint("user", __name__, template_folder="templates", static_folder="static")
 
@@ -60,6 +60,7 @@ def requires_admin(func):
 @user_app.route("/get/<user_id>", methods=["GET"])
 @requires_auth
 def get(user_id):
+    project = current_project()
     if user_id == "current":
         user_id = flask.session["user_id"]
     user = User.query.get_or_404(user_id)
@@ -104,6 +105,7 @@ def set(user_id):
 @user_app.route("/save_config", methods=["POST"])
 @requires_auth
 def save_config():
+    project = current_project()
     user_config = json.loads(flask.request.data)
     project.save_user_config(flask.session["user_id"], user_config)
     return flask.make_response("Saved user config successfully!")

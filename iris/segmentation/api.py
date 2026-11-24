@@ -7,7 +7,7 @@ import json
 
 import flask
 
-from iris.project import project
+from iris.project import current_project
 from iris.user import requires_auth
 
 api_bp = flask.Blueprint(
@@ -20,6 +20,7 @@ api_bp = flask.Blueprint(
 @requires_auth
 def get_config():
     """Get project configuration as JSON."""
+    project = current_project()
     # Get the full project config
     config = project.config
 
@@ -30,6 +31,7 @@ def get_config():
 @requires_auth
 def get_user_config():
     """Get current user configuration as JSON."""
+    project = current_project()
     from iris.models import User
 
     user_id = flask.session['user_id']
@@ -52,6 +54,7 @@ def get_user_config():
 @requires_auth
 def save_user_config():
     """Save user configuration."""
+    project = current_project()
     user_id = flask.session['user_id']
     user_config = json.loads(flask.request.data)
 
@@ -82,6 +85,7 @@ def list_images():
             "current_image_id": "image_001"
         }
     """
+    project = current_project()
     from iris.models import Action
 
     user_id = flask.session['user_id']
@@ -117,6 +121,7 @@ def list_images():
 @requires_auth
 def export_geotiff(image_id):
     """Export image with mask as GeoTIFF."""
+    project = current_project()
     import tempfile
 
     import numpy as np

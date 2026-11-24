@@ -18,7 +18,7 @@ import flask
 
 from iris import db
 from iris.models import Action, User
-from iris.project import project
+from iris.project import current_project
 from iris.user import requires_admin, requires_auth
 
 api_bp = flask.Blueprint(
@@ -130,6 +130,7 @@ def actions(type):
         - Joins username from User table for display
         - Calculates progress statistics for progress bar
     """
+    project = current_project()
     # Parse query parameters for sorting
     order_by = flask.request.args.get('order_by', 'user_id')
     ascending = flask.request.args.get('ascending', 'true')
@@ -215,6 +216,7 @@ def images():
         - Uses same aggregation logic as legacy code for consistency
         - TODO: Could be optimized with SQL aggregation queries for large datasets
     """
+    project = current_project()
     # Parse query parameters for sorting
     order_by = flask.request.args.get('order_by', 'image_id')
     ascending = flask.request.args.get('ascending', 'true')
@@ -413,6 +415,7 @@ def export_merged_geotiff(image_id):
         - Merged mask combines all user annotations via voting system
         - Useful for exporting final consensus annotations
     """
+    project = current_project()
     import tempfile
     from glob import glob
 
@@ -599,6 +602,7 @@ def export_all_geotiffs():
         - Validates and sanitizes output directory path
         - Only exports images with existing annotations
     """
+    project = current_project()
     import os
     from glob import glob
 

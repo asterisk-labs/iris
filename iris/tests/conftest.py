@@ -17,7 +17,6 @@ def app():
     project's own `.iris` folder.
     """
     from iris import build_app, get_demo_file
-    from iris.project import project
 
     test_project_dir = tempfile.mkdtemp(suffix='.iris')
     os.makedirs(os.path.join(test_project_dir, 'user_config'), exist_ok=True)
@@ -27,7 +26,7 @@ def app():
     iris_app.config['TESTING'] = True
 
     # Keep masks and user configs written by tests out of the demo folder
-    project.config['path'] = test_project_dir
+    iris_app.extensions['iris'].config['path'] = test_project_dir
 
     ctx = iris_app.app_context()
     ctx.push()
@@ -40,12 +39,18 @@ def app():
 
 
 @pytest.fixture
+def project(app):
+    """The Project of the test app (what current_project() returns)."""
+    return app.extensions['iris']
+
+
+@pytest.fixture
 def client(app):
     return app.test_client()
 
 
 @pytest.fixture(autouse=True)
-def clean_db(app):
+def clean_db(app, project):
     """Clean database before each test to ensure isolation."""
     with app.app_context():
         # Clear all data before each test
@@ -55,7 +60,6 @@ def clean_db(app):
 
         # Ensure user_config directory exists in the project path
         # This is needed for user preferences tests
-        from iris.project import project
         user_config_dir = os.path.join(project.config['path'], 'user_config')
         os.makedirs(user_config_dir, exist_ok=True)
 
@@ -89,21 +93,16 @@ def logged_in_user(app, client):
 
 
 @pytest.fixture
-def project_snapshot():
-    """Snapshot and restore the global `project` singleton from iris.project.
+def project_snapshot(project):
+    """Snapshot and restore the test app's Project.
 
     Yields a dict containing the saved state. Tests may modify `project` and
     the fixture will restore the original values after the test completes.
     """
     from copy import deepcopy
 
-    from iris.project import project
-
     # Keys we care about and want to snapshot/restore
-    keys = [
-        'image_ids', 'image_order', 'file', 'random_state',
-        'config', 'debug'
-    ]
+    keys = ['image_ids', 'file', 'config', 'debug']
 
     saved = {}
     for k in keys:
@@ -118,15 +117,13 @@ def project_snapshot():
 
 
 @pytest.fixture
-def restore_config_file(app):
+def restore_config_file(app, project):
     """Snapshot and restore the project config file on disk.
 
     This fixture saves the config file content before the test and restores it
     after, ensuring tests that modify the config file don't affect other tests.
     Also cleans up any backup files created during testing.
     """
-
-    from iris.project import project
 
     config_file = project.file
     backup_file = config_file + '.backup'

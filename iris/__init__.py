@@ -11,7 +11,7 @@ import flask
 __version__ = "1.0.0"
 
 from iris.extensions import compress, db
-from iris.project import project
+from iris.project import Project
 
 
 def get_demo_dir() -> Path:
@@ -195,6 +195,7 @@ def start_server(
     create_default_admin(flask_app, admin_user, admin_password)
 
     # Start server
+    project = flask_app.extensions['iris']
     if production:
         import gevent.pywsgi
         app_server = gevent.pywsgi.WSGIServer((project['host'], project['port']), flask_app)
@@ -218,16 +219,19 @@ def run_app():
 def create_app(project_file, args=None, db_uri=None):
     """Create the Flask app for a project file.
 
-    Loads the project into the `project` singleton and configures the
+    Loads the project into a new `Project`, kept in `app.extensions['iris']`
+    and reached through `iris.project.current_project()`, and configures the
     database (by default `iris.db` inside the project folder; `db_uri`
     overrides it, which tests use). Blueprints are added separately by
     `register_extensions`; `build_app` does both.
     """
+    project = Project()
     project.load_from(project_file)
     project.debug = bool(args.get('debug', False)) if args else False
 
     # Create the flask app:
     app = flask.Flask(__name__)
+    app.extensions['iris'] = project
 
     app.config.from_pyfile('config.py')
     app.config['SQLALCHEMY_DATABASE_URI'] = \

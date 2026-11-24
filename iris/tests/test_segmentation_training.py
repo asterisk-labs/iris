@@ -72,8 +72,7 @@ def _training_pixels(mask_size, per_class, rng):
     return pixels, labels
 
 
-def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user):
-    from iris.project import project
+def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user, project):
 
     image_id = project.image_ids[0]
     width, height = project.get_mask_shape(image_id)
@@ -91,8 +90,7 @@ def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user):
     assert set(np.unique(predictions).tolist()) <= {0, 1}
 
 
-def test_predict_mask_rejects_a_single_usable_class(client, logged_in_user):
-    from iris.project import project
+def test_predict_mask_rejects_a_single_usable_class(client, logged_in_user, project):
 
     image_id = project.image_ids[0]
     width, height = project.get_mask_shape(image_id)
@@ -108,11 +106,10 @@ def test_predict_mask_rejects_a_single_usable_class(client, logged_in_user):
     assert b"at least 2 classes" in response.data
 
 
-def test_predict_mask_with_meshgrid_and_edges(client, logged_in_user, monkeypatch):
+def test_predict_mask_with_meshgrid_and_edges(client, logged_in_user, monkeypatch, project):
     """The optional features run end to end on the demo image."""
     from copy import deepcopy
 
-    from iris.project import project
 
     config = deepcopy(project.config)
     config["segmentation"]["ai_model"].update({"use_meshgrid": True, "use_edge_filter": True, "meshgrid_cells": "4x2"})

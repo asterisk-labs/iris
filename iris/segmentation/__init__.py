@@ -16,7 +16,13 @@ from sklearn.metrics import accuracy_score, f1_score, jaccard_score
 from sklearn.model_selection import train_test_split
 
 from iris.models import Action, User, db
-from iris.project import project
+from iris.ordering import (
+    annotation_counts,
+    least_annotated_next,
+    next_in_order,
+    previous_in_order,
+)
+from iris.project import current_project
 from iris.segmentation.training import filter_training_pixels, meshgrid_features
 from iris.user import requires_auth
 
@@ -53,16 +59,37 @@ def register_segmentation_blueprints(app):
 # Original index route removed - now handled by SPA blueprint
 # The SPA blueprint (spa.py) handles the main /segmentation/ route
 
+def _user_order_and_image():
+    """The current user's image order and the image they are on.
+
+    Answers 404 for an image id the project does not have, rather than the
+    500 the old list lookups raised.
+    """
+    project = current_project()
+    user = User.query.get(flask.session['user_id'])
+    order = project.image_order(user.image_seed)
+    image_id = flask.request.args.get('image_id', order[0])
+    if image_id not in order:
+        flask.abort(404, 'Unknown image id!')
+    return project, user, order, image_id
+
+
 @segmentation_app.route('/next_image', methods=['GET'])
 @requires_auth
 def next_image():
-    user = User.query.get(flask.session['user_id'])
-    project.set_image_seed(user.image_seed)
+    project, user, order, image_id = _user_order_and_image()
 
-    image_id = project.get_next_image(
-        flask.request.args.get('image_id', project.get_start_image_id()),
-        user
-    )
+    # prioritise_unmarked_images: go to the next image in the user's order
+    # with the fewest annotations, counting the user's own as many.
+    if project['segmentation']['prioritise_unmarked_images']:
+        annotations = [
+            (action.image_id, action.user_id) for action in Action.query.all()
+        ]
+        image_id = least_annotated_next(
+            order, image_id, annotation_counts(annotations, user.id)
+        )
+    else:
+        image_id = next_in_order(order, image_id)
 
     return flask.redirect(
         flask.url_for('segmentation_spa.segmentation_spa', image_id=image_id)
@@ -71,19 +98,18 @@ def next_image():
 @segmentation_app.route('/previous_image', methods=['GET'])
 @requires_auth
 def previous_image():
-    user = User.query.get(flask.session['user_id'])
-    project.set_image_seed(user.image_seed)
-
-    image_id = project.get_previous_image(
-        flask.request.args.get('image_id', project.get_start_image_id())
-    )
+    _, _, order, image_id = _user_order_and_image()
 
     return flask.redirect(
-        flask.url_for('segmentation_spa.segmentation_spa', image_id=image_id)
+        flask.url_for(
+            'segmentation_spa.segmentation_spa',
+            image_id=previous_in_order(order, image_id),
+        )
     )
 
 def get_mask_filenames(image_id, user_id=None):
     """Get final and user mask filenames"""
+    project = current_project()
     final_mask = join(
         project['path'], 'segmentation', image_id,
         f'{user_id}_final.npy'
@@ -140,6 +166,7 @@ def compute_merged_mask(final_masks):
 
 def merge_masks(image_id):
     """Combine the masks of all users to a resulting mask"""
+    project = current_project()
     final_mask_paths = get_mask_filenames(image_id, user_id="*")[0]
     users, final_masks = zip(*[
         [basename(path).split('_')[0], np.argmax(np.load(path), axis=-1)]
@@ -184,6 +211,7 @@ def merge_masks(image_id):
         imsave(filename, merged_mask, check_contrast=False)
 
 def get_score(mask1, mask2):
+    project = current_project()
     if project['segmentation']['score'] == 'jaccard':
         return round(100 * jaccard_score(mask1, mask2))
     elif project['segmentation']['score'] == 'f1':
@@ -206,6 +234,7 @@ def encode_mask(mask, mode='binary'):
     Returns:
         Encoded numpy array.
     """
+    project = current_project()
     if mode == 'integer':
         return mask.astype(np.uint8)
     elif mode == 'binary':
@@ -257,6 +286,7 @@ def load_mask(image_id):
 @segmentation_app.route('/save_mask/<image_id>', methods=['POST'])
 @requires_auth
 def save_mask(image_id):
+    project = current_project()
     user_id = flask.session.get('user_id')
 
     print('SAVING BY', user_id)
@@ -327,6 +357,7 @@ def image_dict_to_array(image_dict):
 @segmentation_app.route('/predict_mask/<image_id>', methods=['POST'])
 @requires_auth
 def predict_mask(image_id):
+    project = current_project()
     config = project.get_user_config(flask.session['user_id'])
     config = config['segmentation']
 

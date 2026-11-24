@@ -178,10 +178,15 @@ def export_all(
         typer.echo(f"Error: Project file '{project_file}' not found!", err=True)
         raise typer.Exit(code=1)
 
+    app_context = None
     try:
-        # Load project configuration
-        from iris.project import project as proj
-        proj.load_from(str(project_path))
+        # Load the project into an app so the mask helpers, which look the
+        # project up with current_project(), see it. No database is used.
+        from iris import create_app
+        from iris.project import current_project
+        app_context = create_app(str(project_path)).app_context()
+        app_context.push()
+        proj = current_project()
 
         # Convert output_dir to absolute path
         if not os.path.isabs(output_dir):
@@ -334,6 +339,9 @@ def export_all(
     except Exception as e:
         typer.echo(f"\n❌ Error: {e}", err=True)
         raise typer.Exit(code=1) from e
+    finally:
+        if app_context is not None:
+            app_context.pop()
 
 
 def main():

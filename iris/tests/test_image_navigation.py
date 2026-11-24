@@ -12,7 +12,6 @@ The image navigation system consists of:
 """
 from iris import db
 from iris.models import Action, User
-from iris.project import project
 
 
 class TestImageNavigationAPI:
@@ -34,7 +33,7 @@ class TestImageNavigationAPI:
         response = client.get('/segmentation/api/images/list')
         assert response.status_code == 403
 
-    def test_list_images_returns_all_project_images(self, client, logged_in_user):
+    def test_list_images_returns_all_project_images(self, client, logged_in_user, project):
         """
         Test that all project images are returned.
 
@@ -56,7 +55,7 @@ class TestImageNavigationAPI:
         assert returned_ids == project_ids, \
             "Returned image IDs should match project image IDs"
 
-    def test_annotation_status_tracking(self, client, logged_in_user, app):
+    def test_annotation_status_tracking(self, client, logged_in_user, app, project):
         """
         Test that annotation status is correctly tracked per image.
 
@@ -98,7 +97,7 @@ class TestImageNavigationAPI:
         assert first_image['has_any_annotation'], "Should have any annotation now"
         assert first_image['annotation_count'] == 1, "Should have one annotation"
 
-    def test_multi_user_annotation_tracking(self, client, logged_in_user, app):
+    def test_multi_user_annotation_tracking(self, client, logged_in_user, app, project):
         """
         Test that annotations from multiple users are tracked correctly.
 

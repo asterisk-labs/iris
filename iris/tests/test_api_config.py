@@ -8,7 +8,7 @@ import os
 import pytest
 
 from iris.models import User, db
-from iris.project import Project, project
+from iris.project import Project
 
 
 @pytest.fixture
@@ -222,7 +222,7 @@ def test_put_config_success(logged_in_admin, restore_config_file):
     assert "successfully updated" in response.json["message"].lower()
 
 
-def test_put_config_creates_backup(logged_in_admin, restore_config_file, app):
+def test_put_config_creates_backup(logged_in_admin, restore_config_file, app, project):
     """Test that PUT creates backup before updating"""
     # Get current config first
     response = logged_in_admin.get("/api/config/project")
@@ -249,7 +249,7 @@ def test_put_config_creates_backup(logged_in_admin, restore_config_file, app):
     assert backup_data["name"] != "modified_name"
 
 
-def test_put_config_reloads_project(logged_in_admin, restore_config_file):
+def test_put_config_reloads_project(logged_in_admin, restore_config_file, project):
     """Test that project reloads after successful update"""
     # Get current config
     response = logged_in_admin.get("/api/config/project")
@@ -599,7 +599,7 @@ def test_get_config_returns_relative_paths(app, logged_in_admin):
 # ============================================================================
 
 
-def test_get_config_includes_chat_when_present(logged_in_admin):
+def test_get_config_includes_chat_when_present(logged_in_admin, project):
     """Test that GET returns chat config when it exists in project config"""
     response = logged_in_admin.get("/api/config/project")
     assert response.status_code == 200

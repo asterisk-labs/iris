@@ -8,7 +8,7 @@ from PIL import Image as PILImage
 from skimage.transform import resize
 
 from iris.models import Action, db
-from iris.project import project
+from iris.project import current_project
 from iris.user import requires_auth
 
 main_app = flask.Blueprint(
@@ -25,6 +25,7 @@ def index():
 
 @main_app.route('/image/<image_id>/<view>')
 def image(image_id, view):
+    project = current_project()
     image = project.render_image(image_id, project['views'][view])
     return array_to_png(image)
 
@@ -86,6 +87,7 @@ def set_action_info(action_id):
 
 @main_app.route('/metadata/<image_id>', methods=['GET'])
 def metadata(image_id):
+    project = current_project()
     metadata = project.get_metadata(image_id)
 
     if not metadata:
@@ -101,6 +103,7 @@ def metadata(image_id):
 
 @main_app.route('/thumbnail/<image_id>', methods=['GET'])
 def thumbnail(image_id):
+    project = current_project()
     size = flask.request.args.get("size", None)
     array = project.get_thumbnail(image_id)
 

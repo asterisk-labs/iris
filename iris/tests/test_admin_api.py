@@ -335,11 +335,10 @@ class TestImagesAPIEndpoint(TestAdminAPIEndpoints):
             assert "types" in image
             assert isinstance(image["types"], dict)
 
-    def test_images_endpoint_calculates_averages(self, client, app):
+    def test_images_endpoint_calculates_averages(self, client, app, project):
         """Test that statistics are averaged correctly."""
         # This test needs images that actually exist in the project
         # Let's use the actual project images
-        from iris.project import project
 
         with app.app_context():
             # Get first image from project
@@ -483,12 +482,11 @@ class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
         assert "error" in data
         assert "Image not found" in data["error"]
 
-    def test_export_requires_mask_data(self, client, app):
+    def test_export_requires_mask_data(self, client, app, project):
         """Test that export fails if no masks exist for image."""
         import os
         from glob import glob
 
-        from iris.project import project
         from iris.segmentation import get_mask_filenames
 
         with app.app_context():
@@ -514,13 +512,12 @@ class TestExportMergedGeoTIFFEndpoint(TestAdminAPIEndpoints):
         data = json.loads(response.data)
         assert "error" in data
 
-    def test_export_returns_geotiff_file(self, client, app, tmp_path):
+    def test_export_returns_geotiff_file(self, client, app, tmp_path, project):
         """Test that export returns a valid GeoTIFF file when masks exist."""
         import os
 
         import numpy as np
 
-        from iris.project import project
         from iris.segmentation import get_mask_filenames
 
         with app.app_context():

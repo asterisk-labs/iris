@@ -154,6 +154,27 @@ global or bridge function comes back. 0.2.C to 0.2.G are not started. D to G
 are being done together on branch `part0-remaining` as one PR, which is an
 exception to the one-task-per-PR convention below; C is left out of it.
 
+0.2.D on `part0-remaining`: `create_app` builds a `Project` and keeps it in
+`app.extensions['iris']`, and every route calls `current_project()`; there is
+no module-level project. `export-all` pushes an app context for the same
+reason. The order of images is computed per request by the pure functions in
+`iris/ordering.py`, so `Project` holds no ordering state and nothing reorders
+`image_ids`. A seed gives the same order as before, and the least-annotated
+choice of `/next_image` matches the old one on 500 random cases (the old code
+looped forever on a one-image project). `/previous_image` now steps back in
+the user's own order; before, it went back to the image the swap had moved,
+which mostly gave the same answer for one user and a wrong one for others.
+
+Found whilst doing this: the React UI does not use the per-user order at all.
+Enter, Backspace and the toolbar arrows take the neighbour in the image list
+from `/segmentation/api/images/list`, which is `image_ids`, sorted by id. This
+predates the migration (the gt-sse-center template did the same), so
+`prioritise_unmarked_images`, which is on by default, and the per-user
+shuffle only affect the first image a new user is shown. Restoring them means
+serving the list in the user's order and asking the server for "next"; that
+is a behaviour change users of the fork would notice, so it needs a decision
+first.
+
 If only two of these can be done, do 0.2.A and 0.2.D. They are the two that every
 T1 task otherwise has to work around.
 

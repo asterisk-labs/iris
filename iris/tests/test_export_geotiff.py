@@ -31,8 +31,9 @@ class TestGeoTIFFExport:
 
         # Mock the mask reading to simulate existing user annotations
         # Note: rasterio is imported inside the function
+        mock_project = MagicMock()
         with patch('iris.segmentation.read_masks') as mock_read, \
-             patch('iris.segmentation.api.project') as mock_project, \
+             patch.dict(client.application.extensions, {'iris': mock_project}), \
              patch('rasterio.open') as mock_rio_open, \
              patch('tempfile.NamedTemporaryFile') as mock_temp:
 
@@ -112,7 +113,8 @@ class TestGeoTIFFExport:
         image_id = 'test_image_001'
 
         # Mock project to return valid image_ids
-        with patch('iris.segmentation.api.project') as mock_project, \
+        mock_project = MagicMock()
+        with patch.dict(client.application.extensions, {'iris': mock_project}), \
              patch('iris.segmentation.read_masks') as mock_read:
 
             mock_project.image_ids = [image_id]
@@ -141,7 +143,8 @@ class TestGeoTIFFExport:
         image_id = 'test_image_001'
 
         # Mock project to have valid image_ids
-        with patch('iris.segmentation.api.project') as mock_project:
+        mock_project = MagicMock()
+        with patch.dict(client.application.extensions, {'iris': mock_project}):
             mock_project.image_ids = [image_id]
 
             # Attempt export without authentication (no session)

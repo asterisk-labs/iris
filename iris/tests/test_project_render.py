@@ -16,8 +16,6 @@ def setup_small_project(tmp_path):
     arr = np.arange(4).reshape(2, 2).astype(np.uint8)[..., np.newaxis]
     np.save(str(tmp_path / "1.npy"), arr, allow_pickle=False)
     p.image_ids = ["1"]
-    p.image_order = [0]
-    p.set_image_seed(0)
     return p
 
 

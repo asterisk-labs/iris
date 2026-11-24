@@ -18,7 +18,7 @@ import flask
 
 from iris.imagecache import DEFAULT_CACHE_MB
 from iris.models import User
-from iris.project import project
+from iris.project import current_project
 
 config_bp = flask.Blueprint('config', __name__)
 
@@ -129,6 +129,7 @@ def get_project_config():
         401/403: Authentication/authorization error
         500: Server error
     """
+    project = current_project()
     try:
         flask.current_app.logger.info("Config endpoint called")
 
@@ -255,6 +256,7 @@ def update_project_config():
         401/403: Authentication/authorization error
         500: Server error
     """
+    project = current_project()
     try:
         # Check admin privileges
         admin_check = require_admin()

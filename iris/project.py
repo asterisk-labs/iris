@@ -10,6 +10,7 @@ from numbers import Number
 from os.path import basename, dirname, exists, getmtime, isabs, join, normpath
 from pprint import pprint
 
+import flask
 import markupsafe
 import matplotlib
 import numpy as np
@@ -20,14 +21,14 @@ from skimage.io import imread
 from skimage.segmentation import felzenszwalb
 
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
+from iris.ordering import seeded_order
 from iris.utils import merge_deep_dicts
 
 
 class Project:
     def __init__(self):
-        # Each user is going to get a personalised random sequence of images:
-        self.random_state = np.random.RandomState(seed=0)
-        self.image_order = None
+        # Sorted once at load and never reordered; per-user orders are
+        # computed from it by iris.ordering.
         self.image_ids = None
         self.file = None
         self.debug = False
@@ -78,9 +79,6 @@ class Project:
             print(f"Warning: Failed to normalize images.path: {e}")
 
         self._init_paths_and_files(filename)
-
-        # Default seed
-        self.set_image_seed(0)
 
         # A reload may point at different images: start the caches afresh,
         # sized from the new config.
@@ -362,8 +360,12 @@ class Project:
         x0, y0, x1, y1 = self.get_mask_area(image_id)
         return (x1 - x0, y1 - y0)
 
-    def get_start_image_id(self):
-        return self.image_ids[self.image_order[0]]
+    def image_order(self, seed):
+        """The image ids in the order a user with this seed sees them."""
+        return seeded_order(self.image_ids, seed)
+
+    def get_start_image_id(self, seed=0):
+        return self.image_order(seed)[0]
 
     def load_image(self, filename, bands=None):
         """Load image from file
@@ -645,73 +647,11 @@ class Project:
         with open(filename, 'w') as stream:
             json.dump(user_config, stream)
 
-    def get_next_image(self, image_id, user_id):
 
-        original_index = self.image_ids.index(image_id)
-        index = self.image_order.index(original_index)
+def current_project() -> Project:
+    """The project of the app handling the current request or CLI command.
 
-        # 'prioritise_unmarked_images' mode will search the database of existing
-        # masks, and find images with the lowest number of annotations to serve
-        # when a user asks for the next image. Then it will swap this image
-        # into the existing order to make it come up next.
-        if self.config['segmentation']['prioritise_unmarked_images']:
-            from iris.models import Action
-            actions = Action.query.all()
-            # Same order as self.image_order (NOT self.image_ids)
-            mask_count = [0]*len(self.image_order)
-            mask_count[index] = 99999 # Make sure the current image isn't selected as the new one
-            for action in actions:
-                mask_count[
-                    self.image_order.index(
-                        self.image_ids.index(
-                            action.image_id
-                            )
-                            )
-                            ] += 1
-
-                if user_id.id == action.user_id:
-                    mask_count[
-                        self.image_order.index(
-                            self.image_ids.index(
-                                action.image_id
-                                )
-                                )
-                                ] += 9999
-
-            min_labellers = min(mask_count)
-            # iterate through images until one is found with fewest existing masks
-            next_image_found = False
-            trial_idx = index
-            while not next_image_found:
-                trial_idx = (trial_idx + 1) % len(self.image_order)
-                if mask_count[trial_idx] == min_labellers and trial_idx != index:
-                    # Once a suitable image is found, update the list so that its
-                    # next in line (this means self.get_previous_image retains expected
-                    # behaviour immediately afterwards).
-                    # NOTE: this mutates self.image_ids, which every user
-                    # shares, so one user's "next" reorders the others'
-                    # sequences. The ordering rewrite in T1.2.1 of
-                    # docs/agents/IMPLEMENTATION_PLAN.md replaces this; it is
-                    # deliberately left alone here.
-                    a = trial_idx
-                    b = (index + 1) % len(self.image_order)
-                    self.image_ids[self.image_order[a]], self.image_ids[self.image_order[b]] = \
-                        self.image_ids[self.image_order[b]], self.image_ids[self.image_order[a]]
-                    next_image_found = True
-        index = (index + 1) % len(self.image_order)
-        return self.image_ids[self.image_order[index]]
-
-    def get_previous_image(self, image_id):
-        original_index = self.image_ids.index(image_id)
-
-        index = self.image_order.index(original_index)
-        index = (index - 1) % len(self.image_order)
-        return self.image_ids[self.image_order[index]]
-
-    def set_image_seed(self, seed):
-        self.random_state = np.random.RandomState(seed=seed)
-        self.image_order = list(range(len(self.image_ids)))
-
-        self.random_state.shuffle(self.image_order)
-
-project = Project()
+    `create_app` builds one Project per app and keeps it in
+    `app.extensions['iris']`; there is no module-level project.
+    """
+    return flask.current_app.extensions['iris']

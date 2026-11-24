@@ -5,10 +5,8 @@ import pytest
 import yaml
 from skimage.io import imsave
 
-from iris.project import project
 
-
-def test_get_metadata_json_yaml_and_raw(tmp_path, project_snapshot):
+def test_get_metadata_json_yaml_and_raw(tmp_path, project_snapshot, project):
     # prepare project config
     project.file = str(tmp_path / "proj.json")
     project.config = {"images": {}}
@@ -35,7 +33,7 @@ def test_get_metadata_json_yaml_and_raw(tmp_path, project_snapshot):
     assert md3.get("__body__") == "hello world"
 
 
-def test_get_thumbnail_and_image_path_and_bands(tmp_path, project_snapshot, monkeypatch):
+def test_get_thumbnail_and_image_path_and_bands(tmp_path, project_snapshot, monkeypatch, project):
     # setup a small thumbnail
     img = (np.arange(6).reshape(3, 2)).astype(np.uint8)
     thumb = tmp_path / "thumb.png"
