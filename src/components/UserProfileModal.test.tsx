@@ -29,7 +29,6 @@ describe('UserProfileModal', () => {
       id: 1,
       name: 'testuser',
       admin: true,
-      tested: true,
       created: '2024-01-01T00:00:00',
       image_seed: 12345,
       segmentation: {
@@ -63,7 +62,6 @@ describe('UserProfileModal', () => {
 
     expect(screen.getByText('this is you')).toBeInTheDocument();
     expect(screen.getByText('admin')).toBeInTheDocument();
-    expect(screen.getByText('tested')).toBeInTheDocument();
     expect(screen.getByText('1234')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
   });
@@ -86,7 +84,6 @@ describe('UserProfileModal', () => {
       id: 1,
       name: 'testuser',
       admin: false,
-      tested: false,
       created: '2024-01-01T00:00:00',
       image_seed: 12345,
       segmentation: {
@@ -116,7 +113,6 @@ describe('UserProfileModal', () => {
       id: 2,
       name: 'otheruser',
       admin: false,
-      tested: false,
       created: '2024-01-01T00:00:00',
       image_seed: 12345,
       segmentation: {

@@ -10,7 +10,6 @@
         "score": "f1",
         "prioritise_unmarked_images":true,
         "unverified_threshold": 1,
-        "test_images": null,
         "ai_model": {
             "bands": null,
             "train_ratio": 0.8,

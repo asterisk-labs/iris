@@ -153,13 +153,6 @@ describe('view slice', () => {
     expect(store().viewGroups.default).toEqual(['RGB', 'Snow', 'Radar']);
   });
 
-  it('validates the image location', () => {
-    store().setImageLocation([45.9, 8.06]);
-    store().setImageLocation([95, 0]);
-    store().setImageLocation([NaN, 0]);
-    expect(store().imageLocation).toEqual([45.9, 8.06]);
-  });
-
   it('validates image dimensions and sizes the views to the image aspect', () => {
     store().setImageDimensions(-1, 10);
     expect(store().imageDimensions).toBeNull();

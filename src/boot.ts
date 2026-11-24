@@ -3,14 +3,13 @@
  * <script type="application/json"> elements:
  *
  *   #iris-urls  (base.html)       application URLs from url_for
- *   #iris-page  (segmentation)    image id and location, debug flag
+ *   #iris-page  (segmentation)    image id, debug flag
  */
 
 import { AppUrls, setAppUrls } from './services/http';
 
 export interface PageBoot {
   imageId: string | null;
-  imageLocation: [number, number];
   debug: boolean;
 }
 
@@ -33,10 +32,9 @@ export function bootUrls(): AppUrls | null {
 }
 
 export function bootPage(): PageBoot {
-  const page = readJson<{ image_id?: string | null; image_location?: [number, number]; debug?: boolean }>('iris-page');
+  const page = readJson<{ image_id?: string | null; debug?: boolean }>('iris-page');
   return {
     imageId: page?.image_id ?? null,
-    imageLocation: page?.image_location ?? [0, 0],
     debug: !!page?.debug,
   };
 }

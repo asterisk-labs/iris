@@ -90,7 +90,7 @@ def actions(type):
     Replaces the legacy admin/fragments/actions/<type> HTML endpoint.
 
     URL Parameters:
-        type (str): Action type to filter by (e.g., 'segmentation', 'classification', 'detection')
+        type (str): Action type to filter by ('segmentation' is the only one)
 
     Query Parameters:
         order_by (str): Column to sort by (user_id, score, difficulty, last_modification, etc.)
@@ -193,7 +193,6 @@ def images():
                             "difficulty": 3.0,   // Average difficulty rating
                             "time_spent": 0.5    // Average time in hours
                         },
-                        "classification": { ... }  // If other action types exist
                     }
                 },
                 ...
@@ -204,7 +203,7 @@ def images():
 
     Algorithm:
         1. For each image in the project:
-           - Group all actions by action type (segmentation, classification, etc.)
+           - Group all actions by action type (only segmentation)
            - Sum up scores, difficulties, and time spent
            - Count number of annotations
         2. Calculate averages (sum / count)
@@ -225,7 +224,7 @@ def images():
     # Build image statistics using same algorithm as legacy code
     # Structure: images_data[image_id][action_type] = {score, count, difficulty, time_spent}
     images_data = defaultdict(dict)
-    actions = Action.query.all()
+    actions = Action.query.filter_by(type='segmentation').all()
 
     # Default statistics structure for each image/type combination
     default_stats = {

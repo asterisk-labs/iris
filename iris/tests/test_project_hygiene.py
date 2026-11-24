@@ -97,3 +97,24 @@ def test_default_config_sets_n_jobs_to_all_cores():
     with open(default_file) as f:
         defaults = json.load(f)
     assert defaults["segmentation"]["ai_model"]["n_jobs"] == -1
+
+
+def test_bing_views_are_dropped_on_load(tmp_path, capsys):
+    file = _write_project(tmp_path, {
+        "views": {"Bing": {"type": "bingmap"}, "Grey": {"type": "image", "data": "$B1"}},
+        "view_groups": {"default": ["Bing", "Grey"]},
+    })
+    p = Project()
+    p.load_from(file)
+    assert list(p['views']) == ["Grey"]
+    assert p['view_groups'] == {"default": ["Grey"]}
+    assert "no longer supported" in capsys.readouterr().out
+
+
+def test_users_can_be_added_to_a_database_with_the_old_tested_column(app):
+    from iris.models import User, db
+    user = User(name="new")
+    db.session.add(user)
+    db.session.commit()
+    assert db.session.execute(db.text("select tested from user")).scalar() == 0
+    assert "tested" not in user.to_json()

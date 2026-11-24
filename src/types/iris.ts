@@ -6,7 +6,6 @@ export interface User {
   email?: string; // Optional for backward compatibility
   created: string;
   isAdmin: boolean;
-  tested: boolean;
   image_seed: number;
   segmentation: {
     score: number;
@@ -38,7 +37,6 @@ export interface UserDto {
   name: string;
   created: string;
   admin: boolean; // Backend uses 'admin'
-  tested: boolean;
   image_seed: number;
   segmentation: {
     score: number;
@@ -151,7 +149,6 @@ export interface UserInfo {
   id: number;
   name: string;
   admin: boolean;
-  tested: boolean;
   created: string;
   image_seed: number;
   segmentation: {
@@ -222,7 +219,6 @@ export interface UserProfile {
   name: string;
   email?: string; // Optional for backward compatibility
   admin: boolean;
-  tested: boolean;
   created: string;
   image_seed: number;
   segmentation: {

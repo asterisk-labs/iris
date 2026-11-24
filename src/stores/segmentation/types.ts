@@ -34,7 +34,7 @@ export interface ImageInfo {
 
 export interface ViewConfig {
   name: string;
-  type: 'image' | 'bingmap';
+  type: 'image';
   description: string;
 }
 
@@ -136,7 +136,6 @@ export interface ViewSlice {
   currentView: string | null;
   showControls: boolean;
   imageDimensions: Size | null;
-  imageLocation: [number, number];
   viewTransform: ViewTransform | null;
   viewWidth: number;
   viewHeight: number;
@@ -147,7 +146,6 @@ export interface ViewSlice {
   setCurrentView: (viewName: string | null) => void;
   toggleControls: () => void;
   setImageDimensions: (width: number, height: number) => void;
-  setImageLocation: (location: [number, number]) => void;
   addView: (name: string, position?: number) => void;
   removeView: (position: number) => void;
   replaceView: (position: number, name: string) => void;

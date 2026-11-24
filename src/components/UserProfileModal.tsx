@@ -203,11 +203,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {profile.admin && (
                     <span style={tagStyle(theme.bgPrimary, theme.success)}>admin</span>
                   )}
-                  {profile.tested ? (
-                    <span style={tagStyle(theme.bgPrimary, theme.success)}>tested</span>
-                  ) : (
-                    <span style={tagStyle(theme.bgPrimary, theme.alert)}>not tested</span>
-                  )}
+
                 </div>
               </div>
 

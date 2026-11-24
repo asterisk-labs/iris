@@ -10,17 +10,13 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ViewConfig } from '../../stores/segmentationStore';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
-import ReactBingLayer from './layers/ReactBingLayer';
 import ViewportCanvases from './ViewportCanvases';
 
 interface ReactViewPortProps {
   view: ViewConfig;
   index: number;
-  width: number;
-  height: number;
   showControls: boolean;
   imageId: string;
-  onImageLocationChange: (location: [number, number]) => void;
   isActive?: boolean;
   onViewActivate?: () => void;
 }
@@ -28,11 +24,8 @@ interface ReactViewPortProps {
 const ReactViewPort: React.FC<ReactViewPortProps> = ({
   view,
   index,
-  width,
-  height,
   showControls,
   imageId,
-  onImageLocationChange,
   isActive = false,
   onViewActivate,
 }) => {
@@ -193,17 +186,6 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
       <div style={layersContainerStyle}>
         {view.type === 'image' && (
           <ViewportCanvases view={view} imageId={imageId} />
-        )}
-
-        {/* Bing Map Layer */}
-        {view.type === 'bingmap' && (
-          <ReactBingLayer
-            view={view}
-            width={width}
-            height={height}
-            onLocationChange={onImageLocationChange}
-            zIndex={1}
-          />
         )}
       </div>
 

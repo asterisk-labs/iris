@@ -16,7 +16,6 @@ describe('UserProfileModal - Password Change', () => {
     name: 'testuser',
     email: 'test@example.com',
     admin: false,
-    tested: true,
     created: '2024-01-01T00:00:00',
     image_seed: 12345,
     segmentation: {

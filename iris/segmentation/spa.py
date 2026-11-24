@@ -40,13 +40,10 @@ def segmentation_spa():
         elif image_id not in project.image_ids:
             return flask.make_response('Unknown image id!', 404)
 
-        metadata = project.get_metadata(image_id)
-
         # Render the React SPA
         return flask.render_template(
             'segmentation/react-app.html',
             image_id=image_id,
-            image_location=metadata.get("location", [0, 0]),
             debug_mode=project.debug
         )
 

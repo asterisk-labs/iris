@@ -26,7 +26,7 @@ export interface ProjectConfig {
     user_colour?: [number, number, number, number];
   }>;
   views: Record<string, {
-    type: 'image' | 'bingmap';
+    type: 'image';
     description?: string;
     data?: string | string[];
     cmap?: string;
@@ -42,7 +42,6 @@ export interface ProjectConfig {
     score?: string;
     prioritise_unmarked_images?: boolean;
     unverified_threshold?: number;
-    test_images?: string[] | null;
     ai_model: AIModelConfig | false;
   };
   chat?: {

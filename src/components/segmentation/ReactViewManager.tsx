@@ -5,7 +5,7 @@
  * It manages multiple ViewPorts and their associated layers (RGB, Mask, Preview, etc.).
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 
@@ -22,7 +22,7 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const { currentGroup, viewWidth, viewHeight, showControls, currentImageId: imageId, currentView, updateViewDimensions, setImageLocation, setCurrentView } = useSegmentationStore(useShallow(s => ({ currentGroup: s.currentGroup, viewWidth: s.viewWidth, viewHeight: s.viewHeight, showControls: s.showControls, currentImageId: s.currentImageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setImageLocation: s.setImageLocation, setCurrentView: s.setCurrentView })));
+  const { currentGroup, showControls, currentImageId: imageId, currentView, updateViewDimensions, setCurrentView } = useSegmentationStore(useShallow(s => ({ currentGroup: s.currentGroup, showControls: s.showControls, currentImageId: s.currentImageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setCurrentView: s.setCurrentView })));
   
   const currentViews = useSegmentationStore(useShallow(s => s.getCurrentViews()));
   
@@ -31,11 +31,6 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
     updateViewDimensions();
     return () => window.removeEventListener('resize', updateViewDimensions);
   }, [updateViewDimensions, currentViews.length]);
-  
-  // Handle image location changes (for Bing maps, etc.)
-  const handleImageLocationChange = useCallback((newLocation: [number, number]) => {
-    setImageLocation(newLocation);
-  }, [setImageLocation]);
   
   if (!imageId || currentViews.length === 0) {
     return (
@@ -88,11 +83,8 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
           key={`${currentGroup}-${view.name}-${index}`}
           view={view}
           index={index}
-          width={viewWidth}
-          height={viewHeight}
           showControls={showControls}
           imageId={imageId}
-          onImageLocationChange={handleImageLocationChange}
           isActive={currentView === view.name}
           onViewActivate={() => setCurrentView(view.name)}
         />

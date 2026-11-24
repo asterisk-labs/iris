@@ -10,13 +10,6 @@ function persistViewState(get: () => SegmentationState) {
   } catch { /* storage unavailable */ }
 }
 
-const isValidLocation = (location: unknown): location is [number, number] => {
-  if (!Array.isArray(location) || location.length !== 2) return false;
-  const [lat, lon] = location;
-  return typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon) &&
-    lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-};
-
 export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
   /** Replace the current group's list of view names. */
   const setCurrentViewNames = (names: string[]) => {
@@ -32,7 +25,6 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
     currentView: null,
     showControls: false,
     imageDimensions: null,
-    imageLocation: [0, 0],
     viewTransform: null,
     viewWidth: 400,
     viewHeight: 400,
@@ -81,14 +73,6 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
       }
       set({ imageDimensions: { width, height } });
       get().updateViewDimensions();
-    },
-
-    setImageLocation: (location) => {
-      if (!isValidLocation(location)) {
-        console.warn('[IRIS] setImageLocation: Invalid coordinates', location);
-        return;
-      }
-      set({ imageLocation: [location[0], location[1]] });
     },
 
     addView: (name, position = -1) => {

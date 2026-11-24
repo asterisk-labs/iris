@@ -24,7 +24,6 @@ const ReactBaseLayer: React.FC<ReactBaseLayerProps & {
   onRender?: () => void;
   onSizeChange?: (width: number, height: number) => void;
   onPositionChange?: (x: number, y: number) => void;
-  onImageLocationChange?: (location: [number, number]) => void;
 }> = ({
   width,
   height,

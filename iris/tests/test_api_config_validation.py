@@ -198,8 +198,8 @@ def test_validate_detects_missing_data_in_image_view(logged_in_admin, sample_val
     assert any('data' in err.lower() and 'nodata' in err.lower() for err in data['errors'])
 
 
-def test_validate_warns_data_in_bingmap_view(logged_in_admin, sample_valid_config):
-    """Test that validation warns when bingmap view has data field"""
+def test_validate_warns_about_bingmap_view(logged_in_admin, sample_valid_config):
+    """Bing views are accepted, so old files validate, but ignored"""
     sample_valid_config['views']['BingMap'] = {
         'type': 'bingmap',
         'data': '$B1'  # Not used for bingmap
@@ -213,7 +213,7 @@ def test_validate_warns_data_in_bingmap_view(logged_in_admin, sample_valid_confi
     assert response.status_code == 200
     data = response.json
     # Should have warning about unused data field
-    assert any('bingmap' in warn.lower() and 'data' in warn.lower() for warn in data['warnings'])
+    assert any('no longer supported' in warn for warn in data['warnings'])
 
 
 def test_validate_detects_invalid_view_group_reference(logged_in_admin, sample_valid_config):

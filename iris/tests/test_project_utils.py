@@ -7,27 +7,6 @@ from skimage.io import imsave
 from iris.project import Project
 
 
-@pytest.mark.parametrize("expr", ["max(B1)", "mean($B1) + 1"])
-def test_check_band_expression_allows(expr, project):
-    project._check_band_expression(expr)  # should not raise
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        "lambda x: x",
-        "__import__('os')",
-        "1; import os",
-        "eval('1')",
-        "a; b",
-        "except: pass",
-    ],
-)
-def test_check_band_expression_forbids(bad, project):
-    with pytest.raises(Exception):  # noqa: B017
-        project._check_band_expression(bad)
-
-
 def test_make_absolute_varieties(tmp_path, monkeypatch, project):
     # simulate a project.file location
     fake_cfg = tmp_path / "cfg.json"

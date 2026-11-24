@@ -8,7 +8,6 @@ from copy import deepcopy
 from glob import glob
 from numbers import Number
 from os.path import basename, dirname, exists, getmtime, isabs, join, normpath
-from pprint import pprint
 
 import flask
 import markupsafe
@@ -16,10 +15,9 @@ import matplotlib
 import numpy as np
 import rasterio as rio
 import yaml
-from skimage.filters import sobel
 from skimage.io import imread
-from skimage.segmentation import felzenszwalb
 
+from iris.expressions import evaluate, find_bands
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
 from iris.ordering import seeded_order
 from iris.utils import merge_deep_dicts
@@ -124,6 +122,8 @@ class Project:
             if self['segmentation']['score'] not in ['f1', 'jaccard', 'accuracy']:
                 raise Exception('Unknown segmentation score!', self['segmentation']['score'])
 
+        self._drop_bing_views()
+
         # Make sure the HTML is understood in the descriptions:
         for name, view in self.config['views'].items():
             view['name'] = name
@@ -137,9 +137,8 @@ class Project:
                 view['cmap'] = view.get('cmap', 'jet')
 
         self._normalise_classes(self.config)
-        for mode in ['segmentation', 'classification', 'detection']:
-            if mode in self.config:
-                self._normalise_classes(self[mode])
+        if 'segmentation' in self.config:
+            self._normalise_classes(self['segmentation'])
 
         if "host" not in self.config:
             self['host'] = '127.0.0.1'
@@ -153,6 +152,18 @@ class Project:
 
     def __setitem__(self, key, value):
         self.config[key] = value
+
+    def _drop_bing_views(self):
+        """Bing views are no longer supported: load the project without them."""
+        bing = [
+            name for name, view in self.config['views'].items()
+            if view.get('type') == 'bingmap'
+        ]
+        for name in bing:
+            print(f"Warning: view '{name}' is a Bing map, which is no longer supported; ignoring it")
+            del self.config['views'][name]
+        for group, names in self.config.get('view_groups', {}).items():
+            self.config['view_groups'][group] = [n for n in names if n not in bing]
 
     def _normalise_classes(self, data):
         if "classes" not in data:
@@ -498,31 +509,9 @@ class Project:
 
     def render_image(self, image_id, view):
         # Find all required variables
-        bands = re.findall(r'(?:\$\w+\.{0,1}\w+)', ";".join(view['data']))
+        bands = find_bands(view['data'])
         image = self.get_image(image_id, bands=bands)
-        environment = self._get_render_environment(image)
-
-        rgb_bands = []
-        for i, expression_raw in enumerate(view['data']):
-            expression = re.sub(r'\$(\w+)\.(\w+)', r'\1["\2"]', expression_raw)
-            expression = re.sub(r'\$(\w+)', r'\1', expression)
-            try:
-                # Since one should never rely on evaluating an expression from
-                # untrusted sources, we will have to find a different solution
-                # to make it safe.
-                self._check_band_expression(expression)
-                rgb_bands.append(
-                    eval(expression, {"__builtins__": None}, environment)
-                )
-            except Exception as error:
-                print(
-                    f"Could not parse {i}th expression of {view['name']}\n",
-                    f"Raw expression: {expression_raw}\n",
-                    f"Python expression: {expression}\n",
-                    f"Error: {error}\n",
-                    "Environment:"
-                )
-                pprint(environment)
+        rgb_bands = [evaluate(expression, image) for expression in view['data']]
 
         # Broadcast (single numbers are converted to an array with the size of
         # this image)
@@ -567,35 +556,6 @@ class Project:
 
         rgb_bands = np.dstack(rgb_bands)
         return (255*rgb_bands).astype('uint8')
-
-    def _get_render_environment(self, image):
-        return {
-            'max': np.max,
-            'min': np.min,
-            'mean': np.mean,
-            'median': np.median,
-            'log': np.log,
-            'exp': np.exp,
-            'sin': np.sin,
-            'cos': np.cos,
-            'PI': np.pi,
-            'edges': sobel,
-            'superpixels': felzenszwalb,
-            **{
-                key.strip('$'): value
-                for key, value in image.items()
-            },
-        }
-
-    def _check_band_expression(self, expression):
-        forbidden_tokens = ['lambda', '__', 'except', 'eval', ';']
-
-        for forbidden in forbidden_tokens:
-            if forbidden in expression:
-                raise Exception(
-                    f"'{forbidden}' is not allowed in band expressions!\n"
-                    + f"Expression: {expression}"
-                )
 
     def get_metadata(self, image_id):
         filename = self['images'].get('metadata', False)

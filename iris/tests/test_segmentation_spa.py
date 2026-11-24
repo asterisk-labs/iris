@@ -64,8 +64,7 @@ def test_segmentation_spa_route_no_image_id():
     This tests the primary code path where:
     1. No image_id is provided in URL parameters
     2. System calls project.get_start_image_id() to determine default image
-    3. System retrieves metadata for that image (including location coordinates)
-    4. React template is rendered with the default image and its metadata
+    4. React template is rendered with the default image
     """
     mock_project = MagicMock()
     from iris.segmentation.spa import spa_bp
@@ -73,8 +72,6 @@ def test_segmentation_spa_route_no_image_id():
     # SETUP: Mock the project system to return predictable values
     # This simulates a project where 'default_image' is the starting image
     mock_project.get_start_image_id.return_value = 'default_image'
-    # Mock metadata includes location coordinates for map display
-    mock_project.get_metadata.return_value = {'location': [10, 20]}
 
     # SETUP: Create a minimal Flask app with just our SPA blueprint
     app = flask.Flask(__name__)
@@ -95,14 +92,11 @@ def test_segmentation_spa_route_no_image_id():
         # VERIFICATION: Ensure the system asked for the default starting image
         mock_project.get_start_image_id.assert_called_once()
 
-        # VERIFICATION: Ensure metadata was retrieved for the default image
-        mock_project.get_metadata.assert_called_once_with('default_image')
 
         # VERIFICATION: Ensure React template was rendered with correct data
         mock_render.assert_called_once_with(
             'segmentation/react-app.html',  # React SPA template
             image_id='default_image',       # The default image ID
-            image_location=[10, 20],        # Location coordinates from metadata
             debug_mode=mock_project.debug   # Debug mode from project
         )
 
@@ -117,7 +111,6 @@ def test_segmentation_spa_route_with_valid_image_id():
     This tests the direct image access path where:
     1. User provides a specific image_id in URL parameters
     2. System validates the image_id exists in the project
-    3. System retrieves metadata for the requested image
     4. React template is rendered with the requested image data
 
     This is commonly used when:
@@ -131,8 +124,6 @@ def test_segmentation_spa_route_with_valid_image_id():
     # SETUP: Mock project with a list of valid images
     # This simulates a project containing multiple images
     mock_project.image_ids = ['test_image', 'other_image']
-    # Mock metadata for the requested image
-    mock_project.get_metadata.return_value = {'location': [30, 40]}
 
     # SETUP: Create Flask app with SPA blueprint
     app = flask.Flask(__name__)
@@ -149,15 +140,12 @@ def test_segmentation_spa_route_with_valid_image_id():
         # VERIFICATION: Response should be successful
         assert response.status_code == 200
 
-        # VERIFICATION: System should retrieve metadata for the requested image
         # Note: get_start_image_id() should NOT be called since we provided an image_id
-        mock_project.get_metadata.assert_called_once_with('test_image')
 
         # VERIFICATION: React template rendered with the requested image data
         mock_render.assert_called_once_with(
             'segmentation/react-app.html',  # React SPA template
             image_id='test_image',          # The requested image ID
-            image_location=[30, 40],        # Location from image metadata
             debug_mode=mock_project.debug   # Debug mode from project
         )
 
@@ -229,7 +217,6 @@ def test_segmentation_spa_route_with_user_session_and_last_mask(mock_action, moc
 
     # SETUP: Mock project defaults (these should be overridden by user history)
     mock_project.get_start_image_id.return_value = 'default_image'
-    mock_project.get_metadata.return_value = {'location': [50, 60]}
 
     # SETUP: Mock database query to return user's last annotation
     # This simulates finding the user's most recent work
@@ -260,13 +247,11 @@ def test_segmentation_spa_route_with_user_session_and_last_mask(mock_action, moc
             assert response.status_code == 200
 
             # VERIFICATION: System should load user's last worked image, not default
-            mock_project.get_metadata.assert_called_once_with('last_worked_image')
 
             # VERIFICATION: React template should render with user's last image
             mock_render.assert_called_once_with(
                 'segmentation/react-app.html',  # React SPA template
                 image_id='last_worked_image',   # User's last work (not default)
-                image_location=[50, 60],        # Metadata for that image
                 debug_mode=mock_project.debug   # Debug mode from project
             )
 
@@ -297,7 +282,6 @@ def test_segmentation_spa_route_with_user_session_no_last_mask(mock_action, mock
 
     # SETUP: Mock project defaults (these should be used as fallback)
     mock_project.get_start_image_id.return_value = 'default_image'
-    mock_project.get_metadata.return_value = {'location': [70, 80]}
 
     # SETUP: Mock database query to return no previous annotations
     # This simulates a user with no annotation history
@@ -328,13 +312,11 @@ def test_segmentation_spa_route_with_user_session_no_last_mask(mock_action, mock
             # VERIFICATION: Since no history exists, should use the start of
             # this user's own order
             mock_project.get_start_image_id.assert_called_once_with(42)
-            mock_project.get_metadata.assert_called_once_with('default_image')
 
             # VERIFICATION: React template should render with default image
             mock_render.assert_called_once_with(
                 'segmentation/react-app.html',  # React SPA template
                 image_id='default_image',       # Project default (no user history)
-                image_location=[70, 80],        # Default image metadata
                 debug_mode=mock_project.debug   # Debug mode from project
             )
 
@@ -379,54 +361,3 @@ def test_segmentation_spa_route_error_handling():
 
         # VERIFICATION: Should return generic error message (not expose internal details)
         assert b'Internal server error' in response.data
-
-
-def test_segmentation_spa_route_metadata_without_location():
-    """
-    Test SPA route behavior when image metadata is missing location information.
-
-    SCENARIO: Image exists but has incomplete metadata (no GPS coordinates)
-    EXPECTED: System should use default location coordinates [0, 0]
-
-    This tests the defensive programming where:
-    1. Image metadata exists but is incomplete
-    2. The 'location' key is missing from metadata dictionary
-    3. System uses .get('location', [0, 0]) to provide safe fallback
-    4. React template receives valid coordinates instead of None/undefined
-    5. Map display doesn't break due to missing coordinates
-
-    This handles real-world cases where:
-    - Images don't have GPS metadata
-    - Metadata is corrupted or incomplete
-    - Legacy images missing modern metadata fields
-    """
-    mock_project = MagicMock()
-    from iris.segmentation.spa import spa_bp
-
-    # SETUP: Mock project with image that has incomplete metadata
-    mock_project.get_start_image_id.return_value = 'test_image'
-    # SETUP: Metadata exists but missing 'location' key (common in real data)
-    mock_project.get_metadata.return_value = {}  # Empty dict, no location
-
-    # SETUP: Create Flask app with SPA blueprint
-    app = flask.Flask(__name__)
-    app.extensions['iris'] = mock_project
-    app.register_blueprint(spa_bp)
-
-    with app.test_client() as client, app.app_context(), patch('flask.render_template') as mock_render:
-        # SETUP: Mock template rendering
-        mock_render.return_value = '<html>React App</html>'
-
-        # ACTION: Request segmentation page
-        response = client.get('/segmentation/')
-
-        # VERIFICATION: Should handle missing location gracefully
-        assert response.status_code == 200
-
-        # VERIFICATION: Should use default coordinates when location missing
-        mock_render.assert_called_once_with(
-            'segmentation/react-app.html',  # React SPA template
-            image_id='test_image',          # The image ID
-            image_location=[0, 0],          # Safe fallback coordinates
-            debug_mode=mock_project.debug   # Debug mode from project
-        )

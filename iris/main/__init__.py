@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image as PILImage
 from skimage.transform import resize
 
+from iris.expressions import ExpressionError
 from iris.models import Action, db
 from iris.project import current_project
 from iris.user import requires_auth
@@ -26,7 +27,12 @@ def index():
 @main_app.route('/image/<image_id>/<view>')
 def image(image_id, view):
     project = current_project()
-    image = project.render_image(image_id, project['views'][view])
+    if image_id not in project.image_ids or view not in project['views']:
+        return flask.make_response('Unknown image or view!', 404)
+    try:
+        image = project.render_image(image_id, project['views'][view])
+    except ExpressionError as error:
+        return flask.make_response(f"View '{view}': {error}", 400)
     return array_to_png(image)
 
 @main_app.route('/image_info/<image_id>')
@@ -34,25 +40,15 @@ def image(image_id, view):
 def image_info(image_id):
     user_id = flask.session['user_id']
 
-    actions = Action.query.filter_by(image_id=image_id).all()
-    # Sort actions by type:
-    actions = {
-        type: list(filter(lambda a: a.type == type, actions))
-        for type in ['segmentation', 'classification', 'detection']
-    }
+    actions = Action.query.filter_by(image_id=image_id, type='segmentation').all()
+    info = {'count': len(actions), 'current_user_score': None}
+    for action in actions:
+        if action.user_id == user_id:
+            info['current_user_score'] = action.score
+            info['current_user_score_unverified'] = action.unverified
+            break
 
-    data = {}
-    for type, t_actions in actions.items():
-        data[type] = {
-            'count': len(t_actions),
-            'current_user_score': None
-        }
-        for t_action in t_actions:
-            if t_action.user_id == user_id:
-                data[type]['current_user_score'] = t_action.score
-                data[type]['current_user_score_unverified'] = t_action.unverified
-                break
-
+    data = {'segmentation': info}
     data['id'] = image_id
     return flask.jsonify(data)
 

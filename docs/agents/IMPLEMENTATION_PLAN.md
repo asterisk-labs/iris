@@ -178,6 +178,24 @@ The old swap existed so that "previous" returned to the image a prioritised
 trail does not lead to the current image. The `/previous_image` redirect,
 which the UI does not call, has no trail and only steps back in the order.
 
+0.2.E on `part0-remaining`: `iris/expressions.py`. It returns the same values
+and dtypes as `eval` did on every case in `iris/tests/expression_cases.json`,
+which a TypeScript checker can run too. Indexing, conditionals, chained
+comparisons and the numpy keyword arguments other than `axis` worked under
+`eval` and no longer do. A failing expression is now an error (400 from the
+image route) and is reported by config validation, where before the band was
+dropped with a message in the log. The evaluator limits what an expression
+can reach, not how long it takes, so `superpixels` with a huge `sigma` is
+still slow; user-authored views (T1.3.2) need a limit on that.
+
+0.2.F on `part0-remaining`: the Bing layer, the other action types,
+`test_images` and `tested` are gone. A project with a Bing view loads without
+it and prints a warning. The `tested` column stays in the model, unexposed,
+because existing databases have it as NOT NULL without a default and dropping
+it would break adding users; `Action.type` stays and is always
+`segmentation`. Dropping both needs a database migration, which IRIS has no
+mechanism for yet.
+
 If only two of these can be done, do 0.2.A and 0.2.D. They are the two that every
 T1 task otherwise has to work around.
 
