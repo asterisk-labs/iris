@@ -7,7 +7,7 @@ import re
 from copy import deepcopy
 from glob import glob
 from numbers import Number
-from os.path import basename, dirname, exists, getmtime, isabs, join, normpath
+from os.path import basename, dirname, exists, getmtime, isabs, join, normpath, relpath
 from pprint import pprint
 
 import markupsafe
@@ -21,6 +21,53 @@ from skimage.segmentation import felzenszwalb
 
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
 from iris.utils import merge_deep_dicts
+
+# Above this many bands, an image should be stored band by band: showing 3
+# bands of pixel interleaved or untiled data reads all of them. RGB(A) images
+# stay below it, so the demos say nothing.
+MAX_BANDS_ANY_LAYOUT = 4
+
+FIX_GEOTIFF = ('gdal_translate -co TILED=YES -co INTERLEAVE=BAND '
+               '-co COMPRESS=ZSTD in.tif out.tif')
+
+
+def band_layout_problem(path, name=None):
+    """Why reading a few bands of an image file is slow, or None.
+
+    Only the header is read. name is how the file is shown in the message.
+    """
+    name = name or path
+    lower = path.lower()
+    if lower.endswith('npy'):
+        array = np.load(path, mmap_mode='r', allow_pickle=False)
+        if array.ndim != 3 or array.shape[-1] <= MAX_BANDS_ANY_LAYOUT:
+            return None
+        count = int(array.shape[-1])
+        return (
+            f"{count} bands stored channels last ({name}). Rendering 3 bands "
+            f"reads across all {count}. A tiled, band interleaved GeoTIFF "
+            "reads only the bands it needs (see docs/config.md)."
+        )
+    if not lower.endswith(('.tif', '.tiff', '.vrt')):
+        return None
+    with rio.open(path) as file:
+        count = file.count
+        if count <= MAX_BANDS_ANY_LAYOUT:
+            return None
+        interleaving = file.interleaving
+        block_height, block_width = file.block_shapes[0]
+        stripped = block_width == file.width and block_height < file.height
+    if interleaving is not None and interleaving.name.lower() != 'band':
+        layout = f"stored {interleaving.name.lower()} interleaved"
+    elif stripped:
+        layout = "stored in strips, not tiles"
+    else:
+        return None
+    return (
+        f"{count} bands {layout} ({name}).\n"
+        f"  Rendering 3 bands will read all {count}. To fix:\n"
+        f"    {FIX_GEOTIFF}"
+    )
 
 
 class Project:
@@ -91,6 +138,7 @@ class Project:
         )
 
         self._init_image_shape()
+        self._check_band_layout()
 
         if self.segmentation:
             # mask_area is optional; without it the whole image is the mask
@@ -293,6 +341,24 @@ class Project:
                     f"[{height}, {width}] (height, width).{hint}"
                 )
         self.config['images']['shape'] = [height, width]
+
+    def _check_band_layout(self):
+        """Warn about image files that make rendering a few bands slow.
+
+        Only the first image of each source is checked, once per load, from
+        the file header.
+        """
+        paths = self.get_image_path(self.image_ids[0])
+        if not isinstance(paths, dict):
+            paths = {'pictures': paths}
+        for source, path in paths.items():
+            try:
+                problem = band_layout_problem(path, relpath(path, dirname(self.file)))
+            except Exception:
+                # An unreadable file is reported when it is first shown
+                continue
+            if problem:
+                print(f"Warning: {source}: {problem}")
 
     def _check_mask_area(self, area):
         if (not isinstance(area, (list, tuple)) or len(area) != 4

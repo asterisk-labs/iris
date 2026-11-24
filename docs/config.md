@@ -68,6 +68,12 @@ When you have your data distributed over multiple files (e.g. coming from Sentin
 }
 ```
 
+For images with more than four bands, use tiled GeoTIFFs with the bands stored one after the other (band interleaved). A view shows three bands; with pixel interleaved or untiled files IRIS has to read and decompress every band to get them, which for a 128 band image takes about 40 times longer. When IRIS loads a project it checks the first image of each source and prints a warning with the fix:
+```
+gdal_translate -co TILED=YES -co INTERLEAVE=BAND -co COMPRESS=ZSTD in.tif out.tif
+```
+Numpy files hold the bands last (HxWxC), so they are pixel interleaved too.
+
 ### images : shape
 Optional. IRIS reads the size of each image from the file, and images in
 one project may differ in size. If you do give a shape it must be
