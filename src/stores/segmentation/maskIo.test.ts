@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useSegmentationStore } from './index';
 import { MaskHistory } from '../../segmentation/mask/history';
 import { encodeMasks } from '../../segmentation/mask/codec';
+import { NO_LABEL } from '../../segmentation/mask/MaskDocument';
 import type { ProjectConfig } from '../../types/iris';
 
 const W = 4, H = 3, N = W * H;
@@ -60,6 +61,8 @@ describe('mask store actions', () => {
     await useSegmentationStore.getState().loadMaskForImage('img');
     const s = useSegmentationStore.getState();
     expect(Array.from(s.maskDocument!.user)).toEqual(new Array(N).fill(0));
+    // Not class 0, which would show the whole image in its colour
+    expect(Array.from(s.maskDocument!.final)).toEqual(new Array(N).fill(NO_LABEL));
     expect(s.errorModal.isOpen).toBe(false);
   });
 
@@ -136,7 +139,8 @@ describe('mask store actions', () => {
       expect(s.maskChanged).toBe(true);
 
       useSegmentationStore.getState().undo();
-      expect(useSegmentationStore.getState().maskDocument!.final[40]).toBe(0);
+      // Back to no label, as before the prediction
+      expect(useSegmentationStore.getState().maskDocument!.final[40]).toBe(NO_LABEL);
     });
 
     it('reset clears the mask and can be undone', () => {

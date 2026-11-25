@@ -426,7 +426,7 @@ def export_merged_geotiff(image_id):
                 image_path = list(image_path.values())[0]
 
         # Load merged mask by reading all user masks and merging them
-        from iris.segmentation import get_mask_filenames
+        from iris.segmentation import NO_LABEL, get_mask_filenames, load_final_mask
 
         final_mask_paths = get_mask_filenames(image_id, user_id="*")[0]
         mask_files = glob(final_mask_paths)
@@ -438,13 +438,7 @@ def export_merged_geotiff(image_id):
             }), 404
 
         # Load all user masks and merge them using voting system
-        final_masks = []
-        for path in mask_files:
-            mask_data = np.load(path)
-            # Convert from one-hot encoding to class indices
-            final_masks.append(np.argmax(mask_data, axis=-1))
-
-        final_masks = np.dstack(final_masks)
+        final_masks = np.dstack([load_final_mask(path) for path in mask_files])
 
         # Merge masks using voting system (reuses compute_merged_mask function)
         from iris.segmentation import compute_merged_mask
@@ -538,6 +532,7 @@ def export_merged_geotiff(image_id):
             dst.set_band_description(2, 'Green')
             dst.set_band_description(3, 'Blue')
             dst.set_band_description(4, 'Merged Segmentation Mask')
+            dst.update_tags(4, unlabelled=NO_LABEL)
 
         # Send file to user
         return flask.send_file(
@@ -618,7 +613,7 @@ def export_all_geotiffs():
         exported_files = []
         skipped_images = []
 
-        from iris.segmentation import compute_merged_mask, get_mask_filenames
+        from iris.segmentation import NO_LABEL, compute_merged_mask, get_mask_filenames, load_final_mask
 
         # Iterate through all images
         for image_id in project.image_ids:
@@ -647,12 +642,7 @@ def export_all_geotiffs():
                         image_path = list(image_path.values())[0]
 
                 # Load all user masks and merge them
-                final_masks = []
-                for path in mask_files:
-                    mask_data = np.load(path)
-                    final_masks.append(np.argmax(mask_data, axis=-1))
-
-                final_masks = np.dstack(final_masks)
+                final_masks = np.dstack([load_final_mask(path) for path in mask_files])
                 merged_mask = compute_merged_mask(final_masks)
 
                 # Render RGB image
@@ -732,6 +722,7 @@ def export_all_geotiffs():
                     dst.set_band_description(2, 'Green')
                     dst.set_band_description(3, 'Blue')
                     dst.set_band_description(4, 'Merged Segmentation Mask')
+                    dst.update_tags(4, unlabelled=NO_LABEL)
 
                 exported_files.append(output_filename)
 

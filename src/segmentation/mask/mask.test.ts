@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MaskDocument } from './MaskDocument';
+import { MaskDocument, NO_LABEL } from './MaskDocument';
 import { MaskHistory } from './history';
 import { renderMaskRect } from './palette';
 import { encodeMasks, decodeMasks } from './codec';
@@ -18,15 +18,23 @@ const fullCount = (doc: MaskDocument, classCount: number) => {
 };
 
 describe('MaskDocument', () => {
+  it('starts with no label, not class 0', () => {
+    const doc = new MaskDocument(2, 1, 3);
+    expect(Array.from(doc.final)).toEqual([NO_LABEL, NO_LABEL]);
+    expect(doc.counts()).toEqual({ 0: 0, 1: 0, 2: 0, total: 0 });
+  });
+
   it('paint sets class and user flag; erase clears both', () => {
     const doc = new MaskDocument(4, 3, 3);
-    doc.paint([0, 5], 2);
-    expect(Array.from(doc.final)).toEqual([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0]);
+    doc.paint([0, 5], 0);
+    doc.paint([5], 2);
+    const _ = NO_LABEL;
+    expect(Array.from(doc.final)).toEqual([0, _, _, _, _, 2, _, _, _, _, _, _]);
     expect(Array.from(doc.user)).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
     doc.erase([5]);
-    expect(doc.final[5]).toBe(0);
+    expect(doc.final[5]).toBe(NO_LABEL);
     expect(doc.user[5]).toBe(0);
-    expect(doc.counts()).toEqual({ 0: 0, 1: 0, 2: 1, total: 1 });
+    expect(doc.counts()).toEqual({ 0: 1, 1: 0, 2: 0, total: 1 });
   });
 
   it('keeps counts equal to a full recount through random edits', () => {
@@ -72,7 +80,7 @@ describe('MaskDocument', () => {
     doc.paint([0, 1], 1);
     doc.setErrors(new Uint8Array([1, 2]));
     doc.reset();
-    expect(Array.from(doc.final)).toEqual([0, 0]);
+    expect(Array.from(doc.final)).toEqual([NO_LABEL, NO_LABEL]);
     expect(Array.from(doc.user)).toEqual([0, 0]);
     expect(Array.from(doc.errors)).toEqual([1, 2]);
     expect(doc.counts().total).toBe(0);
@@ -147,6 +155,14 @@ describe('renderMaskRect', () => {
 
   it('renders a sub-rectangle', () => {
     expect(render('final', { x: 1, y: 1, width: 1, height: 1 })).toEqual([0, 0, 0, 0]);
+  });
+
+  it('leaves unlabelled pixels transparent, also when class 0 has a colour', () => {
+    const blank = new MaskDocument(2, 1, 2);
+    blank.paint([0], 0);
+    const out = new Uint8ClampedArray(8);
+    renderMaskRect(blank, 'final', [{ name: 'water', colour: [0, 0, 255, 90] }, classes[1]], { x: 0, y: 0, width: 2, height: 1 }, out);
+    expect(Array.from(out)).toEqual([0, 0, 255, 90, 255, 255, 255, 0]);
   });
 });
 
