@@ -9,23 +9,25 @@ from iris.models import db
 
 @pytest.fixture(scope='session')
 def app():
-    """The demo project's app with an isolated database and project folder.
+    """The app of a temporary copy of the demo project.
 
-    Importing `iris` has no side effects, so the app is built here from
-    the demo config. The database lives in a temporary folder, as does the
-    project path (masks, user configs), so tests never touch the demo
-    project's own `.iris` folder.
+    Tests edit the config, rename the project and save masks, so they run on
+    a copy and never write into the demo folder. The database and the
+    project path (masks, user configs) are in the same temporary folder.
     """
     from iris import build_app, get_demo_file
 
-    test_project_dir = tempfile.mkdtemp(suffix='.iris')
-    os.makedirs(os.path.join(test_project_dir, 'user_config'), exist_ok=True)
+    root = tempfile.mkdtemp()
+    demo = os.path.join(root, 'demo')
+    shutil.copytree(os.path.dirname(get_demo_file()), demo, ignore=shutil.ignore_patterns('*.iris'))
+    test_project_dir = os.path.join(root, 'project.iris')
+    os.makedirs(os.path.join(test_project_dir, 'user_config'))
     test_db = 'sqlite:///' + os.path.join(test_project_dir, 'iris.db')
 
-    iris_app = build_app(get_demo_file(), {'debug': False}, db_uri=test_db)
+    iris_app = build_app(
+        os.path.join(demo, os.path.basename(get_demo_file())), {'debug': False}, db_uri=test_db
+    )
     iris_app.config['TESTING'] = True
-
-    # Keep masks and user configs written by tests out of the demo folder
     iris_app.extensions['iris'].config['path'] = test_project_dir
 
     ctx = iris_app.app_context()
@@ -35,7 +37,7 @@ def app():
     finally:
         db.session.remove()
         ctx.pop()
-        shutil.rmtree(test_project_dir, ignore_errors=True)
+        shutil.rmtree(root, ignore_errors=True)
 
 
 @pytest.fixture
