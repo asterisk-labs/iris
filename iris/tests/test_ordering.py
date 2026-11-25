@@ -7,7 +7,6 @@ from iris.ordering import (
     annotation_counts,
     least_annotated_next,
     next_in_order,
-    previous_in_order,
     seeded_order,
 )
 
@@ -27,11 +26,9 @@ def test_seeded_order_does_not_touch_its_input():
     assert ids == IDS
 
 
-def test_next_and_previous_wrap_round():
+def test_next_wraps_round():
     assert next_in_order(IDS, "a") == "b"
     assert next_in_order(IDS, "f") == "a"
-    assert previous_in_order(IDS, "a") == "f"
-    assert previous_in_order(IDS, "c") == "b"
 
 
 def test_unknown_image_raises():

@@ -109,7 +109,7 @@ describe('Annotating an image', () => {
   });
 
   it('shows the login form and no image data to anonymous visitors', () => {
-    cy.request('/api/v1/auth/logout');
+    cy.request('POST', '/api/v1/auth/logout');
     cy.visit('/segmentation/');
     cy.get('#login-username', { timeout: 20000 }).should('be.visible');
     cy.request({ url: '/api/v1/images/coast/views/RGB', failOnStatusCode: false })
@@ -134,5 +134,20 @@ describe('Annotating an image', () => {
       cy.visit(`/admin/${page}`);
       cy.wait('@data').its('response.statusCode').should('be.oneOf', [200, 304]);
     });
+  });
+
+  it('logs in through the form and out through the profile', () => {
+    cy.request('POST', '/api/v1/auth/logout');
+    cy.visit('/segmentation/');
+    cy.get('#login-username', { timeout: 20000 }).should('be.visible').type('admin');
+    cy.get('#login-password').type('123');
+    cy.contains('button', 'Login').click();
+    state((s) => expect(s.user?.name).to.equal('admin'));
+    cy.getCookie('session').should('have.property', 'sameSite', 'lax');
+
+    cy.get('[title*="rofile"]').first().click();
+    cy.contains('button', /log ?out/i).click();
+    cy.get('#login-username', { timeout: 20000 }).should('be.visible');
+    cy.request('/api/v1/auth/session').then(({ body }) => expect(body.user).to.equal(null));
   });
 });

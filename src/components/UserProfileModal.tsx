@@ -62,7 +62,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/v1/auth/logout');
+      const response = await fetch('/api/v1/auth/logout', { method: 'POST' });
       if (response.ok) window.location.href = '/';
     } catch { setError('Failed to logout'); }
   };

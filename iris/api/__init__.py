@@ -43,7 +43,7 @@ def all_routes():
         _route('GET', '/auth/session', user_api.get_current_user, '/user/api/current', public=True),
         _route('POST', '/auth/register', user.register, '/user/register', public=True),
         _route('POST', '/auth/login', user.login, '/user/login', public=True),
-        _route('GET', '/auth/logout', user.logout, '/user/logout', public=True),
+        _route('POST', '/auth/logout', user.logout, '/user/logout', public=True),
         _route('POST', '/auth/request-password-reset', user.request_password_reset,
                '/user/request-password-reset', public=True),
         _route('POST', '/auth/change-password', user_api.change_password,

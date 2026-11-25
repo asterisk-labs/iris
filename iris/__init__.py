@@ -12,6 +12,7 @@ __version__ = "1.0.0"
 
 from iris.extensions import compress, db
 from iris.project import Project
+from iris.secret_key import load_secret_key
 
 
 def get_demo_dir() -> Path:
@@ -236,6 +237,10 @@ def create_app(project_file, args=None, db_uri=None):
     app.config.from_pyfile('config.py')
     app.config['SQLALCHEMY_DATABASE_URI'] = \
         db_uri or 'sqlite:///' + join(project['path'], 'iris.db')
+
+    # An app with its own database (tests) must not write to the project folder
+    app.config['SECRET_KEY'] = \
+        os.urandom(32) if db_uri else load_secret_key(project['path'])
 
     # Register the extensions:
     db.init_app(app)

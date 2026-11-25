@@ -32,12 +32,6 @@ def next_in_order(order: Sequence[str], image_id: str) -> str:
     return order[(index + 1) % len(order)]
 
 
-def previous_in_order(order: Sequence[str], image_id: str) -> str:
-    """The image before image_id, wrapping round at the start."""
-    index = order.index(image_id)
-    return order[(index - 1) % len(order)]
-
-
 def annotation_counts(
     annotations: Iterable[tuple], user_id
 ) -> dict:

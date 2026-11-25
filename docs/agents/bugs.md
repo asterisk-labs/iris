@@ -50,19 +50,6 @@ reset and predict, would cut this to a few MB in normal use.
 
 ---
 
-## Backend
-
-### `save_mask` magic-byte check uses `and`
-
-*Found on `finish-migration`.*
-
-`iris/segmentation/__init__.py`, `save_mask`:
-`elif data[0] != 254 and data[-1] != 254:` rejects the upload only when
-*both* magic bytes are wrong. It should be `or`. The length check above
-it catches most corruption, so impact is low.
-
----
-
 ## Tests
 
 ### Timing-sensitive tests fail intermittently under the full suite

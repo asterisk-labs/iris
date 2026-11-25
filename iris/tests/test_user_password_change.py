@@ -44,7 +44,7 @@ def test_change_password_success(client, app):
     assert data["message"] == "Password changed successfully"
 
     # Logout
-    client.get("/api/v1/auth/logout")
+    client.post("/api/v1/auth/logout")
 
     # Try logging in with old password (should fail)
     response = client.post(
