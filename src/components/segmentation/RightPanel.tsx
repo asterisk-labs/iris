@@ -2,6 +2,7 @@ import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Command, tooltip } from '../../segmentation/input/shortcuts';
 
 interface RightPanelProps {
   onSelectClass: () => void;
@@ -52,12 +53,10 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
 
   // Segmented control for mask types
   const SegmentedControl: React.FC<{
-    options: Array<{ value: string; icon: string; title: string; label: string }>;
+    options: Array<{ value: string; icon: string; title: string; label: string; command: Command }>;
     value: string;
     onChange: (value: string) => void;
   }> = ({ options, value, onChange }) => {
-    const [hoveredOption, setHoveredOption] = React.useState<string | null>(null);
-    
     return (
       <div style={{ position: 'relative' }}>
         <div style={{
@@ -71,9 +70,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
             <button
               key={option.value}
               onClick={() => onChange(option.value)}
-              onMouseEnter={() => setHoveredOption(option.value)}
-              onMouseLeave={() => setHoveredOption(null)}
-              title={option.title}
+              aria-label={option.title}
+              {...tooltip(option.title, option.command)}
               style={{
                 flex: 1,
                 padding: '8px',
@@ -97,44 +95,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
                   opacity: value === option.value ? 1 : 0.6,
                   filter: iconFilter,
                 }}
-                alt={option.title}
+                alt=""
               />
-              
-              {/* Modern Tooltip */}
-              {hoveredOption === option.value && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginBottom: '8px',
-                  padding: '6px 10px',
-                  backgroundColor: theme.tooltipBg,
-                  color: theme.tooltipText,
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  borderRadius: '4px',
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  zIndex: 1000,
-                  pointerEvents: 'none',
-                  animation: 'fadeIn 0.15s ease',
-                }}>
-                  {option.title}
-                  {/* Tooltip arrow */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderLeft: '4px solid transparent',
-                    borderRight: '4px solid transparent',
-                    borderTop: `4px solid ${theme.tooltipBg}`,
-                  }} />
-                </div>
-              )}
             </button>
           ))}
         </div>
@@ -218,7 +180,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
             e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
             e.currentTarget.style.transform = 'scale(1)';
           }}
-          title={isCollapsed ? 'Show panel' : 'Hide panel'}
+          {...tooltip(isCollapsed ? 'Show panel' : 'Hide panel')}
         >
           {isCollapsed ? '◀' : '▶'}
         </button>
@@ -258,7 +220,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
             }}
-            title="Show panel"
+            {...tooltip('Show panel')}
           >
             ◀
           </button>
@@ -269,6 +231,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
         <SectionHeader>Class</SectionHeader>
         <button
           onClick={onSelectClass}
+          {...tooltip('Select class, or press 1..9')}
           style={{
             width: '100%',
             padding: '10px 12px',
@@ -329,7 +292,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
               position: 'relative',
               transition: 'background-color 0.2s ease',
             }}
-            title="Toggle mask visibility"
+            aria-label="Show mask"
+            {...tooltip('Show or hide the mask', 'toggle_mask')}
           >
             <div style={{
               position: 'absolute',
@@ -350,9 +314,9 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           <div style={{ fontSize: '12px', color: theme.gray600, marginBottom: '8px' }}>Type</div>
           <SegmentedControl
             options={[
-              { value: 'final', icon: '/segmentation/static/icons/mask_final.png', title: 'Final mask', label: 'Final' },
-              { value: 'user', icon: '/segmentation/static/icons/mask_user.png', title: 'User mask', label: 'User' },
-              { value: 'errors', icon: '/segmentation/static/icons/mask_errors.png', title: 'Error mask', label: 'Errors' },
+              { value: 'final', icon: '/segmentation/static/icons/mask_final.png', title: 'Final mask', label: 'Final', command: 'mask_final' },
+              { value: 'user', icon: '/segmentation/static/icons/mask_user.png', title: 'User mask', label: 'User', command: 'mask_user' },
+              { value: 'errors', icon: '/segmentation/static/icons/mask_errors.png', title: 'Error mask', label: 'Errors', command: 'mask_errors' },
             ]}
             value={maskType}
             onChange={(type) => setMaskType(type as 'final' | 'user' | 'errors')}
@@ -365,7 +329,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
         <SectionHeader>Adjustments</SectionHeader>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Brightness Slider */}
-          <div>
+          <div {...tooltip('Brightness', 'brightness_up', 'brightness_down')}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -414,7 +378,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           </div>
 
           {/* Saturation Slider */}
-          <div>
+          <div {...tooltip('Saturation', 'saturation_up', 'saturation_down')}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -488,7 +452,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
                   e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
                 }
               }}
-              title="Toggle contrast"
+              {...tooltip('Toggle contrast', 'toggle_contrast')}
             >
               Contrast
             </button>
@@ -517,7 +481,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
                   e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
                 }
               }}
-              title="Toggle invert"
+              {...tooltip('Toggle invert', 'toggle_invert')}
             >
               Invert
             </button>
@@ -526,6 +490,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           {/* Reset Button */}
           <button
             onClick={resetFilters}
+            {...tooltip('Reset all image filters', 'reset_filters')}
             style={{
               width: '100%',
               padding: '8px',

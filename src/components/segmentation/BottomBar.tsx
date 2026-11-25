@@ -4,6 +4,7 @@ import { ImageIcon, BarChartIcon, ShieldIcon } from '../icons/ToolbarIcons';
 import AIScore from './statusbar/AIScore';
 import AIRecommendation from './statusbar/AIRecommendation';
 import { useSegmentationStore } from '../../stores/segmentationStore';
+import { tooltip } from '../../segmentation/input/shortcuts';
 
 interface BottomBarProps {
   onOpenImageInfo: () => void;
@@ -54,7 +55,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          title="Image information"
+          {...tooltip('Image information')}
         >
           <ImageIcon size={16} color={theme.toolbarText} />
           {currentImageId}
@@ -77,7 +78,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          title="View confusion matrix"
+          {...tooltip('Confusion matrix and statistics')}
         >
           <BarChartIcon size={16} color={theme.toolbarText} />
           Stats
@@ -112,7 +113,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.buttonDangerHover)}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.buttonDangerBg)}
-            title="Admin panel"
+            {...tooltip('Admin panel')}
           >
             <ShieldIcon size={16} color={theme.toolbarText} />
             Admin

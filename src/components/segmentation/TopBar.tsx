@@ -4,6 +4,7 @@ import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ImageNavigationDropdown } from './toolbar/ImageNavigationDropdown';
 import { goFromToolbar, goToPickedImage } from '../../segmentation/navigation';
+import { tooltip } from '../../segmentation/input/shortcuts';
 import { 
   SaveIcon, 
   DownloadIcon, 
@@ -138,7 +139,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
-          title={hasPrev ? "Previous image" : "No previous image"}
+          {...tooltip(hasPrev ? 'Save and open the previous image' : 'No previous image', 'previous_image')}
         >
           <ChevronLeftIcon size={16} color={theme.toolbarText} />
           Prev
@@ -173,7 +174,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
-          title={hasNext ? "Next image" : "No more images"}
+          {...tooltip(hasNext ? 'Save and open the next image' : 'No more images', 'next_image')}
         >
           Next
           <ChevronRightIcon size={16} color={theme.toolbarText} />
@@ -207,7 +208,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
               e.currentTarget.style.backgroundColor = 'transparent';
             }
           }}
-          title={isLoading ? "Saving..." : maskChanged ? "Save mask (unsaved changes)" : "Save mask"}
+          {...tooltip(isLoading ? 'Saving...' : maskChanged ? 'Save mask (unsaved changes)' : 'Save mask', 'save_mask')}
         >
           <SaveIcon size={16} color={theme.toolbarText} />
           Save
@@ -237,7 +238,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
-          title="Export GeoTIFF"
+          {...tooltip('Export the image and mask as GeoTIFF')}
         >
           <DownloadIcon size={16} color={theme.toolbarText} />
           Export
@@ -263,7 +264,8 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          title="User Profile"
+          aria-label="User profile"
+          {...tooltip('User profile')}
         >
           <UserIcon size={20} color={theme.toolbarText} />
         </button>
@@ -285,7 +287,8 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          title="Settings"
+          aria-label="Settings"
+          {...tooltip('Settings')}
         >
           <SettingsIcon size={20} color={theme.toolbarText} />
         </button>
@@ -306,7 +309,8 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          title="Help"
+          aria-label="Help"
+          {...tooltip('Help')}
         >
           <HelpIcon size={20} color={theme.toolbarText} />
         </button>

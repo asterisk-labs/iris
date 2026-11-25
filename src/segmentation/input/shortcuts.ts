@@ -1,6 +1,6 @@
 /**
  * Keyboard shortcuts of the segmentation page: one table used both to
- * handle key presses and to describe them in toolbar hints.
+ * handle key presses and to show them in the tooltips of the controls.
  */
 
 import { useSegmentationStore } from '../../stores/segmentationStore';
@@ -11,7 +11,7 @@ export interface Shortcut {
   key: string;
   description: string;
   /** KeyboardEvent.code values that trigger it. */
-  codes: string[];
+  codes: readonly string[];
   run: () => void;
   /** Toolbar button id (without the `tb_` prefix) this shortcut belongs to. */
   command?: string;
@@ -26,7 +26,7 @@ function predict() {
   });
 }
 
-export const SHORTCUTS: Shortcut[] = [
+export const SHORTCUTS = [
   { key: 'Backspace', command: 'previous_image', description: 'Save this image and open previous one', codes: ['Backspace'], run: () => { void saveThenGo('prev'); } },
   { key: 'Return', command: 'next_image', description: 'Save this image and open next one', codes: ['Enter'], run: () => { void saveThenGo('next'); } },
   { key: 'S', command: 'save_mask', description: 'Save this mask', codes: ['KeyS'], run: () => { store().saveCurrentMask().catch(() => {}); } },
@@ -44,10 +44,10 @@ export const SHORTCUTS: Shortcut[] = [
   { key: 'H', command: 'mask_errors', description: 'Show where the AI failed to predict correctly', codes: ['KeyH'], run: () => store().setMaskType('errors') },
   { key: 'C', command: 'toggle_contrast', description: 'Toggle contrast on/off', codes: ['KeyC'], run: () => store().setContrast(!store().contrast) },
   { key: 'I', command: 'toggle_invert', description: 'Toggle inversion on/off', codes: ['KeyI'], run: () => store().setInvert(!store().invert) },
-  { key: 'Arrow-Up', command: 'brightness_up', description: 'Increase brightness (+10%)', codes: ['ArrowUp'], run: () => store().changeBrightness(true) },
-  { key: 'Arrow-Down', command: 'brightness_down', description: 'Decrease brightness (-10%)', codes: ['ArrowDown'], run: () => store().changeBrightness(false) },
-  { key: 'Arrow-Right', command: 'saturation_up', description: 'Increase saturation (+20%)', codes: ['ArrowRight'], run: () => store().changeSaturation(true) },
-  { key: 'Arrow-Left', command: 'saturation_down', description: 'Decrease saturation (-20%)', codes: ['ArrowLeft'], run: () => store().changeSaturation(false) },
+  { key: '↑', command: 'brightness_up', description: 'Increase brightness (+10%)', codes: ['ArrowUp'], run: () => store().changeBrightness(true) },
+  { key: '↓', command: 'brightness_down', description: 'Decrease brightness (-10%)', codes: ['ArrowDown'], run: () => store().changeBrightness(false) },
+  { key: '→', command: 'saturation_up', description: 'Increase saturation (+20%)', codes: ['ArrowRight'], run: () => store().changeSaturation(true) },
+  { key: '←', command: 'saturation_down', description: 'Decrease saturation (-20%)', codes: ['ArrowLeft'], run: () => store().changeSaturation(false) },
   { key: 'X', command: 'reset_filters', description: 'Reset all image filters', codes: ['KeyX'], run: () => store().resetFilters() },
   { key: 'V', command: 'show_view_controls', description: 'Toggle display of view controls on/off', codes: ['KeyV'], run: () => views().toggleControls() },
   {
@@ -57,7 +57,9 @@ export const SHORTCUTS: Shortcut[] = [
       store().showNotice(`Group: ${views().currentGroup}`);
     },
   },
-];
+] as const satisfies readonly Shortcut[];
+
+export type Command = (typeof SHORTCUTS)[number]['command'];
 
 /** Digits 1..9 select class 0..8 (when that class exists). */
 function selectClassFromDigit(code: string): boolean {
@@ -86,8 +88,28 @@ export function handleShortcut(code: string): boolean {
 }
 
 /** The shortcut for a toolbar button id such as `tb_undo`. */
-export function shortcutForButton(buttonId: string): Shortcut | undefined {
+export function shortcutForButton(buttonId: string): (typeof SHORTCUTS)[number] | undefined {
   if (!buttonId.startsWith('tb_')) return undefined;
   const command = buttonId.slice(3);
   return SHORTCUTS.find(s => s.command === command);
+}
+
+/** Keys of some commands as shown to users, e.g. '↑ ↓'. */
+export function shortcutKeys(...commands: Command[]): string {
+  return commands
+    .map(command => SHORTCUTS.find(s => s.command === command)?.key)
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Props that make a control show a tooltip when the mouse is over it (see
+ * TooltipLayer): what the control does and the keys of its shortcuts.
+ */
+export function tooltip(label: string, ...commands: Command[]) {
+  const keys = shortcutKeys(...commands);
+  return {
+    'data-tooltip': label,
+    ...(keys ? { 'data-shortcut': keys } : {}),
+  };
 }

@@ -4,6 +4,7 @@ import ToolButton from './toolbar/ToolButton';
 import PaintbrushSelector from './toolbar/PaintbrushSelector';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { tooltip } from '../../segmentation/input/shortcuts';
 
 interface LeftToolbarProps {
   onResetMask: () => void;
@@ -83,7 +84,7 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ onResetMask }) => {
           justifyContent: 'center',
           gap: '8px',
         }}
-        title={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
+        {...tooltip(isExpanded ? 'Collapse toolbar' : 'Expand toolbar')}
       >
         <span>{isExpanded ? '◀' : '▶'}</span>
         {isExpanded && <span style={{ fontSize: '12px' }}>Collapse</span>}

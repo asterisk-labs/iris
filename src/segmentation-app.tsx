@@ -11,7 +11,8 @@ import ImageChatPanel from './components/segmentation/ImageChatPanel';
 import PageFeedback from './components/segmentation/PageFeedback';
 import { saveMaskOnUnload } from './services/masks';
 import ActionInfoModal from './components/segmentation/ActionInfoModal';
-import { useKeyboardShortcuts, useToolbarHints } from './hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import TooltipLayer from './components/TooltipLayer';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useConfigLoader, applyImageGeometry } from './hooks/useConfigLoader';
@@ -59,7 +60,6 @@ const SegmentationApp: React.FC = () => {
     isResetMaskOpen || isClassSelectionOpen || isImageInfoOpen || isConfusionMatrixOpen ||
     errorModalOpen || actionInfoOpen;
   useKeyboardShortcuts(authChecked && isAuthenticated && !anyModalOpen);
-  useToolbarHints();
 
   // Save unsaved changes when the page is closed or navigated away from
   useEffect(() => {
@@ -267,6 +267,9 @@ const SegmentationApp: React.FC = () => {
 
       <PageFeedback />
       <ActionInfoModal />
+
+      {/* Tooltips of all controls */}
+      <TooltipLayer />
 
       <SegmentationModals
         isPreferencesOpen={isPreferencesOpen}

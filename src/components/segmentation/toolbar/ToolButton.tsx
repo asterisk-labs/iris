@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Command, shortcutForButton, tooltip } from '../../../segmentation/input/shortcuts';
 
 interface ToolButtonProps {
   id?: string;
@@ -13,6 +14,8 @@ interface ToolButtonProps {
   checked?: boolean;
   disabled?: boolean;
   label?: string;
+  /** Shortcut shown in the tooltip, by default the one of the id `tb_<command>` */
+  command?: Command;
 }
 
 const ToolButton: React.FC<ToolButtonProps> = ({
@@ -26,7 +29,8 @@ const ToolButton: React.FC<ToolButtonProps> = ({
   children,
   checked = false,
   disabled = false,
-  label
+  label,
+  command,
 }) => {
   const { theme, actualThemeName } = useTheme();
   
@@ -36,6 +40,8 @@ const ToolButton: React.FC<ToolButtonProps> = ({
     e.stopPropagation();
     onClick();
   };
+
+  const shortcut = command ?? (id ? shortcutForButton(id)?.command : undefined);
 
   const buttonClassName = `toolbutton icon_button ${className} ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}`.trim();
 
@@ -54,7 +60,8 @@ const ToolButton: React.FC<ToolButtonProps> = ({
       id={id}
       className={buttonClassName}
       onClick={handleClick}
-      title={title}
+      aria-label={title}
+      {...(title ? tooltip(title, ...(shortcut ? [shortcut] : [])) : {})}
       style={{
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
