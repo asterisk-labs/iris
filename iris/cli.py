@@ -222,7 +222,7 @@ def export_all(
         exported_count = 0
         skipped_count = 0
 
-        from iris.segmentation import compute_merged_mask, get_mask_filenames
+        from iris.segmentation import NO_LABEL, compute_merged_mask, get_mask_filenames, load_final_mask
 
         # Progress bar setup
         total_images = len(proj.image_ids)
@@ -260,12 +260,7 @@ def export_all(
                         image_path = list(image_path.values())[0]
 
                 # Load and merge masks
-                final_masks = []
-                for path in mask_files:
-                    mask_data = np.load(path)
-                    final_masks.append(np.argmax(mask_data, axis=-1))
-
-                final_masks = np.dstack(final_masks)
+                final_masks = np.dstack([load_final_mask(path) for path in mask_files])
                 merged_mask = compute_merged_mask(final_masks)
 
                 # Render RGB image
@@ -338,6 +333,7 @@ def export_all(
                     dst.set_band_description(2, 'Green')
                     dst.set_band_description(3, 'Blue')
                     dst.set_band_description(4, 'Merged Segmentation Mask')
+                    dst.update_tags(4, unlabelled=NO_LABEL)
 
                 exported_count += 1
 

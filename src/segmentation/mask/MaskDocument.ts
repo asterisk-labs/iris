@@ -3,7 +3,7 @@
  *
  * Three flat arrays of `width * height` bytes, indexed `y * width + x`:
  *
- *   final  - class id of every pixel, painted or predicted
+ *   final  - class id of every pixel, painted or predicted, NO_LABEL until then
  *   user   - 1 where the user painted the pixel, 0 where the AI filled it
  *   errors - 0 not tested, 1 test pixel predicted correctly, 2 wrongly
  *
@@ -11,6 +11,12 @@
  * changed so canvases redraw only that. Per-class counts of user pixels
  * are kept up to date incrementally instead of rescanning the mask.
  */
+
+/**
+ * Value of a pixel nobody labelled yet. Class 0 is a real class, so a new
+ * mask must not start as class 0 (it would show the whole image in its colour).
+ */
+export const NO_LABEL = 255;
 
 export interface DirtyRect {
   x: number;
@@ -45,7 +51,7 @@ export class MaskDocument {
     this.height = height;
     this.classCount = classCount;
     const n = width * height;
-    this.final = new Uint8Array(n);
+    this.final = new Uint8Array(n).fill(NO_LABEL);
     this.user = new Uint8Array(n);
     this.errors = new Uint8Array(n);
     this.userCounts = new Array(classCount).fill(0);
@@ -72,9 +78,9 @@ export class MaskDocument {
     return this.write(indices, classId, 1);
   }
 
-  /** Clear pixels: class 0, not painted by the user. */
+  /** Clear pixels: no label, not painted by the user. */
   erase(indices: Iterable<number>): DirtyRect | null {
-    return this.write(indices, 0, 0);
+    return this.write(indices, NO_LABEL, 0);
   }
 
   /** Fill every pixel the user has not painted with the predicted class. */
@@ -104,7 +110,7 @@ export class MaskDocument {
 
   /** Clear the final and user masks. The errors mask is kept, as before. */
   reset(): void {
-    this.final.fill(0);
+    this.final.fill(NO_LABEL);
     this.user.fill(0);
     this.recount();
     this.changed(this.fullRect());

@@ -10,6 +10,7 @@ import { create } from 'zustand';
 import { splitTrainTest, usableClasses, MIN_CLASSES } from '../../segmentation/ai/sampling';
 import { scorePrediction } from '../../segmentation/ai/metrics';
 import { loadMask, saveMask } from '../../services/masks';
+import { NO_LABEL } from '../../segmentation/mask/MaskDocument';
 import { predictMask as requestPrediction } from '../../services/prediction';
 import { AuthError, HttpError } from '../../services/http';
 import { createConfigSlice } from './configSlice';
@@ -47,7 +48,7 @@ const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
         return;
       }
       get().setCurrentImage(imageId);
-      get().setMasks(masks ? masks.final : new Uint8Array(n), masks ? masks.user : new Uint8Array(n));
+      get().setMasks(masks ? masks.final : new Uint8Array(n).fill(NO_LABEL), masks ? masks.user : new Uint8Array(n));
       get().maskHistory.clear();
       get().recordHistory();
       get().setMaskChanged(false);
