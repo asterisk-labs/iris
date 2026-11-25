@@ -75,6 +75,8 @@ export interface MaskSlice {
   canUndo: boolean;
   canRedo: boolean;
   maskChanged: boolean;
+  /** When the mask was last saved, for the Save button to say so */
+  maskSavedAt: number | null;
   maskType: MaskType;
   showMask: boolean;
   confusionMatrix: ConfusionMatrix | null;

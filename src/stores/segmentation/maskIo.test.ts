@@ -98,6 +98,8 @@ describe('mask store actions', () => {
       expect(body[1]).toBe(1);
       expect(body[1 + N]).toBe(1);
       expect(useSegmentationStore.getState().maskChanged).toBe(false);
+      // For the Save button to say the mask was saved
+      expect(useSegmentationStore.getState().maskSavedAt).not.toBeNull();
     });
 
     it('reports a failed save and keeps the unsaved flag', async () => {

@@ -28,7 +28,17 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   const projectName = config?.name || 'IRIS';
   
   const { saveCurrentMask, isLoading, maskChanged } = useSegmentationStore(useShallow(s => ({ saveCurrentMask: s.saveCurrentMask, isLoading: s.isLoading, maskChanged: s.maskChanged })));
-  
+
+  // Saving is often too quick to notice, so the button says it for a moment
+  const maskSavedAt = useSegmentationStore((s) => s.maskSavedAt);
+  const [justSaved, setJustSaved] = React.useState(false);
+  React.useEffect(() => {
+    if (!maskSavedAt) return undefined;
+    setJustSaved(true);
+    const timer = window.setTimeout(() => setJustSaved(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [maskSavedAt]);
+
   const hasPrev = useSegmentationStore(s => s.getPrevImageId() !== null);
   const hasNext = useSegmentationStore(s => s.currentImageIndex >= 0 && s.images.length > 1);
 
@@ -216,7 +226,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           {...tooltip(isLoading ? 'Saving...' : maskChanged ? 'Save mask (unsaved changes)' : 'Save mask', 'save_mask')}
         >
           <SaveIcon size={16} color={theme.toolbarText} />
-          Save
+          {justSaved && !maskChanged ? 'Saved ✓' : 'Save'}
         </button>
         
         <button

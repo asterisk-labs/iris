@@ -73,6 +73,7 @@ const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
       await saveMask(currentImageId, doc.final, doc.user);
       get().showNotice('Mask saved', 1000);
       get().setMaskChanged(false);
+      set({ maskSavedAt: Date.now() });
     } catch (error) {
       get().hideNotice();
       if (error instanceof AuthError) get().requestLogin();
