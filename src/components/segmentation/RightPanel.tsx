@@ -2,17 +2,131 @@ import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Command, tooltip } from '../../segmentation/input/shortcuts';
+import { controlButtonStyle } from '../controlStyles';
+import Sidebar, { SidebarGroup } from './Sidebar';
+import { useShortcutAction } from '../../hooks/useKeyboardShortcuts';
+import ToolButton from './toolbar/ToolButton';
+
+const ICONS = '/segmentation/static/icons';
+
+const MASK_TYPES: Array<{ value: 'final' | 'user' | 'errors'; icon: string; title: string; label: string; command: Command }> = [
+  { value: 'final', icon: `${ICONS}/mask_final.png`, title: 'Final mask', label: 'Final', command: 'mask_final' },
+  { value: 'user', icon: `${ICONS}/mask_user.png`, title: 'User mask', label: 'User', command: 'mask_user' },
+  { value: 'errors', icon: `${ICONS}/mask_errors.png`, title: 'Error mask', label: 'Errors', command: 'mask_errors' },
+];
+
+const FOLDED_SECTIONS_KEY = 'iris-right-panel-folded';
+
+/** Sections of the panel the user folded, remembered across reloads */
+const readFoldedSections = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(localStorage.getItem(FOLDED_SECTIONS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+/** Section of the panel whose title (or shortcut) folds and unfolds it */
+const Section: React.FC<{
+  title: string;
+  command?: Command;
+  last?: boolean;
+  children: React.ReactNode;
+}> = ({ title, command, last = false, children }) => {
+  const { theme } = useTheme();
+  const [folded, setFolded] = React.useState(() => Boolean(readFoldedSections()[title]));
+
+  const toggle = () => {
+    const next = !folded;
+    setFolded(next);
+    try {
+      localStorage.setItem(
+        FOLDED_SECTIONS_KEY, JSON.stringify({ ...readFoldedSections(), [title]: next })
+      );
+    } catch { /* ignore */ }
+  };
+  useShortcutAction(command, toggle);
+
+  return (
+    <section style={{
+      padding: '14px 0',
+      borderBottom: last ? 'none' : `1px solid ${theme.panelBorder}`,
+    }}>
+      <button
+        onClick={toggle}
+        onMouseDown={(e) => e.preventDefault()}
+        aria-expanded={!folded}
+        {...tooltip(`${folded ? 'Show' : 'Hide'} ${title.toLowerCase()}`, ...(command ? [command] : []))}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          width: '100%',
+          padding: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: theme.gray600,
+        }}
+      >
+        <span style={{
+          display: 'inline-block',
+          width: '10px',
+          fontSize: '10px',
+          transform: folded ? 'rotate(-90deg)' : 'none',
+          transition: 'transform 0.15s ease',
+        }}>▾</span>
+        <span style={{
+          flex: 1,
+          textAlign: 'left',
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}>{title}</span>
+      </button>
+      {!folded && <div style={{ marginTop: '12px' }}>{children}</div>}
+    </section>
+  );
+};
+
+/** Button that stays highlighted while its option is on */
+const PanelButton: React.FC<{
+  label: string;
+  title: string;
+  command: Command;
+  active?: boolean;
+  onClick: () => void;
+}> = ({ label, title, command, active = false, onClick }) => {
+  const { theme } = useTheme();
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      aria-pressed={active}
+      {...tooltip(title, command)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ ...controlButtonStyle(theme, { active, hovered }), flex: 1, minHeight: '34px' }}
+    >
+      {label}
+    </button>
+  );
+};
 
 interface RightPanelProps {
+  expanded: boolean;
+  onToggle: () => void;
   onSelectClass: () => void;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
-const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onToggleCollapse }) => {
+const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectClass }) => {
   const { theme, actualThemeName } = useTheme();
-  
-  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, currentClass: s.currentClass, classes: s.classes })));
+  const [classHovered, setClassHovered] = React.useState(false);
+
+  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, changeBrightness, changeSaturation, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, changeBrightness: s.changeBrightness, changeSaturation: s.changeSaturation, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
   const currentClassName = currentClass >= 0 && currentClass < classes.length 
@@ -24,40 +138,12 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
     ? 'invert(1) brightness(0.9)' 
     : 'none';
 
-  // Modern card section wrapper
-  const SectionCard: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
-    <div style={{
-      paddingBottom: '20px',
-      marginBottom: '20px',
-      borderBottom: `1px solid ${theme.panelBorder}`,
-      ...style
-    }}>
-      {children}
-    </div>
-  );
-
-  // Modern section header
-  const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h3 style={{
-      margin: '0 0 12px 0',
-      fontSize: '11px',
-      fontWeight: '600',
-      color: theme.gray600,
-      letterSpacing: '0.5px',
-      textTransform: 'uppercase',
-    }}>
-      {children}
-    </h3>
-  );
-
   // Segmented control for mask types
   const SegmentedControl: React.FC<{
-    options: Array<{ value: string; icon: string; title: string; label: string }>;
+    options: Array<{ value: string; icon: string; title: string; label: string; command: Command }>;
     value: string;
     onChange: (value: string) => void;
   }> = ({ options, value, onChange }) => {
-    const [hoveredOption, setHoveredOption] = React.useState<string | null>(null);
-    
     return (
       <div style={{ position: 'relative' }}>
         <div style={{
@@ -71,9 +157,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
             <button
               key={option.value}
               onClick={() => onChange(option.value)}
-              onMouseEnter={() => setHoveredOption(option.value)}
-              onMouseLeave={() => setHoveredOption(null)}
-              title={option.title}
+              aria-label={option.title}
+              {...tooltip(option.title, option.command)}
               style={{
                 flex: 1,
                 padding: '8px',
@@ -97,44 +182,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
                   opacity: value === option.value ? 1 : 0.6,
                   filter: iconFilter,
                 }}
-                alt={option.title}
+                alt=""
               />
-              
-              {/* Modern Tooltip */}
-              {hoveredOption === option.value && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginBottom: '8px',
-                  padding: '6px 10px',
-                  backgroundColor: theme.tooltipBg,
-                  color: theme.tooltipText,
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  borderRadius: '4px',
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  zIndex: 1000,
-                  pointerEvents: 'none',
-                  animation: 'fadeIn 0.15s ease',
-                }}>
-                  {option.title}
-                  {/* Tooltip arrow */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderLeft: '4px solid transparent',
-                    borderRight: '4px solid transparent',
-                    borderTop: `4px solid ${theme.tooltipBg}`,
-                  }} />
-                </div>
-              )}
             </button>
           ))}
         </div>
@@ -165,129 +214,59 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
     );
   };
 
-  return (
-    <>
-      {/* Panel Content */}
-      <div
-        style={{
-          position: 'fixed',
-          right: isCollapsed ? '-256px' : '0',
-          top: '50px',
-          bottom: '60px',
-          width: '256px',
-          backgroundColor: theme.panelBg,
-          padding: '16px',
-          paddingTop: '52px',
-          zIndex: 900,
-          boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.06)',
-          overflowY: 'auto',
-          transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-        onWheel={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* Collapse/Expand Button - Top Right Corner */}
-        <button
-          onClick={onToggleCollapse}
-          onWheel={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            right: '16px',
-            top: '16px',
-            width: '36px',
-            height: '36px',
-            backgroundColor: theme.buttonSecondaryBg,
-            border: `1px solid ${theme.buttonSecondaryBorder}`,
-            borderRadius: '8px',
-            color: theme.buttonSecondaryText,
-            cursor: 'pointer',
-            zIndex: 901,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-          title={isCollapsed ? 'Show panel' : 'Hide panel'}
-        >
-          {isCollapsed ? '◀' : '▶'}
-        </button>
+  if (!expanded) {
+    // The same options as icon buttons, like the collapsed toolbar
+    return (
+      <Sidebar side="right" expanded={false} onToggle={onToggle} name="options" command="right_panel">
+        <SidebarGroup expanded={false}>
+          <ToolButton icon={`${ICONS}/class.png`} onClick={onSelectClass} title={`Class: ${currentClassName}`} command="class_dialog" />
+        </SidebarGroup>
+        <SidebarGroup expanded={false}>
+          <ToolButton icon={`${ICONS}/show_mask.png`} checked={showMask} onClick={toggleMask} title="Show or hide the mask" command="toggle_mask" />
+        </SidebarGroup>
+        <SidebarGroup expanded={false}>
+          {MASK_TYPES.map((option) => (
+            <ToolButton
+              key={option.value}
+              icon={option.icon}
+              checked={maskType === option.value}
+              onClick={() => setMaskType(option.value)}
+              title={option.title}
+              command={option.command}
+            />
+          ))}
+        </SidebarGroup>
+        <SidebarGroup expanded={false} last>
+          <ToolButton icon={`${ICONS}/brightness_up.png`} onClick={() => changeBrightness(true)} title="Brightness +10%" command="brightness_up" />
+          <ToolButton icon={`${ICONS}/brightness_down.png`} onClick={() => changeBrightness(false)} title="Brightness -10%" command="brightness_down" />
+          <ToolButton icon={`${ICONS}/saturation_up.png`} onClick={() => changeSaturation(true)} title="Saturation +20%" command="saturation_up" />
+          <ToolButton icon={`${ICONS}/saturation_down.png`} onClick={() => changeSaturation(false)} title="Saturation -20%" command="saturation_down" />
+          <ToolButton icon={`${ICONS}/contrast.png`} checked={contrast} onClick={() => setContrast(!contrast)} title="Toggle contrast" command="toggle_contrast" />
+          <ToolButton icon={`${ICONS}/invert.png`} checked={invert} onClick={() => setInvert(!invert)} title="Toggle invert" command="toggle_invert" />
+          <ToolButton icon={`${ICONS}/reset_filters.png`} onClick={resetFilters} title="Reset all image filters" command="reset_filters" />
+        </SidebarGroup>
+      </Sidebar>
+    );
+  }
 
-        {/* Collapsed state indicator */}
-        {isCollapsed && (
-          <button
-            onClick={onToggleCollapse}
-            onWheel={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              right: '0',
-              top: '50px',
-              width: '36px',
-              height: '56px',
-              backgroundColor: theme.buttonSecondaryBg,
-              border: `1px solid ${theme.buttonSecondaryBorder}`,
-              borderRight: 'none',
-              borderRadius: '8px 0 0 8px',
-              color: theme.buttonSecondaryText,
-              cursor: 'pointer',
-              zIndex: 901,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.06)',
-              writingMode: 'vertical-rl',
-              textOrientation: 'mixed',
-              padding: '8px 0',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-            }}
-            title="Show panel"
-          >
-            ◀
-          </button>
-        )}
+  return (
+    <Sidebar side="right" expanded onToggle={onToggle} name="options" command="right_panel">
+      <div style={{ padding: '0 14px' }}>
 
       {/* Class Selection */}
-      <SectionCard style={{ borderBottom: 'none', paddingBottom: '16px', marginBottom: '16px' }}>
-        <SectionHeader>Class</SectionHeader>
+      <Section title="Class">
         <button
           onClick={onSelectClass}
+          {...tooltip('Select class, or press 1..9', 'class_dialog')}
+          onMouseEnter={() => setClassHovered(true)}
+          onMouseLeave={() => setClassHovered(false)}
           style={{
-            width: '100%',
-            padding: '10px 12px',
-            backgroundColor: theme.buttonSecondaryBg,
-            border: `1px solid ${theme.buttonSecondaryBorder}`,
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
+            ...controlButtonStyle(theme, { hovered: classHovered }),
+            justifyContent: 'flex-start',
             gap: '10px',
+            width: '100%',
+            minHeight: '36px',
             fontSize: '13px',
-            color: theme.buttonSecondaryText,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
           }}
         >
           <img
@@ -302,11 +281,10 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           />
           <span style={{ flex: 1, textAlign: 'left', fontWeight: '500' }}>{currentClassName}</span>
         </button>
-      </SectionCard>
+      </Section>
 
       {/* Mask Layers */}
-      <SectionCard>
-        <SectionHeader>Layers</SectionHeader>
+      <Section title="Layers" command="fold_layers">
         
         {/* Show/Hide Toggle */}
         <div style={{ 
@@ -329,7 +307,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
               position: 'relative',
               transition: 'background-color 0.2s ease',
             }}
-            title="Toggle mask visibility"
+            aria-label="Show mask"
+            {...tooltip('Show or hide the mask', 'toggle_mask')}
           >
             <div style={{
               position: 'absolute',
@@ -349,23 +328,18 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
         <div style={{ marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: theme.gray600, marginBottom: '8px' }}>Type</div>
           <SegmentedControl
-            options={[
-              { value: 'final', icon: '/segmentation/static/icons/mask_final.png', title: 'Final mask', label: 'Final' },
-              { value: 'user', icon: '/segmentation/static/icons/mask_user.png', title: 'User mask', label: 'User' },
-              { value: 'errors', icon: '/segmentation/static/icons/mask_errors.png', title: 'Error mask', label: 'Errors' },
-            ]}
+            options={MASK_TYPES}
             value={maskType}
             onChange={(type) => setMaskType(type as 'final' | 'user' | 'errors')}
           />
         </div>
-      </SectionCard>
+      </Section>
 
       {/* Filters */}
-      <SectionCard style={{ borderBottom: 'none' }}>
-        <SectionHeader>Adjustments</SectionHeader>
+      <Section title="Adjustments" command="fold_adjustments" last>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Brightness Slider */}
-          <div>
+          <div {...tooltip('Brightness', 'brightness_up', 'brightness_down')}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -414,7 +388,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           </div>
 
           {/* Saturation Slider */}
-          <div>
+          <div {...tooltip('Saturation', 'saturation_up', 'saturation_down')}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -464,95 +438,18 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
 
           {/* Toggle Buttons Row */}
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => setContrast(!contrast)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                backgroundColor: contrast ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
-                color: contrast ? theme.buttonPrimaryText : theme.buttonSecondaryText,
-                border: contrast ? 'none' : `1px solid ${theme.buttonSecondaryBorder}`,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!contrast) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!contrast) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-                }
-              }}
-              title="Toggle contrast"
-            >
-              Contrast
-            </button>
-
-            <button
-              onClick={() => setInvert(!invert)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                backgroundColor: invert ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
-                color: invert ? theme.buttonPrimaryText : theme.buttonSecondaryText,
-                border: invert ? 'none' : `1px solid ${theme.buttonSecondaryBorder}`,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!invert) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!invert) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-                }
-              }}
-              title="Toggle invert"
-            >
-              Invert
-            </button>
+            <PanelButton label="Contrast" title="Toggle contrast" command="toggle_contrast" active={contrast} onClick={() => setContrast(!contrast)} />
+            <PanelButton label="Invert" title="Toggle invert" command="toggle_invert" active={invert} onClick={() => setInvert(!invert)} />
           </div>
 
           {/* Reset Button */}
-          <button
-            onClick={resetFilters}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: 'transparent',
-              color: theme.gray600,
-              border: `1px solid ${theme.buttonSecondaryBorder}`,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '500',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-              e.currentTarget.style.color = theme.gray900;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = theme.gray600;
-            }}
-          >
-            Reset
-          </button>
+          <div style={{ display: 'flex' }}>
+            <PanelButton label="Reset" title="Reset all image filters" command="reset_filters" onClick={resetFilters} />
+          </div>
         </div>
-      </SectionCard>
-    </div>
-    </>
+      </Section>
+      </div>
+    </Sidebar>
   );
 };
 

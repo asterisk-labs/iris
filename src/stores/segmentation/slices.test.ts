@@ -67,14 +67,13 @@ describe('tool slice', () => {
     expect(store().currentClass).toBe(1);
   });
 
-  it('clamps the brush size and ignores unknown tools and shapes', () => {
+  it('clamps the brush size and ignores unknown tools', () => {
     store().setToolSize(500);
     expect(store().toolSize).toBe(100);
     store().setToolSize(0);
     expect(store().toolSize).toBe(1);
     store().setCurrentTool('lasso' as never);
-    store().setToolShape('hex' as never);
-    expect(store()).toMatchObject({ currentTool: 'draw', toolShape: 'square' });
+    expect(store()).toMatchObject({ currentTool: 'draw' });
   });
 });
 

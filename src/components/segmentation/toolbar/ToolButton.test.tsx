@@ -20,17 +20,20 @@ describe('ToolButton', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders with title attribute', () => {
+  it('shows its title and the shortcut of its id in the tooltip', () => {
     render(
       <ToolButton
+        id="tb_undo"
         icon="/test-icon.png"
         onClick={vi.fn()}
-        title="Test Title"
+        title="Undo"
         testId="test-button"
       />
     );
 
     const button = screen.getByTestId('test-button');
-    expect(button).toHaveAttribute('title', 'Test Title');
+    expect(button).toHaveAttribute('data-tooltip', 'Undo');
+    expect(button).toHaveAttribute('data-shortcut', 'U');
+    expect(button).toHaveAttribute('aria-label', 'Undo');
   });
 });
