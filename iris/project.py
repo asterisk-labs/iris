@@ -231,7 +231,8 @@ class Project:
                     "default one holds your data."
                 )
 
-        if self.segmentation and not self['segmentation']['path']:
+        # Where the merged masks of all users go, unless the project says
+        if 'segmentation' in self.config and not self['segmentation'].get('path'):
             self.config['segmentation']['path'] = join(
                 self['path'], 'segmentation', '{id}', 'mask.png'
             )

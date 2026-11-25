@@ -107,7 +107,8 @@ class AIModelConfig(_Model):
 
 
 class SegmentationConfig(_Model):
-    path: StrictStr
+    path: Optional[StrictStr] = Field(
+        None, description='Where the merged masks go; <project>.iris/segmentation/{id}/mask.png when absent')
     mask_encoding: Optional[Literal['integer', 'binary', 'rgb', 'rgba']] = None
     mask_area: Optional[tuple[StrictInt, StrictInt, StrictInt, StrictInt]] = Field(
         None, description='[x0, y0, x1, y1]; the whole image when absent')

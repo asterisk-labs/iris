@@ -109,6 +109,15 @@ describe('mask store actions', () => {
       expect(s.errorModal.message).toContain('disk full');
     });
 
+    it('does not show the HTML of a server error page', async () => {
+      useSegmentationStore.getState().paintPixels([0], 1);
+      fetchMock.mockResolvedValueOnce(new Response('<!doctype html><title>500 Internal Server Error</title>', { status: 500 }));
+      await expect(useSegmentationStore.getState().saveCurrentMask()).rejects.toThrow();
+      const { message } = useSegmentationStore.getState().errorModal;
+      expect(message).toContain('Server error (500)');
+      expect(message).not.toContain('<');
+    });
+
     it('predicts: fills unpainted pixels, marks test pixels, scores, and can be undone', async () => {
       // 12 pixels: 0..5 class 0 painted, 6..11 class 1 painted -> not enough (need > 10 per class)
       await expect(useSegmentationStore.getState().predictMask()).rejects.toThrow(/at least 10 pixels/);

@@ -41,6 +41,14 @@ def test_default_path_when_none_configured(tmp_path):
     assert p["path"] == str(tmp_path / "hyg.iris")
 
 
+def test_default_segmentation_path_when_none_configured(tmp_path):
+    file = _write_project(tmp_path, {"segmentation": {}})
+    p = Project()
+    p.load_from(file)
+    assert p.segmentation
+    assert p["segmentation"]["path"] == str(tmp_path / "hyg.iris" / "segmentation" / "{id}" / "mask.png")
+
+
 def test_warns_when_configured_and_default_folders_both_exist(tmp_path, capsys):
     (tmp_path / "hyg.iris").mkdir()
     file = _write_project(tmp_path, {"path": "elsewhere"})
