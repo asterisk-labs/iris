@@ -30,6 +30,7 @@ look at them. Delete this file when the PR is merged.
   the user's order rather than to where a prioritised "next" came from.
 - `cy.login` guesses after a fixed wait whether a login is needed; the
   preferences spec still uses it.
-- Python 3.10 is the minimum, because `ubuntu-latest` (26.04) has no 3.9
-  build. Coverage and Cypress run in the 3.12 job, so they no longer depend on
-  the oldest version. The Docker image uses 3.12.
+- Python 3.12 is the minimum (supported until October 2028), and the Docker
+  image uses it. Coverage and Cypress run in the Ubuntu 3.12 job.
+- CI runs once, when a PR is marked ready for review, plus weekly. It no
+  longer runs on pushes, including merges to `overhaul`.

@@ -1,23 +1,20 @@
 name: CI
 
+# All platforms are tested once, when a PR is marked ready for review (or
+# opened ready), not on every push. To run again after more pushes, start it
+# by hand on the branch from the Actions tab, or turn the PR into a draft and
+# mark it ready again.
 on:
-  push:
-    branches:
-      - master
-      - overhaul
-      - testci
-  # Draft PRs do not run CI: marking one ready for review does
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review]
     branches:
       - master
       - overhaul
-  # Run on any branch by hand from the Actions tab (once this is on the default branch)
   workflow_dispatch:
   schedule:
     - cron: "9 16 * * 1"
 
-# A new push to a PR cancels the run it replaces
+# A new run on a PR cancels the one it replaces
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
@@ -74,17 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        exclude:
-          # Reduce matrix size - only test edge cases on all platforms
-          - os: macos-latest  
-            python-version: "3.11"
-          - os: macos-latest
-            python-version: "3.12"
-          - os: windows-latest
-            python-version: "3.11" 
-          - os: windows-latest
-            python-version: "3.12"
+        python-version: ["3.12", "3.13"]
 
     steps:
       - name: Checkout Code
