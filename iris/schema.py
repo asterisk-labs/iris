@@ -136,6 +136,8 @@ class ProjectConfig(_Model):
     host: Optional[StrictStr] = None
     port: Optional[Annotated[StrictInt, Field(ge=0, le=65535)]] = None
     debug: Optional[StrictBool] = None
+    guests: Optional[StrictBool] = Field(
+        None, description='Let people in as guests, without an account (default false)')
     path: Optional[StrictStr] = None
     images: ImagesConfig
     classes: Annotated[list[ClassConfig], Field(min_length=1)]

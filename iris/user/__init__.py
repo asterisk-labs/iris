@@ -1,4 +1,5 @@
 import json
+import secrets
 from functools import wraps
 
 import flask
@@ -169,6 +170,23 @@ def login():
         return flask.make_response("Username or password are incorrect!", 403)
 
     set_current_user(user)
+
+    return flask.make_response("Successful login!")
+
+
+def guest_login():
+    """Log in as a new guest, a user without password or email"""
+    if not current_project().config.get("guests"):
+        return flask.make_response("This project does not take guests!", 403)
+
+    name = f"guest-{secrets.token_hex(3)}"
+    while User.query.filter(User.name == name).first() is not None:
+        name = f"guest-{secrets.token_hex(3)}"
+    # Never an admin, unlike the first user who registers
+    guest = User(name=name, admin=False)
+    db.session.add(guest)
+    db.session.commit()
+    set_current_user(guest)
 
     return flask.make_response("Successful login!")
 

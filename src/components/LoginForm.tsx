@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { bootPage } from '../boot';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -17,8 +18,23 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialMode = '
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Whether the project lets people in without an account
+  const [guests] = useState(() => bootPage().guests);
 
   const { theme } = useTheme();
+
+  const enterAsGuest = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/guest', { method: 'POST' });
+      if (!response.ok) { setError(await response.text() || 'Could not enter as a guest'); setLoading(false); return; }
+      if (onSuccess) { onSuccess(); } else { window.location.reload(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not enter as a guest');
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,6 +333,24 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialMode = '
                   >
                     Forgot Password?
                   </button>
+                  {guests && (
+                    <button
+                      type="button"
+                      onClick={enterAsGuest}
+                      disabled={loading}
+                      style={{
+                        padding: '0 16px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: theme.gray600,
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Continue without an account
+                    </button>
+                  )}
                 </>
               )}
 

@@ -289,27 +289,6 @@ const SegmentationApp: React.FC = () => {
         isConfusionMatrixOpen={isConfusionMatrixOpen}
         onCloseConfusionMatrix={() => setIsConfusionMatrixOpen(false)}
       />
-
-      {/* React Development Indicator */}
-      {(window.location.search.includes('debug=1') || window.location.hostname === 'localhost') && (
-        <div style={{
-          position: 'fixed',
-          bottom: '0',
-          right: '0',
-          backgroundColor: '#4CAF50',
-          color: 'white',
-          padding: '4px 8px',
-          fontSize: '11px',
-          fontFamily: 'monospace',
-          zIndex: 9999,
-          borderTopLeftRadius: '4px',
-          opacity: 0.8,
-          pointerEvents: 'none',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-        }}>
-          ⚛️ React SPA v{React.version}
-        </div>
-      )}
     </div>
     </ThemeProvider>
   );

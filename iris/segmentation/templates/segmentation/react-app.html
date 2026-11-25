@@ -11,6 +11,7 @@
     <script type="application/json" id="iris-page">{{ {
         'image_id': image_id,
         'debug': debug_mode,
+        'guests': guests,
     }|tojson }}</script>
 
     <script type="module" src="{{ url_for('static', filename='dist/segmentationApp.js') }}"></script>
