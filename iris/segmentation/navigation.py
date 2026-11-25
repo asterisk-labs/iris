@@ -1,4 +1,4 @@
-"""Which image a user goes to next. Shared by the redirect and JSON routes."""
+"""Which image a user goes to next."""
 import flask
 
 from iris.models import Action, User

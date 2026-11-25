@@ -30,9 +30,6 @@ def test_segmentation_spa_blueprint_registration():
     assert 'segmentation.index' not in endpoints, "Old Flask template route should be removed"
     assert 'segmentation_spa.segmentation_spa' in endpoints, "React SPA route should exist"
 
-    for endpoint in ['segmentation.next_image', 'segmentation.previous_image']:
-        assert endpoint in endpoints
-
 
 def test_segmentation_spa_blueprint_configuration():
     """

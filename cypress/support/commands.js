@@ -22,124 +22,24 @@ const SELECTORS = {
 };
 
 /**
- * Login to IRIS application
- * 
- * Handles the complete authentication flow including:
- * - Navigating to the segmentation page
- * - Detecting if login/registration is required
- * - Auto-registering on first run (no users exist)
- * - Logging in on subsequent runs
- * - Waiting for page initialization
- * 
- * On first run (CI/CD or fresh database):
- * - Detects "I have no account yet" button
- * - Automatically registers the user
- * - First user becomes admin automatically (IRIS behavior)
- * 
- * @param {string} username - Username (default: 'admin')
- * @param {string} password - Password (default: '123')
- * 
+ * Log in through the API and open the segmentation page.
+ *
+ * The user must exist: start the server with --admin-user and
+ * --admin-password, as CI does.
+ *
  * @example
- * cy.login(); // Uses defaults
- * cy.login('testuser', 'testpass'); // Custom credentials
+ * cy.login(); // admin / 123
+ * cy.login('testuser', 'testpass');
  */
 Cypress.Commands.add('login', (username = 'admin', password = '123') => {
-  cy.visit('/segmentation', { 
-    timeout: TIMEOUTS.PAGE_LOAD, 
-    failOnStatusCode: false 
+  cy.request('POST', '/api/v1/auth/login', { username, password });
+  cy.visit('/segmentation/');
+  cy.window({ timeout: 30000 }).should((win) => {
+    expect(win.__IRIS__, 'debug handle').to.not.equal(undefined);
+    const state = win.__IRIS__.store.getState();
+    expect(state.maskDocument, 'mask').to.not.equal(null);
+    expect(state.isLoading, 'loading').to.equal(false);
   });
-  
-  // Wait for page to load
-  cy.wait(TIMEOUTS.PAGE_LOAD);
-  
-  cy.get('body').should('exist');
-  
-  // Try to find the login form directly
-  cy.get('body').then($body => {
-    // Check if login username field exists and is visible
-    const $loginUsername = $body.find('#login-username:visible');
-    const $registerUsername = $body.find('#register-username:visible');
-    
-    const isLoginRequired = $loginUsername.length > 0;
-    const isRegisterDialog = $registerUsername.length > 0;
-    
-    cy.log(`Login form visible: ${isLoginRequired}, Register form visible: ${isRegisterDialog}`);
-    
-    if (isRegisterDialog) {
-      // First time - no users exist, need to register
-      cy.log(`First run detected - registering user ${username}`);
-      
-      // Wait for React to fully render and attach event handlers
-      cy.wait(TIMEOUTS.REACT_HYDRATION);
-      
-      cy.get('#register-username').should('be.visible').should('not.be.disabled').clear().type(username);
-      cy.get('#register-password').should('be.visible').should('not.be.disabled').clear().type(password);
-      cy.get('#register-password-again').should('be.visible').should('not.be.disabled').clear().type(password);
-      
-      // Fill email if the field exists (required by themed LoginForm)
-      cy.get('body').then($body => {
-        if ($body.find('#register-email').length > 0) {
-          cy.get('#register-email').should('be.visible').clear().type(`${username}@test.com`);
-        }
-      });
-      
-      // Click register button (works with both legacy .dialogue and themed LoginForm)
-      cy.contains('button', 'Register').click();
-      
-      // Wait for the page to reload (LoginForm calls window.location.reload())
-      cy.url().should('include', '/segmentation');
-      cy.wait(TIMEOUTS.PAGE_LOAD);
-      
-      // Wait for toolbar to appear after reload
-      cy.get(SELECTORS.TOOLBAR, { timeout: TIMEOUTS.PAGE_LOAD * 10 })
-        .should('exist')
-        .and('have.css', 'visibility', 'visible');
-      
-      cy.log(`Registration successful - ${username} is now admin (first user)`);
-    } else if (isLoginRequired) {
-      // User exists, need to login
-      cy.log(`Login required - authenticating as ${username}`);
-      
-      // Wait for React to fully render and attach event handlers
-      cy.wait(TIMEOUTS.REACT_HYDRATION);
-      
-      cy.get('#login-username').should('be.visible').should('not.be.disabled').clear().type(username);
-      cy.get('#login-password').should('be.visible').should('not.be.disabled').clear().type(password);
-      
-      // Click login button (works with both legacy .dialogue and themed LoginForm)
-      cy.contains('button', 'Login').click();
-      
-      // Wait for the page to reload (LoginForm calls window.location.reload())
-      cy.wait(TIMEOUTS.PAGE_LOAD * 3); // Extra time for reload
-      
-      // Debug: Check if we're still seeing a login dialog
-      cy.get('body').then($body => {
-        const $loginForm = $body.find('#login-username:visible');
-        if ($loginForm.length > 0) {
-          cy.log('⚠️ Login form still visible after reload - login may have failed');
-          cy.screenshot('login-failed-dialog-still-visible');
-        }
-      });
-      
-      // Wait for toolbar to appear after reload
-      cy.get(SELECTORS.TOOLBAR, { timeout: TIMEOUTS.PAGE_LOAD * 10 })
-        .should('exist')
-        .and('have.css', 'visibility', 'visible');
-      
-      cy.log('Login successful');
-    } else {
-      cy.log('Already authenticated or no login required');
-      
-      // Wait for application to be ready
-      cy.get(SELECTORS.TOOLBAR, { timeout: TIMEOUTS.PAGE_LOAD * 10 })
-        .should('exist')
-        .and('have.css', 'visibility', 'visible');
-    }
-  });
-  
-  // Extra wait for React to fully hydrate
-  cy.wait(TIMEOUTS.PAGE_LOAD);
-  cy.log('Application ready');
 });
 
 /**

@@ -1,10 +1,9 @@
-"""/segmentation/next_image and /previous_image through the app.
+"""The order of images through the app.
 
-The routes only redirect, so the project's image ids are replaced with six
+The routes only return ids, so the project's image ids are replaced with six
 made-up ones; no image is loaded.
 """
 import json
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -37,25 +36,22 @@ def _login(client, name):
     assert response.status_code == 200
 
 
-def _go(client, route, image_id):
-    response = client.get(f'/segmentation/{route}?image_id={image_id}')
-    assert response.status_code == 302
-    return parse_qs(urlparse(response.location).query)['image_id'][0]
+def _next(client, image_id):
+    return client.get(f'/api/v1/images/{image_id}/next').json['image_id']
 
 
 def _set_prioritise(project, value):
     project.config['segmentation']['prioritise_unmarked_images'] = value
 
 
-def test_next_and_previous_follow_the_users_seeded_order(app, client, six_images):
+def test_next_follows_the_users_seeded_order(app, client, six_images):
     _set_prioritise(six_images, False)
     _add_user(app, 1, "u1", seed=0)
     _login(client, "u1")
     order = seeded_order(IDS, 0)
 
-    assert _go(client, 'next_image', order[0]) == order[1]
-    assert _go(client, 'next_image', order[-1]) == order[0]
-    assert _go(client, 'previous_image', order[1]) == order[0]
+    assert _next(client, order[0]) == order[1]
+    assert _next(client, order[-1]) == order[0]
 
 
 def test_two_users_have_independent_orders(app, six_images):
@@ -70,13 +66,13 @@ def test_two_users_have_independent_orders(app, six_images):
     _login(first, "u1")
     _login(second, "u2")
     order2 = seeded_order(IDS, 123)
-    before = _go(second, 'next_image', order2[0])
+    before = _next(second, order2[0])
 
     # u1 navigating used to swap entries of the shared list, which moved
     # u2's images about; now u2's answer does not change.
     for image_id in IDS:
-        _go(first, 'next_image', image_id)
-    assert _go(second, 'next_image', order2[0]) == before
+        _next(first, image_id)
+    assert _next(second, order2[0]) == before
     assert six_images.image_ids == IDS
 
 
@@ -90,17 +86,10 @@ def test_prioritise_skips_images_others_have_annotated(app, client, six_images):
         db.session.commit()
     _login(client, "u1")
 
-    assert _go(client, 'next_image', order[0]) == order[2]
+    assert _next(client, order[0]) == order[2]
 
 
-def test_unknown_image_is_404(app, client, six_images):
-    _add_user(app, 1, "u1", seed=0)
-    _login(client, "u1")
-    assert client.get('/segmentation/next_image?image_id=nope').status_code == 404
-    assert client.get('/segmentation/previous_image?image_id=nope').status_code == 404
-
-
-def test_api_next_agrees_with_redirect_and_changes_with_annotations(app, client, six_images):
+def test_next_changes_with_annotations(app, client, six_images):
     _set_prioritise(six_images, True)
     _add_user(app, 1, "u1", seed=0)
     _login(client, "u1")
@@ -112,7 +101,7 @@ def test_api_next_agrees_with_redirect_and_changes_with_annotations(app, client,
         db.session.add(Action(type='segmentation', image_id=order[1], user_id=1))
         db.session.commit()
     assert client.get(url).json == {'image_id': order[2]}
-    assert _go(client, 'next_image', order[0]) == order[2]
+    assert _next(client, order[0]) == order[2]
 
 
 def test_api_next_without_another_image(app, client, six_images):
