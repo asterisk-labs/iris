@@ -6,15 +6,25 @@ on:
       - master
       - overhaul
       - testci
+  # Draft PRs do not run CI: marking one ready for review does
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - master
       - overhaul
+  # Run on any branch by hand from the Actions tab (once this is on the default branch)
+  workflow_dispatch:
   schedule:
     - cron: "9 16 * * 1"
 
+# A new push to a PR cancels the run it replaces
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     name: "frontend bundle"
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -56,6 +66,7 @@ jobs:
           fi
 
   test:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     name: "${{ matrix.python-version }} • ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
