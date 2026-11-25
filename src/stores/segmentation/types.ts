@@ -16,7 +16,6 @@ import type { ActionInfo } from '../../services/actionInfo';
 import type { MaskType } from '../../segmentation/mask/palette';
 
 export type Tool = 'move' | 'draw' | 'eraser';
-export type ToolShape = 'square' | 'round';
 export type { MaskType };
 export type MaskArea = [number, number, number, number];
 export type ClassCounts = { [classId: number]: number; total: number };
@@ -91,11 +90,12 @@ export interface MaskSlice {
 export interface ToolSlice {
   currentTool: Tool;
   toolSize: number;
-  toolShape: ToolShape;
+  /** Brush size of the draw and the eraser tool, each kept on its own */
+  brushSizes: { draw: number; eraser: number };
   currentClass: number;
   setCurrentTool: (tool: Tool) => void;
   setToolSize: (size: number) => void;
-  setToolShape: (shape: ToolShape) => void;
+  setBrushSize: (tool: 'draw' | 'eraser', size: number) => void;
   setCurrentClass: (classId: number) => void;
 }
 
@@ -153,7 +153,8 @@ export interface ViewSlice {
   setViewTransform: (t: ViewTransform | null) => void;
   /** Back to the default fit-to-canvas view. */
   resetViews: () => void;
-  updateViewDimensions: () => void;
+  /** Fit the views in the area between the side columns, `width` wide when given. */
+  updateViewDimensions: (width?: number) => void;
 }
 
 /** Page-level feedback and modal requests. */

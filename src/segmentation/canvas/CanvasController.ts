@@ -109,7 +109,7 @@ export class CanvasController {
       if (s.maskDocument !== prev.maskDocument) this.bindDocument(s.maskDocument);
       if (s.maskType !== prev.maskType || s.classes !== prev.classes) this.invalidateMask('all');
       if (s.showMask !== prev.showMask) this.applyMaskVisibility();
-      if (s.toolSize !== prev.toolSize || s.toolShape !== prev.toolShape || s.maskArea !== prev.maskArea) {
+      if (s.toolSize !== prev.toolSize || s.maskArea !== prev.maskArea) {
         this.invalidate({ preview: true, mask: true });
       }
       if (s.brightness !== prev.brightness || s.saturation !== prev.saturation ||
@@ -294,6 +294,8 @@ export class CanvasController {
     if (delta === 0 || !this.track(v, e)) return;
     const s = useSegmentationStore.getState();
     if (e.shiftKey) {
+      // Move has no brush, a size set here would be lost on the next tool
+      if (s.currentTool === 'move') return;
       const mask = s.maskDimensions;
       const limit = mask ? Math.max(mask.width, mask.height) : 100;
       const size = s.toolSize + delta * 0.5 * s.toolSize;
@@ -315,7 +317,7 @@ export class CanvasController {
     const pixels = new Set<number>();
     for (const cursor of points) {
       for (const i of brushPixels({
-        shape: s.toolShape, size: s.toolSize, cursor, maskArea: s.maskArea, maskSize: s.maskDimensions, visible,
+        shape: 'square', size: s.toolSize, cursor, maskArea: s.maskArea, maskSize: s.maskDimensions, visible,
       })) pixels.add(i);
     }
     this.lastStamp = [...this.cursor];
@@ -430,14 +432,7 @@ export class CanvasController {
     const x = this.cursor[0] + offset;
     const y = this.cursor[1] + offset;
     ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';
-    if (s.toolShape === 'round') {
-      const radius = s.toolSize / 2;
-      ctx.beginPath();
-      ctx.arc(x + radius, y + radius, radius, 0, 2 * Math.PI);
-      ctx.fill();
-    } else {
-      ctx.fillRect(x, y, s.toolSize, s.toolSize);
-    }
+    ctx.fillRect(x, y, s.toolSize, s.toolSize);
 
     // Boundary of the area that can be annotated
     if (s.maskArea && s.maskDimensions) {

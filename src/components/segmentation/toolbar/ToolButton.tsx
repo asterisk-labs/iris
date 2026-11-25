@@ -1,5 +1,7 @@
 import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Command, shortcutForButton, tooltip } from '../../../segmentation/input/shortcuts';
+import { controlButtonStyle, controlIconFilter } from '../../controlStyles';
 
 interface ToolButtonProps {
   id?: string;
@@ -13,6 +15,8 @@ interface ToolButtonProps {
   checked?: boolean;
   disabled?: boolean;
   label?: string;
+  /** Shortcut shown in the tooltip, by default the one of the id `tb_<command>` */
+  command?: Command;
 }
 
 const ToolButton: React.FC<ToolButtonProps> = ({
@@ -26,10 +30,12 @@ const ToolButton: React.FC<ToolButtonProps> = ({
   children,
   checked = false,
   disabled = false,
-  label
+  label,
+  command,
 }) => {
   const { theme, actualThemeName } = useTheme();
-  
+  const [hovered, setHovered] = React.useState(false);
+
   const handleClick = (e: React.MouseEvent) => {
     if (disabled) return;
     e.preventDefault();
@@ -37,41 +43,32 @@ const ToolButton: React.FC<ToolButtonProps> = ({
     onClick();
   };
 
+  const shortcut = command ?? (id ? shortcutForButton(id)?.command : undefined);
+
   const buttonClassName = `toolbutton icon_button ${className} ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}`.trim();
 
-  // Determine if we're in dark theme
-  const isDarkTheme = actualThemeName === 'dark';
-  
-  // Icon filter logic:
-  // Light theme: checked = no filter (black), unchecked = invert (white)
-  // Dark theme: checked = invert (white), unchecked = invert (white)
-  const iconFilter = isDarkTheme
-    ? 'invert(1) brightness(0.9)' // Dark theme: always white
-    : (checked ? 'none' : 'invert(1) brightness(0.9)'); // Light theme: black when checked, white when unchecked
+  // Same look as the buttons of the side panel
+  const iconFilter = controlIconFilter(actualThemeName === 'dark', checked);
 
   return (
     <li
       id={id}
       className={buttonClassName}
       onClick={handleClick}
-      title={title}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={title}
+      {...(title ? tooltip(title, ...(shortcut ? [shortcut] : [])) : {})}
       style={{
+        ...controlButtonStyle(theme, { active: checked, hovered: hovered && !disabled }),
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
         justifyContent: label ? 'flex-start' : 'center',
-        padding: label ? '6px 10px' : '6px',
-        minHeight: '32px',
+        padding: label ? '0 10px' : '0',
+        minHeight: '34px',
         width: '100%',
         maxWidth: '100%',
-        boxSizing: 'border-box',
         margin: '0',
-        backgroundColor: checked ? theme.toolbarActive : theme.toolbarHover,
-        border: `1px solid ${checked ? theme.toolbarActive : 'transparent'}`,
-        borderRadius: '6px',
-        transition: 'all 0.2s ease',
         ...style,
       }}
       data-testid={testId}
@@ -88,9 +85,9 @@ const ToolButton: React.FC<ToolButtonProps> = ({
         }} 
       />
       {label && (
-        <span style={{ 
-          color: theme.toolbarText, 
-          fontSize: '13px', 
+        <span style={{
+          fontSize: '13px',
+          textAlign: 'left',
           fontWeight: checked ? '600' : '500',
           whiteSpace: 'nowrap',
           flex: 1,

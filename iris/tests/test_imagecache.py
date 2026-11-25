@@ -143,15 +143,13 @@ def test_budget_from_config_bounds_memory(tmp_path):
 
 
 def test_load_from_resets_cache_and_reads_budget(app, project):
-    from iris import get_demo_file
-
     project.get_image(project.image_ids[0], bands=["$Sentinel2.B1"])
     assert len(project._image_cache) >= 1
     old_cache = project._image_cache
 
     saved_path = project.config["path"]
     try:
-        project.load_from(get_demo_file())
+        project.load_from(project.file)
     finally:
         project.config["path"] = saved_path
 
