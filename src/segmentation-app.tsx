@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import TopBar from './components/segmentation/TopBar';
 import LeftToolbar from './components/segmentation/LeftToolbar';
 import RightPanel from './components/segmentation/RightPanel';
+import { sidebarWidth, useSidebars } from './components/segmentation/Sidebar';
 import BottomBar from './components/segmentation/BottomBar';
 import SegmentationModals from './components/segmentation/SegmentationModals';
 import ViewerComparison from './components/segmentation/ViewerComparison';
@@ -32,7 +33,7 @@ const SegmentationApp: React.FC = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const { leftExpanded, rightExpanded, toggleLeft, toggleRight } = useSidebars();
 
   // Chat configuration from project config
   const config = useSegmentationStore((state) => state.config);
@@ -195,29 +196,28 @@ const SegmentationApp: React.FC = () => {
       />
 
       {/* Left Toolbar */}
-      <LeftToolbar onResetMask={handleResetMask} />
+      <LeftToolbar expanded={leftExpanded} onToggle={toggleLeft} onResetMask={handleResetMask} />
 
-      {/* Main Canvas Area */}
+      {/* Main Canvas Area, between the two columns */}
       <div
         style={{
           position: 'fixed',
-          left: '60px',
-          right: isRightPanelCollapsed ? '0' : '280px',
+          left: `${sidebarWidth(leftExpanded)}px`,
+          right: `${sidebarWidth(rightExpanded)}px`,
           top: '50px',
           bottom: '60px',
           overflow: 'auto',
           backgroundColor: '#f5f5f5',
-          transition: 'right 0.3s ease',
         }}
       >
         <ViewerComparison />
       </div>
 
       {/* Right Panel */}
-      <RightPanel 
+      <RightPanel
+        expanded={rightExpanded}
+        onToggle={toggleRight}
         onSelectClass={handleSelectClass}
-        isCollapsed={isRightPanelCollapsed}
-        onToggleCollapse={() => setIsRightPanelCollapsed(!isRightPanelCollapsed)}
       />
 
       {/* Bottom Bar */}

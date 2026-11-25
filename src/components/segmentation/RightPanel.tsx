@@ -4,6 +4,16 @@ import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Command, tooltip } from '../../segmentation/input/shortcuts';
 import { controlButtonStyle } from '../controlStyles';
+import Sidebar, { SidebarGroup } from './Sidebar';
+import ToolButton from './toolbar/ToolButton';
+
+const ICONS = '/segmentation/static/icons';
+
+const MASK_TYPES: Array<{ value: 'final' | 'user' | 'errors'; icon: string; title: string; label: string; command: Command }> = [
+  { value: 'final', icon: `${ICONS}/mask_final.png`, title: 'Final mask', label: 'Final', command: 'mask_final' },
+  { value: 'user', icon: `${ICONS}/mask_user.png`, title: 'User mask', label: 'User', command: 'mask_user' },
+  { value: 'errors', icon: `${ICONS}/mask_errors.png`, title: 'Error mask', label: 'Errors', command: 'mask_errors' },
+];
 
 /** Button that stays highlighted while its option is on */
 const PanelButton: React.FC<{
@@ -30,16 +40,16 @@ const PanelButton: React.FC<{
 };
 
 interface RightPanelProps {
+  expanded: boolean;
+  onToggle: () => void;
   onSelectClass: () => void;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
-const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onToggleCollapse }) => {
+const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectClass }) => {
   const { theme, actualThemeName } = useTheme();
   const [classHovered, setClassHovered] = React.useState(false);
 
-  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, currentClass: s.currentClass, classes: s.classes })));
+  const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, changeBrightness, changeSaturation, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, changeBrightness: s.changeBrightness, changeSaturation: s.changeSaturation, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
   const currentClassName = currentClass >= 0 && currentClass < classes.length 
@@ -153,104 +163,44 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
     );
   };
 
-  return (
-    <>
-      {/* Panel Content */}
-      <div
-        style={{
-          position: 'fixed',
-          right: isCollapsed ? '-256px' : '0',
-          top: '50px',
-          bottom: '60px',
-          width: '256px',
-          backgroundColor: theme.panelBg,
-          padding: '16px',
-          paddingTop: '52px',
-          zIndex: 900,
-          boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.06)',
-          overflowY: 'auto',
-          transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-        onWheel={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* Collapse/Expand Button - Top Right Corner */}
-        <button
-          onClick={onToggleCollapse}
-          onWheel={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            right: '16px',
-            top: '16px',
-            width: '36px',
-            height: '36px',
-            backgroundColor: theme.buttonSecondaryBg,
-            border: `1px solid ${theme.buttonSecondaryBorder}`,
-            borderRadius: '8px',
-            color: theme.buttonSecondaryText,
-            cursor: 'pointer',
-            zIndex: 901,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-          {...tooltip(isCollapsed ? 'Show panel' : 'Hide panel')}
-        >
-          {isCollapsed ? '◀' : '▶'}
-        </button>
+  if (!expanded) {
+    // The same options as icon buttons, like the collapsed toolbar
+    return (
+      <Sidebar side="right" expanded={false} onToggle={onToggle} name="options">
+        <SidebarGroup expanded={false}>
+          <ToolButton icon={`${ICONS}/class.png`} onClick={onSelectClass} title={`Class: ${currentClassName}`} />
+        </SidebarGroup>
+        <SidebarGroup expanded={false}>
+          <ToolButton icon={`${ICONS}/show_mask.png`} checked={showMask} onClick={toggleMask} title="Show or hide the mask" command="toggle_mask" />
+        </SidebarGroup>
+        <SidebarGroup expanded={false}>
+          {MASK_TYPES.map((option) => (
+            <ToolButton
+              key={option.value}
+              icon={option.icon}
+              checked={maskType === option.value}
+              onClick={() => setMaskType(option.value)}
+              title={option.title}
+              command={option.command}
+            />
+          ))}
+        </SidebarGroup>
+        <SidebarGroup expanded={false} last>
+          <ToolButton icon={`${ICONS}/brightness_up.png`} onClick={() => changeBrightness(true)} title="Brightness +10%" command="brightness_up" />
+          <ToolButton icon={`${ICONS}/brightness_down.png`} onClick={() => changeBrightness(false)} title="Brightness -10%" command="brightness_down" />
+          <ToolButton icon={`${ICONS}/saturation_up.png`} onClick={() => changeSaturation(true)} title="Saturation +20%" command="saturation_up" />
+          <ToolButton icon={`${ICONS}/saturation_down.png`} onClick={() => changeSaturation(false)} title="Saturation -20%" command="saturation_down" />
+          <ToolButton icon={`${ICONS}/contrast.png`} checked={contrast} onClick={() => setContrast(!contrast)} title="Toggle contrast" command="toggle_contrast" />
+          <ToolButton icon={`${ICONS}/invert.png`} checked={invert} onClick={() => setInvert(!invert)} title="Toggle invert" command="toggle_invert" />
+          <ToolButton icon={`${ICONS}/reset_filters.png`} onClick={resetFilters} title="Reset all image filters" command="reset_filters" />
+        </SidebarGroup>
+      </Sidebar>
+    );
+  }
 
-        {/* Collapsed state indicator */}
-        {isCollapsed && (
-          <button
-            onClick={onToggleCollapse}
-            onWheel={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              right: '0',
-              top: '50px',
-              width: '36px',
-              height: '56px',
-              backgroundColor: theme.buttonSecondaryBg,
-              border: `1px solid ${theme.buttonSecondaryBorder}`,
-              borderRight: 'none',
-              borderRadius: '8px 0 0 8px',
-              color: theme.buttonSecondaryText,
-              cursor: 'pointer',
-              zIndex: 901,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.06)',
-              writingMode: 'vertical-rl',
-              textOrientation: 'mixed',
-              padding: '8px 0',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-            }}
-            {...tooltip('Show panel')}
-          >
-            ◀
-          </button>
-        )}
+  return (
+    <Sidebar side="right" expanded onToggle={onToggle} name="options">
+      <div style={{ padding: '6px 14px 0' }}>
 
       {/* Class Selection */}
       <SectionCard style={{ borderBottom: 'none', paddingBottom: '16px', marginBottom: '16px' }}>
@@ -329,11 +279,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
         <div style={{ marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: theme.gray600, marginBottom: '8px' }}>Type</div>
           <SegmentedControl
-            options={[
-              { value: 'final', icon: '/segmentation/static/icons/mask_final.png', title: 'Final mask', label: 'Final', command: 'mask_final' },
-              { value: 'user', icon: '/segmentation/static/icons/mask_user.png', title: 'User mask', label: 'User', command: 'mask_user' },
-              { value: 'errors', icon: '/segmentation/static/icons/mask_errors.png', title: 'Error mask', label: 'Errors', command: 'mask_errors' },
-            ]}
+            options={MASK_TYPES}
             value={maskType}
             onChange={(type) => setMaskType(type as 'final' | 'user' | 'errors')}
           />
@@ -454,8 +400,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
           </div>
         </div>
       </SectionCard>
-    </div>
-    </>
+      </div>
+    </Sidebar>
   );
 };
 
