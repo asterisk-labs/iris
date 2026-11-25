@@ -276,6 +276,7 @@ def export_all(
                 # Get dimensions
                 correct_height, correct_width = merged_mask.shape
 
+                crs, transform = proj.get_georef(image_id)
                 # Create GeoTIFF profile
                 profile = {
                     'driver': 'GTiff',
@@ -283,9 +284,8 @@ def export_all(
                     'width': correct_width,
                     'height': correct_height,
                     'count': 4,
-                    'crs': None,
-                    'transform': rio.transform.from_bounds(0, 0, correct_width, correct_height,
-                                                           correct_width, correct_height)
+                    'crs': crs,
+                    'transform': transform,
                 }
 
                 # Create output filename

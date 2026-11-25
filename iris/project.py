@@ -418,6 +418,21 @@ class Project:
         x0, y0, x1, y1 = self.get_mask_area(image_id)
         return (x1 - x0, y1 - y0)
 
+    def get_georef(self, image_id):
+        """CRS and transform of the mask, from the first source with a CRS."""
+        x0, y0, x1, y1 = self.get_mask_area(image_id)
+        paths = self.get_image_path(image_id)
+        if not isinstance(paths, dict):
+            paths = {'pictures': paths}
+        for path in paths.values():
+            if not path.lower().endswith(('.tif', '.tiff', '.vrt')):
+                continue
+            with rio.open(path) as file:
+                if file.crs is not None:
+                    return file.crs, file.transform * rio.transform.Affine.translation(x0, y0)
+        width, height = x1 - x0, y1 - y0
+        return None, rio.transform.from_bounds(0, 0, width, height, width, height)
+
     def get_start_image_id(self):
         return self.image_ids[self.image_order[0]]
 

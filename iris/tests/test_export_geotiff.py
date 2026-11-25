@@ -46,6 +46,7 @@ class TestGeoTIFFExport:
             # Mock project configuration - set image_ids as a list attribute
             mock_project.image_ids = [image_id]
             mock_project.get_image_path.return_value = '/path/to/image.tif'
+            mock_project.get_georef.return_value = ('EPSG:32633', 'the transform')
             mock_project.config = {
                 'views': {
                     'RGB': {
@@ -96,6 +97,9 @@ class TestGeoTIFFExport:
                 mock_dst.write.assert_called()
                 # Should write 4 bands: R, G, B, and mask
                 assert mock_dst.write.call_count == 4
+                profile = mock_rio_open.call_args.kwargs
+                assert profile['crs'] == 'EPSG:32633'
+                assert profile['transform'] == 'the transform'
 
     def test_export_geotiff_no_mask(self, client, logged_in_user, project_snapshot):
         """
