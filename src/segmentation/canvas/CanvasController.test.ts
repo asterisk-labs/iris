@@ -48,7 +48,7 @@ describe('CanvasController', () => {
     useSegmentationStore.setState({
       maskDocument: null, maskDimensions: null,
       maskHistory: new MaskHistory(), canUndo: false, canRedo: false,
-      currentTool: 'draw', toolSize: 1, toolShape: 'square', currentClass: 1,
+      currentTool: 'draw', toolSize: 1, currentClass: 1,
       showMask: true, maskType: 'final',
     });
     const s = useSegmentationStore.getState();

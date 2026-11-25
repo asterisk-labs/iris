@@ -89,6 +89,16 @@ describe('keyboard shortcuts', () => {
     expect(handleShortcut('KeyE', '€', true)).toBe(false);
     expect(useSegmentationStore.getState().currentTool).toBe('draw');
   });
+
+  it('selects a class with a digit key whatever it types', () => {
+    useSegmentationStore.setState({ brushSizes: { draw: 5, eraser: 5 } });
+    // On a French AZERTY keyboard the 3 key types "
+    handleShortcut('Digit3', '"');
+    expect(useSegmentationStore.getState().currentClass).toBe(2);
+    // and the 6 key types -, which is not the smaller brush there
+    handleShortcut('Digit6', '-');
+    expect(useSegmentationStore.getState().brushSizes.draw).toBe(5);
+  });
 });
 
 describe('useKeyboardShortcuts', () => {
@@ -123,6 +133,16 @@ describe('useKeyboardShortcuts', () => {
     unmount();
     press('BracketLeft', window, { key: '[' });
     expect(toggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a focused button from also taking the key of a shortcut', () => {
+    renderHook(() => useKeyboardShortcuts(true));
+    const space = new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true, cancelable: true });
+    window.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+    const other = new KeyboardEvent('keydown', { code: 'KeyP', key: 'p', bubbles: true, cancelable: true });
+    window.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
   });
 
   it('ignores typing in form fields and modified keys', () => {

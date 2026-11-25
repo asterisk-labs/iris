@@ -26,12 +26,24 @@ const TooltipLayer: React.FC = () => {
   useEffect(() => {
     let current: HTMLElement | null = null;
     let timer: number | undefined;
+    // Follows the text of the control while shown, e.g. Save turning into Saving...
+    const observer = new MutationObserver(() => {
+      if (current?.dataset.tooltip) show(current);
+      else hide();
+    });
 
     const hide = () => {
       current = null;
       window.clearTimeout(timer);
+      observer.disconnect();
       setTip(null);
     };
+
+    const show = (target: HTMLElement) => setTip({
+      label: target.dataset.tooltip || '',
+      shortcut: target.dataset.shortcut,
+      rect: target.getBoundingClientRect(),
+    });
 
     const onPointerOver = (event: PointerEvent) => {
       const target = (event.target as Element | null)?.closest?.('[data-tooltip]') as HTMLElement | null;
@@ -41,11 +53,8 @@ const TooltipLayer: React.FC = () => {
       current = target;
       timer = window.setTimeout(() => {
         if (current !== target || !target.isConnected) return;
-        setTip({
-          label: target.dataset.tooltip || '',
-          shortcut: target.dataset.shortcut,
-          rect: target.getBoundingClientRect(),
-        });
+        show(target);
+        observer.observe(target, { attributes: true, attributeFilter: ['data-tooltip', 'data-shortcut'] });
       }, DELAY_MS);
     };
 
@@ -62,6 +71,7 @@ const TooltipLayer: React.FC = () => {
     window.addEventListener('blur', hide);
     return () => {
       window.clearTimeout(timer);
+      observer.disconnect();
       document.removeEventListener('pointerover', onPointerOver);
       document.removeEventListener('pointerout', onPointerOut);
       document.removeEventListener('pointerdown', hide, true);

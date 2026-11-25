@@ -20,7 +20,8 @@ export function useKeyboardShortcuts(enabled: boolean): void {
       // Windows reports AltGr as Ctrl+Alt
       const altGraph = event.getModifierState?.('AltGraph') ?? false;
       if (((event.ctrlKey || event.metaKey) && !altGraph) || isTyping(event.target)) return;
-      handleShortcut(event.code, event.key, event.altKey);
+      // A focused button would also take Space or Enter as a click
+      if (handleShortcut(event.code, event.key, event.altKey)) event.preventDefault();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

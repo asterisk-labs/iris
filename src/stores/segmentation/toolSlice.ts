@@ -1,7 +1,6 @@
 import type { SliceCreator, ToolSlice } from './types';
 
 const TOOLS = ['move', 'draw', 'eraser'] as const;
-const SHAPES = ['square', 'round'] as const;
 const MAX_TOOL_SIZE = 100;
 
 /** Brush sizes the buttons and the + and - keys step through, in pixels */
@@ -18,7 +17,6 @@ const clampSize = (size: number) => Math.max(1, Math.min(size, MAX_TOOL_SIZE));
 export const createToolSlice: SliceCreator<ToolSlice> = (set, get) => ({
   currentTool: 'draw',
   toolSize: 5,
-  toolShape: 'square',
   brushSizes: { draw: 5, eraser: 5 },
   currentClass: 0,
 
@@ -44,14 +42,6 @@ export const createToolSlice: SliceCreator<ToolSlice> = (set, get) => ({
     const brushSize = clampSize(size);
     set((state) => ({ brushSizes: { ...state.brushSizes, [tool]: brushSize } }));
     if (get().currentTool === tool) set({ toolSize: brushSize });
-  },
-
-  setToolShape: (shape) => {
-    if (!SHAPES.includes(shape)) {
-      console.warn('[IRIS] setToolShape: Invalid shape type provided', shape);
-      return;
-    }
-    set({ toolShape: shape });
   },
 
   /** Select a class and switch to the draw tool, as the legacy UI did. */

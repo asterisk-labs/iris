@@ -61,6 +61,13 @@ describe('BrushTool', () => {
     expect(useSegmentationStore.getState().brushSizes.eraser).toBe(5);
   });
 
+  it('shows the + and - keys only on the brush they resize', () => {
+    renderTools();
+
+    expect(screen.getByLabelText('Bigger brush, 5 px now')).toHaveAttribute('data-shortcut', '+');
+    expect(screen.getByLabelText('Bigger eraser, 5 px now')).not.toHaveAttribute('data-shortcut');
+  });
+
   it('selects its tool', () => {
     renderTools();
 

@@ -52,6 +52,16 @@ describe('TooltipLayer', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
+  it('follows the label of the control while shown', async () => {
+    vi.useFakeTimers();
+    renderPage();
+
+    hover('draw');
+    await act(async () => { screen.getByText('draw').dataset.tooltip = 'Drawing'; });
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Drawing');
+  });
+
   it('hides when clicking', () => {
     vi.useFakeTimers();
     renderPage();

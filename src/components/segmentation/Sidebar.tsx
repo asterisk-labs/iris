@@ -16,24 +16,29 @@ export const SIDEBAR_WIDTH = 240;
 export const SIDEBAR_COLLAPSED_WIDTH = 60;
 
 const SIDEBARS_KEY = 'iris-sidebars';
+// Where the toolbar used to remember it, before both columns were
+const OLD_TOOLBAR_KEY = 'leftToolbarExpanded';
 
 /** Which columns are expanded, remembered across reloads */
 export const useSidebars = () => {
   const [expanded, setExpanded] = React.useState<{ left: boolean; right: boolean }>(() => {
     try {
-      return { left: false, right: true, ...JSON.parse(localStorage.getItem(SIDEBARS_KEY) || '{}') };
+      const saved = localStorage.getItem(SIDEBARS_KEY);
+      if (saved) return { left: false, right: true, ...JSON.parse(saved) };
+      return { left: localStorage.getItem(OLD_TOOLBAR_KEY) === 'true', right: true };
     } catch {
       return { left: false, right: true };
     }
   });
 
-  const toggle = (side: 'left' | 'right') => setExpanded((current) => {
-    const next = { ...current, [side]: !current[side] };
+  React.useEffect(() => {
     try {
-      localStorage.setItem(SIDEBARS_KEY, JSON.stringify(next));
+      localStorage.setItem(SIDEBARS_KEY, JSON.stringify(expanded));
+      localStorage.removeItem(OLD_TOOLBAR_KEY);
     } catch { /* ignore */ }
-    return next;
-  });
+  }, [expanded]);
+
+  const toggle = (side: 'left' | 'right') => setExpanded((current) => ({ ...current, [side]: !current[side] }));
 
   return {
     leftExpanded: expanded.left,
@@ -64,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ side, expanded, onToggle, name, comma
 
   return (
     <aside
+      className="sidebar"
       style={{
         position: 'fixed',
         [side]: 0,
@@ -82,7 +88,8 @@ const Sidebar: React.FC<SidebarProps> = ({ side, expanded, onToggle, name, comma
         zIndex: 900,
       }}
       onWheel={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      // Left alone on the toolbar, so clicks there still close the open menus
+      onMouseDown={side === 'right' ? (e) => e.stopPropagation() : undefined}
     >
       <button
         onClick={onToggle}

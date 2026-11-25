@@ -163,12 +163,17 @@ img {
     height: 22px;
 }
 
-/* The React controls style their own hover */
-.button:hover,.statusbutton:hover{
+button:hover,.button:hover,.statusbutton:hover{
     background-color: #f7fafc;
     border-color: rgba(0, 0, 0, 0.12);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* The side columns style their own hover */
+.sidebar button:hover{
+    transform: none;
+    box-shadow: none;
 }
 
 .checked:hover{

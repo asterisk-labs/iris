@@ -13,7 +13,8 @@ import { controlButtonStyle } from '../../controlStyles';
 const SizeButton: React.FC<{
   text: string;
   label: string;
-  command: Command;
+  /** Its key, only on the brush in use since the keys resize that one */
+  command?: Command;
   disabled?: boolean;
   onClick: () => void;
 }> = ({ text, label, command, disabled = false, onClick }) => {
@@ -22,11 +23,13 @@ const SizeButton: React.FC<{
   return (
     <button
       onClick={onClick}
+      // Not focused by a click, so Space and Enter don't press it again
+      onMouseDown={(e) => e.preventDefault()}
       disabled={disabled}
       aria-label={label}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      {...tooltip(label, command)}
+      {...tooltip(label, ...(command ? [command] : []))}
       style={{
         ...controlButtonStyle(theme, { hovered: hovered && !disabled }),
         flex: 1,
@@ -62,12 +65,13 @@ const BrushTool: React.FC<BrushToolProps> = ({ tool, id, icon, title, label, dis
   const setBrushSize = useSegmentationStore((state) => state.setBrushSize);
 
   const name = tool === 'draw' ? 'brush' : 'eraser';
+  const inUse = currentTool === tool;
   const sizeButtons = (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>
       <SizeButton
         text="−"
         label={`Smaller ${name}, ${size} px now`}
-        command="brush_smaller"
+        command={inUse ? 'brush_smaller' : undefined}
         disabled={disabled || size <= BRUSH_SIZES[0]}
         onClick={() => setBrushSize(tool, smallerBrushSize(size))}
       />
@@ -83,7 +87,7 @@ const BrushTool: React.FC<BrushToolProps> = ({ tool, id, icon, title, label, dis
       <SizeButton
         text="+"
         label={`Bigger ${name}, ${size} px now`}
-        command="brush_bigger"
+        command={inUse ? 'brush_bigger' : undefined}
         disabled={disabled || size >= BRUSH_SIZES[BRUSH_SIZES.length - 1]}
         onClick={() => setBrushSize(tool, biggerBrushSize(size))}
       />

@@ -122,12 +122,12 @@ export function registerShortcutAction(command: Command, action: () => void): ()
  * is held only the character counts, since Alt (or AltGr) changes it.
  */
 export function handleShortcut(code: string, key = '', altKey = false): boolean {
+  // Digits pick a class whatever they type, on AZERTY the 6 key types -
+  if (!altKey && selectClassFromDigit(code)) return true;
   const shortcut = (!altKey && byCode.get(code)) || byChar.get(key);
-  if (shortcut) {
-    (actions.get(shortcut.command) ?? shortcut.run)?.();
-    return true;
-  }
-  return !altKey && selectClassFromDigit(code);
+  if (!shortcut) return false;
+  (actions.get(shortcut.command) ?? shortcut.run)?.();
+  return true;
 }
 
 /** The shortcut for a toolbar button id such as `tb_undo`. */

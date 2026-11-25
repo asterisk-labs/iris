@@ -55,6 +55,7 @@ const Section: React.FC<{
     }}>
       <button
         onClick={toggle}
+        onMouseDown={(e) => e.preventDefault()}
         aria-expanded={!folded}
         {...tooltip(`${folded ? 'Show' : 'Hide'} ${title.toLowerCase()}`, ...(command ? [command] : []))}
         style={{
@@ -103,6 +104,7 @@ const PanelButton: React.FC<{
   return (
     <button
       onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
       aria-pressed={active}
       {...tooltip(title, command)}
       onMouseEnter={() => setHovered(true)}
