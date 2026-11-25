@@ -212,7 +212,7 @@ describe('PasswordResetRequestsPage', () => {
 
     // Verify API was called
     expect(global.fetch).toHaveBeenCalledWith(
-      '/admin/api/password-reset-requests/1/generate-password',
+      '/api/v1/admin/password-reset-requests/1/generate-password',
       expect.objectContaining({
         method: 'POST',
         headers: {

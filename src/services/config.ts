@@ -4,71 +4,11 @@
  * Handles communication with the backend for project configuration management.
  */
 
-const API_BASE_URL = '/api/config';
+const API_BASE_URL = '/api/v1';
 
-export interface ProjectConfig {
-  name: string;
-  host?: string;
-  port?: number;
-  images: {
-    path: string | Record<string, string>;
-    /** [height, width]; optional, read from the images when absent */
-    shape?: [number, number] | null;
-    thumbnails?: string | false;
-    metadata?: string | false;
-    /** Budget for the server's image cache in megabytes; 0 disables it */
-    cache_mb?: number;
-  };
-  classes: Array<{
-    name: string;
-    colour: [number, number, number, number];
-    description?: string;
-    user_colour?: [number, number, number, number];
-  }>;
-  views: Record<string, {
-    type: 'image' | 'bingmap';
-    description?: string;
-    data?: string | string[];
-    cmap?: string;
-    clip?: number;
-    vmin?: number;
-    vmax?: number;
-  }>;
-  view_groups: Record<string, string[]>;
-  segmentation: {
-    path: string;
-    mask_encoding?: string;
-    mask_area?: [number, number, number, number] | null;
-    score?: string;
-    prioritise_unmarked_images?: boolean;
-    unverified_threshold?: number;
-    test_images?: string[] | null;
-    ai_model: AIModelConfig | false;
-  };
-  chat?: {
-    enabled: boolean;
-    github_repo: string;
-    utterances_theme: string;
-  };
-}
+import type { ProjectConfig } from '../types/config.generated';
 
-export interface AIModelConfig {
-  bands: number[] | null;
-  train_ratio: number;
-  max_train_pixels: number;
-  n_estimators: number;
-  max_depth: number;
-  n_leaves: number;
-  suppression_threshold: number;
-  suppression_filter_size: number;
-  suppression_default_class: number;
-  use_edge_filter: boolean;
-  use_superpixels: boolean;
-  use_meshgrid: boolean;
-  meshgrid_cells: string;
-  /** Threads for LightGBM; -1 is all cores */
-  n_jobs?: number;
-}
+export type { ProjectConfig };
 
 export interface ValidationResult {
   valid: boolean;
@@ -80,7 +20,7 @@ export interface ValidationResult {
  * Get the current project configuration
  */
 export async function getProjectConfig(): Promise<{ config: ProjectConfig; config_file: string }> {
-  const response = await fetch(`${API_BASE_URL}/project`, {
+  const response = await fetch(`${API_BASE_URL}/project-config`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -100,7 +40,9 @@ export async function getProjectConfig(): Promise<{ config: ProjectConfig; confi
       throw new Error(error.message || 'Failed to fetch project configuration');
     } else {
       // Got HTML instead of JSON - likely 404 or server error
-      throw new Error(`API endpoint not found (${response.status}). Please restart the server.`);
+      throw new Error(response.status === 403
+        ? 'You need to be logged in as an administrator.'
+        : `API endpoint not found (${response.status}). Please restart the server.`);
     }
   }
   
@@ -111,7 +53,7 @@ export async function getProjectConfig(): Promise<{ config: ProjectConfig; confi
  * Update the project configuration
  */
 export async function updateProjectConfig(config: ProjectConfig): Promise<{ message: string; config_file: string }> {
-  const response = await fetch(`${API_BASE_URL}/project`, {
+  const response = await fetch(`${API_BASE_URL}/project-config`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -127,7 +69,9 @@ export async function updateProjectConfig(config: ProjectConfig): Promise<{ mess
       const error = await response.json();
       throw new Error(error.message || 'Failed to update project configuration');
     } else {
-      throw new Error(`API endpoint not found (${response.status}). Please restart the server.`);
+      throw new Error(response.status === 403
+        ? 'You need to be logged in as an administrator.'
+        : `API endpoint not found (${response.status}). Please restart the server.`);
     }
   }
   
@@ -138,7 +82,7 @@ export async function updateProjectConfig(config: ProjectConfig): Promise<{ mess
  * Validate a project configuration without saving
  */
 export async function validateProjectConfig(config: ProjectConfig): Promise<ValidationResult> {
-  const response = await fetch(`${API_BASE_URL}/project/validate`, {
+  const response = await fetch(`${API_BASE_URL}/project-config/validate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -154,7 +98,9 @@ export async function validateProjectConfig(config: ProjectConfig): Promise<Vali
       const error = await response.json();
       throw new Error(error.message || 'Failed to validate configuration');
     } else {
-      throw new Error(`API endpoint not found (${response.status}). Please restart the server.`);
+      throw new Error(response.status === 403
+        ? 'You need to be logged in as an administrator.'
+        : `API endpoint not found (${response.status}). Please restart the server.`);
     }
   }
   

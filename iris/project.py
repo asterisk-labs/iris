@@ -8,18 +8,19 @@ from copy import deepcopy
 from glob import glob
 from numbers import Number
 from os.path import basename, dirname, exists, getmtime, isabs, join, normpath, relpath
-from pprint import pprint
 
+import flask
 import markupsafe
 import matplotlib
 import numpy as np
 import rasterio as rio
 import yaml
-from skimage.filters import sobel
 from skimage.io import imread
-from skimage.segmentation import felzenszwalb
 
+from iris.expressions import evaluate, find_bands
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
+from iris.ordering import seeded_order
+from iris.schema import check_config, without_bing
 from iris.utils import merge_deep_dicts
 
 # RGB(A) images never warn
@@ -67,9 +68,8 @@ def band_layout_problem(path, name=None):
 
 class Project:
     def __init__(self):
-        # Each user is going to get a personalised random sequence of images:
-        self.random_state = np.random.RandomState(seed=0)
-        self.image_order = None
+        # Sorted once at load and never reordered; per-user orders are
+        # computed from it by iris.ordering.
         self.image_ids = None
         self.file = None
         self.debug = False
@@ -119,10 +119,14 @@ class Project:
             # Non-fatal; leave config as-is on error
             print(f"Warning: Failed to normalize images.path: {e}")
 
-        self._init_paths_and_files(filename)
+        # An existing project may break a rule that was not checked before, so
+        # say what is wrong rather than refuse to load it.
+        errors, warnings = check_config(self.config)
+        for message in errors + warnings:
+            print(f'Warning: {basename(filename)}: {message}')
+        self.config, _ = without_bing(self.config)
 
-        # Default seed
-        self.set_image_seed(0)
+        self._init_paths_and_files(filename)
 
         # A reload may point at different images: start the caches afresh,
         # sized from the new config.
@@ -182,9 +186,8 @@ class Project:
                 view['cmap'] = view.get('cmap', 'jet')
 
         self._normalise_classes(self.config)
-        for mode in ['segmentation', 'classification', 'detection']:
-            if mode in self.config:
-                self._normalise_classes(self[mode])
+        if 'segmentation' in self.config:
+            self._normalise_classes(self['segmentation'])
 
         if "host" not in self.config:
             self['host'] = '127.0.0.1'
@@ -432,8 +435,12 @@ class Project:
                     return file.crs, file.transform * rio.transform.Affine.translation(x0, y0)
         return None, None
 
-    def get_start_image_id(self):
-        return self.image_ids[self.image_order[0]]
+    def image_order(self, seed):
+        """The image ids in the order a user with this seed sees them."""
+        return seeded_order(self.image_ids, seed)
+
+    def get_start_image_id(self, seed=0):
+        return self.image_order(seed)[0]
 
     def load_image(self, filename, bands=None):
         """Load image from file
@@ -566,31 +573,9 @@ class Project:
 
     def render_image(self, image_id, view):
         # Find all required variables
-        bands = re.findall(r'(?:\$\w+\.{0,1}\w+)', ";".join(view['data']))
+        bands = find_bands(view['data'])
         image = self.get_image(image_id, bands=bands)
-        environment = self._get_render_environment(image)
-
-        rgb_bands = []
-        for i, expression_raw in enumerate(view['data']):
-            expression = re.sub(r'\$(\w+)\.(\w+)', r'\1["\2"]', expression_raw)
-            expression = re.sub(r'\$(\w+)', r'\1', expression)
-            try:
-                # Since one should never rely on evaluating an expression from
-                # untrusted sources, we will have to find a different solution
-                # to make it safe.
-                self._check_band_expression(expression)
-                rgb_bands.append(
-                    eval(expression, {"__builtins__": None}, environment)
-                )
-            except Exception as error:
-                print(
-                    f"Could not parse {i}th expression of {view['name']}\n",
-                    f"Raw expression: {expression_raw}\n",
-                    f"Python expression: {expression}\n",
-                    f"Error: {error}\n",
-                    "Environment:"
-                )
-                pprint(environment)
+        rgb_bands = [evaluate(expression, image) for expression in view['data']]
 
         # Broadcast (single numbers are converted to an array with the size of
         # this image)
@@ -636,35 +621,6 @@ class Project:
         rgb_bands = np.dstack(rgb_bands)
         return (255*rgb_bands).astype('uint8')
 
-    def _get_render_environment(self, image):
-        return {
-            'max': np.max,
-            'min': np.min,
-            'mean': np.mean,
-            'median': np.median,
-            'log': np.log,
-            'exp': np.exp,
-            'sin': np.sin,
-            'cos': np.cos,
-            'PI': np.pi,
-            'edges': sobel,
-            'superpixels': felzenszwalb,
-            **{
-                key.strip('$'): value
-                for key, value in image.items()
-            },
-        }
-
-    def _check_band_expression(self, expression):
-        forbidden_tokens = ['lambda', '__', 'except', 'eval', ';']
-
-        for forbidden in forbidden_tokens:
-            if forbidden in expression:
-                raise Exception(
-                    f"'{forbidden}' is not allowed in band expressions!\n"
-                    + f"Expression: {expression}"
-                )
-
     def get_metadata(self, image_id):
         filename = self['images'].get('metadata', False)
         if not filename:
@@ -704,6 +660,11 @@ class Project:
             # set by the user (or by a potential attacker):
             config['images'] = deepcopy(self.config['images'])
             config['views'] = deepcopy(self.config['views'])
+            # Threads are the server's to give out, and preferences saved by
+            # earlier versions hold a copy of the old default (-1, all cores)
+            ai_model = self.config['segmentation'].get('ai_model')
+            if ai_model and config['segmentation'].get('ai_model'):
+                config['segmentation']['ai_model']['n_jobs'] = ai_model.get('n_jobs', 4)
             if "path" in self.config['segmentation']:
                 config['segmentation']['path'] = self.config['segmentation']['path']
 
@@ -715,73 +676,11 @@ class Project:
         with open(filename, 'w') as stream:
             json.dump(user_config, stream)
 
-    def get_next_image(self, image_id, user_id):
 
-        original_index = self.image_ids.index(image_id)
-        index = self.image_order.index(original_index)
+def current_project() -> Project:
+    """The project of the app handling the current request or CLI command.
 
-        # 'prioritise_unmarked_images' mode will search the database of existing
-        # masks, and find images with the lowest number of annotations to serve
-        # when a user asks for the next image. Then it will swap this image
-        # into the existing order to make it come up next.
-        if self.config['segmentation']['prioritise_unmarked_images']:
-            from iris.models import Action
-            actions = Action.query.all()
-            # Same order as self.image_order (NOT self.image_ids)
-            mask_count = [0]*len(self.image_order)
-            mask_count[index] = 99999 # Make sure the current image isn't selected as the new one
-            for action in actions:
-                mask_count[
-                    self.image_order.index(
-                        self.image_ids.index(
-                            action.image_id
-                            )
-                            )
-                            ] += 1
-
-                if user_id.id == action.user_id:
-                    mask_count[
-                        self.image_order.index(
-                            self.image_ids.index(
-                                action.image_id
-                                )
-                                )
-                                ] += 9999
-
-            min_labellers = min(mask_count)
-            # iterate through images until one is found with fewest existing masks
-            next_image_found = False
-            trial_idx = index
-            while not next_image_found:
-                trial_idx = (trial_idx + 1) % len(self.image_order)
-                if mask_count[trial_idx] == min_labellers and trial_idx != index:
-                    # Once a suitable image is found, update the list so that its
-                    # next in line (this means self.get_previous_image retains expected
-                    # behaviour immediately afterwards).
-                    # NOTE: this mutates self.image_ids, which every user
-                    # shares, so one user's "next" reorders the others'
-                    # sequences. The ordering rewrite in T1.2.1 of
-                    # docs/agents/IMPLEMENTATION_PLAN.md replaces this; it is
-                    # deliberately left alone here.
-                    a = trial_idx
-                    b = (index + 1) % len(self.image_order)
-                    self.image_ids[self.image_order[a]], self.image_ids[self.image_order[b]] = \
-                        self.image_ids[self.image_order[b]], self.image_ids[self.image_order[a]]
-                    next_image_found = True
-        index = (index + 1) % len(self.image_order)
-        return self.image_ids[self.image_order[index]]
-
-    def get_previous_image(self, image_id):
-        original_index = self.image_ids.index(image_id)
-
-        index = self.image_order.index(original_index)
-        index = (index - 1) % len(self.image_order)
-        return self.image_ids[self.image_order[index]]
-
-    def set_image_seed(self, seed):
-        self.random_state = np.random.RandomState(seed=seed)
-        self.image_order = list(range(len(self.image_ids)))
-
-        self.random_state.shuffle(self.image_order)
-
-project = Project()
+    `create_app` builds one Project per app and keeps it in
+    `app.extensions['iris']`; there is no module-level project.
+    """
+    return flask.current_app.extensions['iris']

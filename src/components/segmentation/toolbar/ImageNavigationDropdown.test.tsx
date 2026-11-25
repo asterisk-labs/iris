@@ -156,4 +156,46 @@ describe('ImageNavigationDropdown', () => {
 
     expect(screen.getByText('No images loaded')).toBeInTheDocument();
   });
+
+  describe('sorting and filtering', () => {
+    const names = () => Array.from(document.querySelectorAll('.image-name')).map(e => e.textContent);
+    const image = (image_id: string, done = false) => ({
+      image_id, has_user_annotation: done, has_any_annotation: done, annotation_count: done ? 1 : 0,
+    });
+
+    beforeEach(() => {
+      useSegmentationStore.setState({
+        images: [image('tile10'), image('tile2', true), image('Coast')],
+        currentImageId: 'tile10',
+        currentImageIndex: 0,
+      });
+      render(<ImageNavigationDropdown onNavigate={vi.fn()} />);
+      fireEvent.click(screen.getByTitle('Select image to navigate'));
+    });
+
+    it('sorts by name by default, with numbers in order, and leaves the store alone', () => {
+      expect(names()).toEqual(['Coast', 'tile2', 'tile10']);
+      expect(useSegmentationStore.getState().images.map(i => i.image_id)).toEqual(['tile10', 'tile2', 'Coast']);
+    });
+
+    it('can show the order Next follows', () => {
+      fireEvent.click(screen.getByText('My order'));
+      expect(names()).toEqual(['tile10', 'tile2', 'Coast']);
+      fireEvent.click(screen.getByText('A–Z'));
+      expect(names()).toEqual(['Coast', 'tile2', 'tile10']);
+    });
+
+    it('can hide images the user has annotated', () => {
+      fireEvent.click(screen.getByText('To do'));
+      expect(names()).toEqual(['Coast', 'tile10']);
+    });
+
+    it('finds images by name', () => {
+      const input = screen.getByLabelText('Find an image');
+      fireEvent.change(input, { target: { value: 'TILE' } });
+      expect(names()).toEqual(['tile2', 'tile10']);
+      fireEvent.change(input, { target: { value: 'nothing' } });
+      expect(screen.getByText('No matching images')).toBeInTheDocument();
+    });
+  });
 });

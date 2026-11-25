@@ -1,11 +1,7 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
 import { useConfigStyles } from './useConfigStyles';
 
-interface ChatConfig {
-  enabled: boolean;
-  github_repo: string;
-  utterances_theme: string;
-}
+import type { ChatConfig } from '../../../types/config.generated';
 
 export interface ChatSectionRef {
   getData: () => ChatConfig;

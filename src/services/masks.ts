@@ -11,7 +11,7 @@ export async function loadMask(
   imageId: string,
   pixelCount: number,
 ): Promise<{ final: Uint8Array; user: Uint8Array } | null> {
-  const response = await fetch(`${appUrls().segmentation}load_mask/${encodeURIComponent(imageId)}`, {
+  const response = await fetch(`${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/mask`, {
     cache: 'no-store',
     credentials: 'same-origin',
   });
@@ -22,7 +22,7 @@ export async function loadMask(
 
 export async function saveMask(imageId: string, final: Uint8Array, user: Uint8Array): Promise<void> {
   const body = encodeMasks(final, user);
-  await ensureOk(await fetch(`${appUrls().segmentation}save_mask/${encodeURIComponent(imageId)}`, {
+  await ensureOk(await fetch(`${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/mask`, {
     method: 'POST',
     body: body as BodyInit,
     headers: { 'Content-Type': 'application/octet-stream' },
@@ -33,5 +33,5 @@ export async function saveMask(imageId: string, final: Uint8Array, user: Uint8Ar
 /** Fire-and-forget save that survives the page being closed. */
 export function saveMaskOnUnload(imageId: string, final: Uint8Array, user: Uint8Array): boolean {
   const blob = new Blob([encodeMasks(final, user) as BlobPart], { type: 'application/octet-stream' });
-  return navigator.sendBeacon(`${appUrls().segmentation}save_mask/${encodeURIComponent(imageId)}`, blob);
+  return navigator.sendBeacon(`${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/mask`, blob);
 }

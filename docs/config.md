@@ -160,10 +160,10 @@ Since this app was developed for multi-spectral satellite data (i.e. images with
         *description:* Further description which explains what the user can see in this view.
     </li>
     <li>
-        *type:* Can be either `bingmap` or `image`.
+        *type:* Must be `image`.
     </li>
     <li>
-        *data:* Can be either one string (monochrome image) or a list of three strings (rgb image). Each string must contain an expression that returns a valid band array. It can contain mathematical expressions, band combinations or calls of specific functions like `edges` or `superpixels`. One refers to the bands by using variable names starting with `$B`, e.g. `$B1` for the first band of the image file. If you set `image:path` to a dictionary, you need the file identifiers as prefix, i.e. `$FileIdentifier.B1` (e.g. `$Sentinel2.B1`).
+        *data:* Can be either one string (monochrome image) or a list of three strings (rgb image). Each string must contain an expression that returns a valid band array. It can contain arithmetic (`+ - * / // % **`), single comparisons, `& | ^ ~`, the constant `PI` and calls of `max`, `min`, `mean`, `median`, `log`, `exp`, `sin`, `cos`, `edges` and `superpixels`. Anything else (e.g. indexing, or methods such as `.clip()`) is rejected. One refers to the bands by using variable names starting with `$B`, e.g. `$B1` for the first band of the image file. If you set `image:path` to a dictionary, you need the file identifiers as prefix, i.e. `$FileIdentifier.B1` (e.g. `$Sentinel2.B1`).
     </li>
     <li>
         *cmap:* If `data` contains only one string (monochrome image), you can set a matplotlib colormap name here to render that image.
@@ -206,10 +206,6 @@ Since this app was developed for multi-spectral satellite data (i.e. images with
       "type": "image",
       "data": "superpixels($Sentinel2.B2+$Sentinel2.B3+$Sentinel2.B4, sigma=4, min_size=100)",
       "cmap": "jet"
-  },
-  "Bing": {
-      "description": "Aerial Imagery",
-      "type": "bingmap"
   }
 }
 ```
@@ -220,7 +216,7 @@ The group `default` must always be set, further groups are optional.
 
 ```
 "view_groups": {
-      "default": ["Cirrus", "RGB", "Bing"],
+      "default": ["Cirrus", "RGB"],
       "clouds": ["Cirrus"],
       "radar": ["Sentinel1"]
   }
@@ -275,9 +271,9 @@ take the values in the [default configuration file](../iris/default_config.json)
 - `train_ratio`, `max_train_pixels`: share of each class's painted pixels
   used for training, and a cap per class.
 - `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.
-- `n_jobs`: threads LightGBM may use. `-1` (the default) means all cores;
-  set a positive number to leave cores free for other users on a shared
-  server.
+- `n_jobs`: threads LightGBM may use, 4 by default. `-1` means all cores,
+  which is much slower than a few threads on machines with many cores. Users
+  cannot override this one.
 - `use_edge_filter`, `use_superpixels`, `use_meshgrid`, `meshgrid_cells`:
   extra per-pixel features (Sobel edges, Felzenszwalb superpixels, and the
   pixel's cell in an `RxC` grid, or `"pixelwise"` for its position).

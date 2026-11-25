@@ -11,6 +11,7 @@ class JsonSerializable:
         json = {
             c.name: getattr(self, c.name)
             for c in self.__table__.columns
+            if hasattr(self, c.name)
         }
 
         for k, v in json.items():
@@ -38,7 +39,9 @@ class User(JsonSerializable, db.Model):
                       index=False,
                       unique=False,
                       nullable=False, default=False)
-    tested = db.Column(db.Boolean,
+    # Unused. Existing databases have this column as NOT NULL without a
+    # default, so inserts must keep filling it until there is a migration.
+    _tested = db.Column('tested', db.Boolean,
                       index=False,
                       unique=False,
                       nullable=False, default=False)
@@ -79,7 +82,7 @@ class User(JsonSerializable, db.Model):
 
 class Action(JsonSerializable, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # Can be segmentation, classification or detection:
+    # Always 'segmentation'; old databases may hold other types
     type = db.Column(db.String(64), index=True)
     image_id = db.Column(db.String(256), index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))

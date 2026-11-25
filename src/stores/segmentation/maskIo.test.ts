@@ -47,7 +47,7 @@ describe('mask store actions', () => {
     fetchMock.mockResolvedValue(bytesResponse(encodeMasks(final, user)));
     await useSegmentationStore.getState().loadMaskForImage('img');
     const s = useSegmentationStore.getState();
-    expect(fetchMock.mock.calls[0][0]).toBe('/segmentation/load_mask/img');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/images/img/mask');
     expect(Array.from(s.maskDocument!.final)).toEqual(Array.from(final));
     expect(s.userPixelCounts).toEqual({ 0: 0, 1: 1, total: 1 });
     expect(s.maskChanged).toBe(false);
@@ -89,7 +89,7 @@ describe('mask store actions', () => {
       fetchMock.mockResolvedValueOnce(new Response('ok'));
       await useSegmentationStore.getState().saveCurrentMask();
       const [url, init] = fetchMock.mock.calls[1];
-      expect(url).toBe('/segmentation/save_mask/img');
+      expect(url).toBe('/api/v1/images/img/mask');
       const body = init.body as Uint8Array;
       expect(body[0]).toBe(254);
       expect(body[1]).toBe(1);
@@ -124,7 +124,7 @@ describe('mask store actions', () => {
       await useSegmentationStore.getState().predictMask();
 
       const [url, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
-      expect(url).toBe('/segmentation/predict_mask/img');
+      expect(url).toBe('/api/v1/images/img/predict');
       const sent = JSON.parse(init.body as string);
       expect(sent.user_pixels).toHaveLength(16); // round(15 * 0.5) = 8 per class
       const s = useSegmentationStore.getState();

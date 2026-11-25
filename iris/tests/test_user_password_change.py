@@ -20,7 +20,7 @@ def test_change_password_success(client, app):
 
     # Login
     response = client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser", "password": "oldpassword123"}),
         content_type="application/json",
     )
@@ -28,7 +28,7 @@ def test_change_password_success(client, app):
 
     # Change password
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps(
             {
                 "current_password": "oldpassword123",
@@ -44,11 +44,11 @@ def test_change_password_success(client, app):
     assert data["message"] == "Password changed successfully"
 
     # Logout
-    client.get("/user/logout")
+    client.get("/api/v1/auth/logout")
 
     # Try logging in with old password (should fail)
     response = client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser", "password": "oldpassword123"}),
         content_type="application/json",
     )
@@ -56,7 +56,7 @@ def test_change_password_success(client, app):
 
     # Try logging in with new password (should succeed)
     response = client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser", "password": "newpassword456"}),
         content_type="application/json",
     )
@@ -75,14 +75,14 @@ def test_change_password_wrong_current_password(client, app):
 
     # Login
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser2", "password": "correctpassword"}),
         content_type="application/json",
     )
 
     # Try to change password with wrong current password
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps(
             {
                 "current_password": "wrongpassword",
@@ -110,14 +110,14 @@ def test_change_password_mismatch(client, app):
 
     # Login
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser3", "password": "password123"}),
         content_type="application/json",
     )
 
     # Try to change password with mismatched new passwords
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps(
             {
                 "current_password": "password123",
@@ -145,14 +145,14 @@ def test_change_password_too_short(client, app):
 
     # Login
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser4", "password": "password123"}),
         content_type="application/json",
     )
 
     # Try to change password with too short password (less than 4 chars)
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps({"current_password": "password123", "new_password": "123", "confirm_password": "123"}),
         content_type="application/json",
     )
@@ -174,7 +174,7 @@ def test_change_password_too_long(client, app):
 
     # Login
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser5", "password": "password123"}),
         content_type="application/json",
     )
@@ -182,7 +182,7 @@ def test_change_password_too_long(client, app):
     # Try to change password with too long password (>64 chars)
     long_password = "a" * 65
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps(
             {"current_password": "password123", "new_password": long_password, "confirm_password": long_password}
         ),
@@ -197,7 +197,7 @@ def test_change_password_too_long(client, app):
 def test_change_password_not_authenticated(client, app):
     """Test password change without being logged in."""
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps(
             {"current_password": "password123", "new_password": "newpassword456", "confirm_password": "newpassword456"}
         ),
@@ -219,14 +219,14 @@ def test_change_password_missing_fields(client, app):
 
     # Login
     client.post(
-        "/user/login",
+        "/api/v1/auth/login",
         data=json.dumps({"username": "testuser6", "password": "password123"}),
         content_type="application/json",
     )
 
     # Missing current password
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps({"new_password": "newpassword456", "confirm_password": "newpassword456"}),
         content_type="application/json",
     )
@@ -234,7 +234,7 @@ def test_change_password_missing_fields(client, app):
 
     # Missing new password
     response = client.post(
-        "/user/api/change-password",
+        "/api/v1/auth/change-password",
         data=json.dumps({"current_password": "password123", "confirm_password": "newpassword456"}),
         content_type="application/json",
     )

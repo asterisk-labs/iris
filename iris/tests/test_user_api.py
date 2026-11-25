@@ -6,7 +6,7 @@ from iris.models import Action, User
 
 def test_get_current_user_not_authenticated(client):
     """Test getting current user when not authenticated."""
-    response = client.get('/user/api/current')
+    response = client.get('/api/v1/auth/session')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['user'] is None
@@ -23,13 +23,13 @@ def test_get_current_user_authenticated(client, app):
         db.session.commit()
 
     # Login
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'testuser',
         'password': 'password'
     }), content_type='application/json')
 
     # Get current user
-    response = client.get('/user/api/current')
+    response = client.get('/api/v1/auth/session')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['user'] is not None
@@ -39,7 +39,7 @@ def test_get_current_user_authenticated(client, app):
 
 def test_get_profile_requires_auth(client):
     """Test that profile endpoint requires authentication."""
-    response = client.get('/user/api/profile/1')
+    response = client.get('/api/v1/users/1/profile')
     assert response.status_code == 403
 
 
@@ -74,13 +74,13 @@ def test_get_profile_current(client, app):
         db.session.commit()
 
     # Login
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'testuser',
         'password': 'password'
     }), content_type='application/json')
 
     # Get profile
-    response = client.get('/user/api/profile/current')
+    response = client.get('/api/v1/users/current/profile')
     assert response.status_code == 200
     data = json.loads(response.data)
 
@@ -111,13 +111,13 @@ def test_get_profile_by_id(client, app):
         user2_id = user2.id
 
     # Login as user1
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'user1',
         'password': 'password'
     }), content_type='application/json')
 
     # Get user2's profile
-    response = client.get(f'/user/api/profile/{user2_id}')
+    response = client.get(f'/api/v1/users/{user2_id}/profile')
     assert response.status_code == 200
     data = json.loads(response.data)
 
@@ -135,13 +135,13 @@ def test_get_profile_invalid_id(client, app):
         db.session.commit()
 
     # Login
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'testuser',
         'password': 'password'
     }), content_type='application/json')
 
     # Try to get non-existent user
-    response = client.get('/user/api/profile/99999')
+    response = client.get('/api/v1/users/99999/profile')
     assert response.status_code == 404
     data = json.loads(response.data)
     assert 'error' in data
@@ -177,12 +177,12 @@ def test_profile_rank_calculation(client, app):
         db.session.commit()
 
     # Login as user3 (lowest rank)
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'user3',
         'password': 'password'
     }), content_type='application/json')
 
-    response = client.get('/user/api/profile/current')
+    response = client.get('/api/v1/users/current/profile')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['segmentation']['rank'] == 3
@@ -200,12 +200,12 @@ def test_profile_rank_for_new_user(client, app):
         db.session.commit()
 
     # Login as new user
-    client.post('/user/login', data=json.dumps({
+    client.post('/api/v1/auth/login', data=json.dumps({
         'username': 'newuser',
         'password': 'password'
     }), content_type='application/json')
 
-    response = client.get('/user/api/profile/current')
+    response = client.get('/api/v1/users/current/profile')
     assert response.status_code == 200
     data = json.loads(response.data)
     # New user with no actions should have rank None

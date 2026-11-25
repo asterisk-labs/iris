@@ -39,7 +39,6 @@ const SegmentationSection = forwardRef<any, {}>((_props, ref) => {
     score: scoreEnum,
     prioritise_unmarked_images: prioritiseUnmarked,
     unverified_threshold: aiConfig.unverifiedThreshold,
-    test_images: null,
     ai_model: aiModelEnabled
       ? {
           bands: aiConfig.bands.trim() ? aiConfig.bands : null,

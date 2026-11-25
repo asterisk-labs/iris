@@ -15,7 +15,7 @@ export interface ActionInfo {
 /** The current user's action info for an image, or null if there is none. */
 export async function getActionInfo(imageId: string): Promise<ActionInfo | null> {
   const response = await fetch(
-    `${appUrls().main}get_action_info/${encodeURIComponent(imageId)}/segmentation`,
+    `${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/action`,
     { credentials: 'same-origin' },
   );
   if (response.status >= 400) return null;
@@ -26,7 +26,7 @@ export async function setActionInfo(
   actionId: number,
   info: Pick<ActionInfo, 'difficulty' | 'notes' | 'complete'>,
 ): Promise<void> {
-  await ensureOk(await fetch(`${appUrls().main}set_action_info/${actionId}`, {
+  await ensureOk(await fetch(`${appUrls().main}api/v1/actions/${actionId}`, {
     method: 'POST',
     body: JSON.stringify(info),
     credentials: 'same-origin',

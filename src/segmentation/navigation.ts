@@ -5,8 +5,10 @@
  */
 
 import { useSegmentationStore } from '../stores/segmentationStore';
-import { imageUrl } from '../services/http';
+import { AuthError, imageUrl } from '../services/http';
 import { getActionInfo } from '../services/actionInfo';
+import { getNextImageId } from '../services/images';
+import { recordStep, stepBack } from './trail';
 
 const store = () => useSegmentationStore.getState();
 
@@ -14,6 +16,31 @@ export { imageUrl };
 
 export function goToImage(imageId: string): void {
   window.location.href = imageUrl(imageId);
+}
+
+/**
+ * The image to go to, null when there is none, or undefined when the server
+ * could not be asked (already reported to the user).
+ */
+async function findTarget(direction: 'next' | 'prev'): Promise<string | null | undefined> {
+  const { currentImageId, images } = store();
+  if (!currentImageId) return null;
+  if (direction === 'prev') {
+    const cameFrom = stepBack(currentImageId);
+    return cameFrom && images.some(i => i.image_id === cameFrom)
+      ? cameFrom
+      : store().getPrevImageId();
+  }
+  try {
+    const target = await getNextImageId(currentImageId);
+    if (target) recordStep(currentImageId, target);
+    return target;
+  } catch (error) {
+    store().showErrorModal(error instanceof AuthError
+      ? 'Your session has expired; log in again to continue.'
+      : 'Could not find the next image.');
+    return undefined;
+  }
 }
 
 /**
@@ -26,9 +53,10 @@ export async function saveThenGo(direction: 'next' | 'prev'): Promise<void> {
   } catch {
     return; // the store has reported the failure
   }
-  const target = direction === 'next' ? store().getNextImageId() : store().getPrevImageId();
+  const target = await findTarget(direction);
+  if (target === undefined) return;
   if (!target) {
-    store().showNotice(direction === 'next' ? 'No more images' : 'Already at first image');
+    store().showNotice('No other images');
     return;
   }
   if (store().showDialogueBeforeNextImage) {
@@ -47,7 +75,8 @@ export async function goFromToolbar(direction: 'next' | 'prev'): Promise<void> {
       return;
     }
   }
-  const target = direction === 'next' ? store().getNextImageId() : store().getPrevImageId();
+  const target = await findTarget(direction);
+  if (target === undefined) return;
   if (target) goToImage(target);
 }
 

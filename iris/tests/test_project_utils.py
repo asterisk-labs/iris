@@ -4,32 +4,10 @@ import numpy as np
 import pytest
 from skimage.io import imsave
 
-from iris import project
 from iris.project import Project
 
 
-@pytest.mark.parametrize("expr", ["max(B1)", "mean($B1) + 1"])
-def test_check_band_expression_allows(expr):
-    project._check_band_expression(expr)  # should not raise
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        "lambda x: x",
-        "__import__('os')",
-        "1; import os",
-        "eval('1')",
-        "a; b",
-        "except: pass",
-    ],
-)
-def test_check_band_expression_forbids(bad):
-    with pytest.raises(Exception):  # noqa: B017
-        project._check_band_expression(bad)
-
-
-def test_make_absolute_varieties(tmp_path, monkeypatch):
+def test_make_absolute_varieties(tmp_path, monkeypatch, project):
     # simulate a project.file location
     fake_cfg = tmp_path / "cfg.json"
     fake_cfg.write_text("{}")
@@ -65,19 +43,18 @@ def test_make_absolute_dict_and_list(tmp_path):
     assert isinstance(out2, list)
 
 
-def test_set_image_seed_reproducible(project_snapshot):
+def test_image_order_depends_only_on_seed(project_snapshot, project):
     project.image_ids = ["1", "2", "3", "4", "5"]
-    project.set_image_seed(123)
-    first = list(project.image_order)
-    # reset and repeat
-    project.set_image_seed(123)
-    second = list(project.image_order)
-    assert first == second
-    project.set_image_seed(124)
-    assert list(project.image_order) != first
+    first = project.image_order(123)
+    assert project.image_order(123) == first
+    assert project.image_order(124) != first
+    assert sorted(first) == project.image_ids
+    # Asking for an order leaves the project's own list alone
+    assert project.image_ids == ["1", "2", "3", "4", "5"]
+    assert project.get_start_image_id(123) == first[0]
 
 
-def test_get_image_bands_from_headers(monkeypatch):
+def test_get_image_bands_from_headers(monkeypatch, project):
     """Band names come from the file headers; no pixels are read."""
     import rasterio as rio
 

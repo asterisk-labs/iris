@@ -75,14 +75,14 @@ describe('SegmentationApp - URL Parameter Handling', () => {
 
     // Mock fetch for authentication check - fix the URL to match what the app actually calls
     global.fetch = vi.fn((url) => {
-      if (url === '/user/get/current') {
+      if (url === '/api/v1/users/current') {
         return Promise.resolve({
           ok: true,
           json: async () => ({ user: { id: 1, name: 'testuser', admin: false } })
         });
       }
       // Mock image list API call
-      if (url.includes('/segmentation/api/images/list')) {
+      if (url.includes('/api/v1/images')) {
         return Promise.resolve({
           ok: true,
           json: async () => ({ images: [] })

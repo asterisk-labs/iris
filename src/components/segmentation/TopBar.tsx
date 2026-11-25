@@ -28,7 +28,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
   const { saveCurrentMask, isLoading, maskChanged } = useSegmentationStore(useShallow(s => ({ saveCurrentMask: s.saveCurrentMask, isLoading: s.isLoading, maskChanged: s.maskChanged })));
   
   const hasPrev = useSegmentationStore(s => s.getPrevImageId() !== null);
-  const hasNext = useSegmentationStore(s => s.getNextImageId() !== null);
+  const hasNext = useSegmentationStore(s => s.currentImageIndex >= 0 && s.images.length > 1);
 
   const handleNavigateToImage = (imageId: string) => {
     void goToPickedImage(imageId);
@@ -60,7 +60,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
     const fail = (message: string) => store.showErrorModal(`Could not export GeoTIFF: ${message}`);
     try {
       store.showNotice('Exporting GeoTIFF...');
-      const response = await fetch(`/segmentation/api/export-geotiff/${imageId}`, {
+      const response = await fetch(`/api/v1/images/${encodeURIComponent(imageId)}/geotiff`, {
         method: 'GET',
         credentials: 'same-origin'
       });

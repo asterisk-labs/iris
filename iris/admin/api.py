@@ -18,17 +18,11 @@ import flask
 
 from iris import db
 from iris.models import Action, User
-from iris.project import project
-from iris.user import requires_admin, requires_auth
-
-api_bp = flask.Blueprint(
-    'admin_api', __name__,
-    url_prefix='/admin/api'
-)
+from iris.project import current_project
+from iris.user import requires_admin
 
 
-@api_bp.route('/users', methods=['GET'])
-@requires_auth
+@requires_admin
 def users():
     """
     Get list of users as JSON for the React UsersPage component.
@@ -80,17 +74,13 @@ def users():
     return flask.jsonify({'users': users_json})
 
 
-@api_bp.route('/actions/<type>', methods=['GET'])
-@requires_auth
-def actions(type):
+@requires_admin
+def actions():
     """
     Get list of actions (annotations) as JSON for the React ActionsPage component.
 
     This endpoint provides action/annotation data with user information and progress statistics.
     Replaces the legacy admin/fragments/actions/<type> HTML endpoint.
-
-    URL Parameters:
-        type (str): Action type to filter by (e.g., 'segmentation', 'classification', 'detection')
 
     Query Parameters:
         order_by (str): Column to sort by (user_id, score, difficulty, last_modification, etc.)
@@ -130,6 +120,8 @@ def actions(type):
         - Joins username from User table for display
         - Calculates progress statistics for progress bar
     """
+    project = current_project()
+    type = 'segmentation'
     # Parse query parameters for sorting
     order_by = flask.request.args.get('order_by', 'user_id')
     ascending = flask.request.args.get('ascending', 'true')
@@ -165,8 +157,7 @@ def actions(type):
     })
 
 
-@api_bp.route('/images', methods=['GET'])
-@requires_auth
+@requires_admin
 def images():
     """
     Get image statistics with aggregated action data for the React ImagesPage component.
@@ -192,7 +183,6 @@ def images():
                             "difficulty": 3.0,   // Average difficulty rating
                             "time_spent": 0.5    // Average time in hours
                         },
-                        "classification": { ... }  // If other action types exist
                     }
                 },
                 ...
@@ -203,7 +193,7 @@ def images():
 
     Algorithm:
         1. For each image in the project:
-           - Group all actions by action type (segmentation, classification, etc.)
+           - Group all actions by action type (only segmentation)
            - Sum up scores, difficulties, and time spent
            - Count number of annotations
         2. Calculate averages (sum / count)
@@ -215,6 +205,7 @@ def images():
         - Uses same aggregation logic as legacy code for consistency
         - TODO: Could be optimized with SQL aggregation queries for large datasets
     """
+    project = current_project()
     # Parse query parameters for sorting
     order_by = flask.request.args.get('order_by', 'image_id')
     ascending = flask.request.args.get('ascending', 'true')
@@ -223,7 +214,7 @@ def images():
     # Build image statistics using same algorithm as legacy code
     # Structure: images_data[image_id][action_type] = {score, count, difficulty, time_spent}
     images_data = defaultdict(dict)
-    actions = Action.query.all()
+    actions = Action.query.filter_by(type='segmentation').all()
 
     # Default statistics structure for each image/type combination
     default_stats = {
@@ -284,7 +275,6 @@ def images():
     })
 
 
-@api_bp.route('/password-reset-requests', methods=['GET'])
 @requires_admin
 def get_password_reset_requests():
     """
@@ -331,7 +321,6 @@ def get_password_reset_requests():
     return flask.jsonify({'requests': requests_json})
 
 
-@api_bp.route('/password-reset-requests/<int:request_id>/generate-password', methods=['POST'])
 @requires_admin
 def generate_temporary_password(request_id):
     """
@@ -385,7 +374,6 @@ def generate_temporary_password(request_id):
     })
 
 
-@api_bp.route('/export-merged-geotiff/<image_id>', methods=['GET'])
 @requires_admin
 def export_merged_geotiff(image_id):
     """
@@ -413,6 +401,7 @@ def export_merged_geotiff(image_id):
         - Merged mask combines all user annotations via voting system
         - Useful for exporting final consensus annotations
     """
+    project = current_project()
     import tempfile
     from glob import glob
 
@@ -565,7 +554,6 @@ def export_merged_geotiff(image_id):
         }), 500
 
 
-@api_bp.route('/export-all-geotiffs', methods=['POST'])
 @requires_admin
 def export_all_geotiffs():
     """
@@ -604,6 +592,7 @@ def export_all_geotiffs():
         - Validates and sanitizes output directory path
         - Only exports images with existing annotations
     """
+    project = current_project()
     import os
     from glob import glob
 

@@ -12,17 +12,13 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
   const [nextId, setNextId] = useState(1);
   const s = useConfigStyles();
 
-  const mapViewType = (uiType: string): string => {
-    switch (uiType) { case 'Monochrome': case 'RGB': return 'image'; case 'Bing Map': return 'bingmap'; default: return 'image'; }
-  };
-
   const getData = () => views.reduce((acc, view) => {
-    const d: any = { type: mapViewType(view.type) };
+    const d: any = { type: 'image' };
     if (view.description.trim()) d.description = view.description;
     if (view.type === 'RGB') d.data = [view.dataR, view.dataG, view.dataB];
     else if (view.type === 'Monochrome') d.data = view.data;
     if (view.cmap.trim()) d.cmap = view.cmap;
-    if (view.clip.trim()) d.clip = parseFloat(view.clip) || view.clip;
+    if (view.clip.trim()) d.clip = Number.isNaN(parseFloat(view.clip)) ? view.clip : parseFloat(view.clip);
     if (view.vmin.trim()) d.vmin = parseFloat(view.vmin);
     if (view.vmax.trim()) d.vmax = parseFloat(view.vmax);
     acc[view.key] = d;
@@ -33,8 +29,7 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
     if (typeof data !== 'object' || data === null) return;
     const loaded = Object.entries(data).map(([key, v], i) => {
       let uiType = 'Monochrome';
-      if (v.type === 'bingmap') uiType = 'Bing Map';
-      else if (Array.isArray(v.data) && v.data.length === 3) uiType = 'RGB';
+      if (Array.isArray(v.data) && v.data.length === 3) uiType = 'RGB';
       let mono = '';
       if (typeof v.data === 'string') mono = v.data;
       else if (Array.isArray(v.data) && v.data.length === 1) mono = v.data[0] || '';
@@ -81,7 +76,6 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
             <select value={view.type} onChange={(e) => updateView(view.id, 'type', e.target.value)} style={s.selectStyle}>
               <option value="Monochrome">Monochrome (single band)</option>
               <option value="RGB">RGB (3 bands)</option>
-              <option value="Bing Map">Bing Map (aerial imagery)</option>
             </select>
           </div>
 
@@ -119,12 +113,6 @@ const ViewListEditor = forwardRef<any, {}>((_props, ref) => {
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {view.type === 'Bing Map' && (
-            <div style={{ ...s.infoBox, marginBottom: '12px' }}>
-              <small style={{ color: s.theme.gray900 }}>ℹ️ Bing Map views don't require a data field. They use metadata location coordinates.</small>
             </div>
           )}
 

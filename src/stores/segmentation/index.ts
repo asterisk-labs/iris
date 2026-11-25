@@ -91,8 +91,8 @@ const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
     get().setLoadingMessage('Prepare training data...');
     try {
       const split = splitTrainTest(doc.final, doc.user, userPixelCounts, {
-        trainRatio: aiModel.train_ratio,
-        maxTrainPixels: aiModel.max_train_pixels,
+        trainRatio: aiModel.train_ratio ?? 0.8,
+        maxTrainPixels: aiModel.max_train_pixels ?? 20000,
       });
 
       get().setLoadingMessage('Train AI...');

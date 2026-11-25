@@ -10,6 +10,10 @@ change can have side effects, where I could not fully verify behaviour from
 reading the code, or where a design decision is still open. File references
 are to the current tree.
 
+Progress is recorded at the end of each task as a "Done" or "Status" line,
+with the PR that landed it. As of 2026-11-24, 0.2.A, 0.2.B and T0.1 to T0.8
+are merged, and 0.2.C to 0.2.G are on `part0-remaining`; T0.9 is next.
+
 ---
 
 ## Part 0: assessment and bigger changes
@@ -142,6 +146,71 @@ geometry and mask IO, and one Playwright or Cypress flow: paint two classes,
 predict, save, reload, assert mask persisted. This becomes the regression
 net for T1.2.
 
+Status (2026-11-24): 0.2.A and 0.2.B are done in PR #1 (`finish-migration`),
+whose detailed plan is in `FINISH_MIGRATION_PLAN.md`. The stores became
+slices of one Zustand store under `src/stores/segmentation/` rather than
+separate stores, and `src/test/no-legacy-globals.test.ts` fails if a window
+global or bridge function comes back. C to G
+are done together on branch `part0-remaining` as one PR, which is an
+exception to the one-task-per-PR convention below.
+
+0.2.D on `part0-remaining`: `create_app` builds a `Project` and keeps it in
+`app.extensions['iris']`, and every route calls `current_project()`; there is
+no module-level project. `export-all` pushes an app context for the same
+reason. The order of images is computed per request by the pure functions in
+`iris/ordering.py`, so `Project` holds no ordering state and nothing reorders
+`image_ids`. A seed gives the same order as before, and the least-annotated
+choice of `/next_image` matches the old one on 500 random cases (the old code
+looped forever on a one-image project).
+
+The React UI ignored the per-user order. ESA's original page called
+`/next_image` and `/previous_image`, but gt-sse-center's React port took the
+neighbour in the image list, which was sorted by id, so the shuffle and
+`prioritise_unmarked_images` only affected the first image a new user was
+shown. The image list is now served in the user's order, and "next" is asked
+of the server (`/segmentation/api/images/next`) each time, because it depends
+on what has been annotated so far. "Next" and "previous" wrap round, as they
+did in the original.
+
+The old swap existed so that "previous" returned to the image a prioritised
+"next" had come from. The UI now remembers its own steps per browser tab
+(`src/segmentation/trail.ts`) and falls back to the user's order when the
+trail does not lead to the current image. The `/previous_image` redirect,
+which the UI does not call, has no trail and only steps back in the order.
+
+0.2.E on `part0-remaining`: `iris/expressions.py`. It returns the same values
+and dtypes as `eval` did on every case in `iris/tests/expression_cases.json`,
+which a TypeScript checker can run too. Indexing, conditionals, chained
+comparisons and the numpy keyword arguments other than `axis` worked under
+`eval` and no longer do. A failing expression is now an error (400 from the
+image route) and is reported by config validation, where before the band was
+dropped with a message in the log. The evaluator limits what an expression
+can reach, not how long it takes, so `superpixels` with a huge `sigma` is
+still slow; user-authored views (T1.3.2) need a limit on that.
+
+0.2.F on `part0-remaining`: the Bing layer, the other action types,
+`test_images` and `tested` are gone. A project with a Bing view loads without
+it and prints a warning. The `tested` column stays in the model, unexposed,
+because existing databases have it as NOT NULL without a default and dropping
+it would break adding users; `Action.type` stays and is always
+`segmentation`. Dropping both needs a database migration, which IRIS has no
+mechanism for yet.
+
+0.2.C on `part0-remaining`: `iris/schema.py` (Pydantic) is the one description
+of the project config. It validates saves and the form's check, and on load
+prints what is wrong without refusing the project. The TypeScript types in
+`src/types/config.generated.ts` are generated from it (`python -m iris.schema`;
+a test fails when they are stale). All API routes are listed in
+`iris/api/__init__.py` under `/api/v1` and every one needs a login unless
+marked public, image rendering, thumbnails and metadata included. Old paths
+redirect (307). Not done: the form does not use the JSON schema in the browser
+but asks the server, and the types of API responses other than the config are
+still written by hand.
+
+0.2.G on `part0-remaining`: the vitest half was done with 0.2.A (brush geometry,
+mask IO, canvas). `cypress/e2e/annotate.cy.js` paints two classes, predicts,
+saves, reloads and compares the mask, and checks Enter and Backspace.
+
 If only two of these can be done, do 0.2.A and 0.2.D. They are the two that every
 T1 task otherwise has to work around.
 
@@ -200,6 +269,13 @@ fail from any directory without a `demo/` folder. Reproduced.
   the demo `.iris` folder will now depend on the fixture; watch for
   ordering assumptions between test files.
 
+- Done (PR #13). The demo folder is looked up in the current directory,
+  then next to the package, then inside it; the demo images are not
+  shipped in the wheel. The new test fixture also stopped pytest emptying
+  the demo database: the old fixture changed the database URI after the
+  engine existed, so its `drop_all` ran against
+  `demo/cloud-segmentation.iris/iris.db`.
+
 ### T0.2 Ship the frontend bundle
 
 **Problem.** `iris/static/dist` is gitignored; neither `pip install` nor the
@@ -234,7 +310,7 @@ champions will get pre-releases.
   build.
 - `client.js` in `dist` is a shared chunk; verify nothing references a
   hashed name.
-- Done (branch `t0.2-ship-bundle`). Findings: two consecutive `vite build`s
+- Done (PR #14, branch `t0.2-ship-bundle`). Findings: two consecutive `vite build`s
   on Node 20.20.2 / vite from the lock file were byte-identical, and the
   bundle contains no absolute paths, so the CI diff check is sound on a
   matching toolchain; `.nvmrc` pins Node 20 and CI reads it via
@@ -261,6 +337,10 @@ issues on the fork (issues #57 and #58 there are this).
 - Users of the fork who rely on chat being on by default will need to opt
   in; call it out in the changelog.
 
+- Done (PR #15). Both config endpoints reject `enabled` without
+  `github_repo`, and the preferences form starts unchecked when a project
+  has no chat block.
+
 ### T0.4 Per-user image ordering seed
 
 **Problem.** `User.image_seed` in `iris/models.py` has
@@ -277,6 +357,11 @@ different seeds.
 - This interacts with T1.2.1: if the ordering policy stops being a seeded
   shuffle, the seed becomes irrelevant. Fix it anyway; it is cheap and the
   random policy stays available.
+
+- Done (PR #15). No `iris users reseed` command was added. Existing
+  databases keep their seeds and the README says how to spread them by
+  hand, because reseeding changes the order a user sees mid-project and
+  that should be a deliberate choice rather than an upgrade side effect.
 
 ### T0.5 Image cache and cheap band listing
 
@@ -305,6 +390,14 @@ by `/segmentation/api/user-config` on every preferences open. With 64 to
   script) will be served stale. Key the cache on file mtime as well as id.
 - `render_image` calls `felzenszwalb` and `sobel` inside view expressions;
   those are not cached by this change and remain slow. Out of scope.
+
+- Done (PR #15). The cache is keyed on file mtime as well as id, cached
+  arrays are read-only, and `cache_mb: 0` turns it off. On the demo
+  `coast` RGB view a warm render takes 17.8 ms against 29.8 ms uncached,
+  and listing 26 bands takes 0.9 ms against 28.2 ms. The 64-band case was
+  not benchmarked end to end; reading TIFFs under
+  `GDAL_NUM_THREADS=ALL_CPUS` took one 64-band zstd tile from 1.2 s to
+  0.04 s. `felzenszwalb` and `sobel` are still uncached.
 
 ### T0.6 Project object hygiene
 
@@ -337,6 +430,14 @@ Correctness fixes in `iris/project.py` and `iris/segmentation/__init__.py`:
   `get_cmap` raised `ValueError`; the render error path prints and continues,
   so behaviour is a different exception in a log line.
 
+- Done (PR #15), except item 5: `get_next_image` still swaps entries of
+  the shared `image_ids`. That is now part of 0.2.D, which replaces the
+  ordering, rather than waiting for T1.2.1. Item 4 changed more than the
+  stray line: the meshgrid is now (height, width), where the old grid was
+  transposed and only worked because the demo mask is square, and cells
+  now reach the last row and column. LightGBM `n_jobs`, hard-coded to 10,
+  became `segmentation.ai_model.n_jobs` (default -1).
+
 ### T0.7 CI and packaging hygiene
 
 1. Add `npm test` (vitest) to `ci.yml`. Remove `working-directory: iris`
@@ -354,6 +455,11 @@ Correctness fixes in `iris/project.py` and `iris/segmentation/__init__.py`:
   it has only been run on Linux here. Run it on ubuntu only at first.
 - Regenerating `uv.lock` will move many transitive pins at once. Do it in
   its own PR and run the full matrix.
+
+- Done (PR #15, with CI fixes in #16 and #17). No Matplotlib bound was
+  needed because T0.6 item 3 landed in the same PR. `astral-sh/setup-uv`
+  has no floating `v10` tag, so it is pinned to `v10.3.3`. Vitest runs on
+  ubuntu only.
 
 ### T0.8 Store and bridge cleanup
 
@@ -388,6 +494,10 @@ Correctness fixes in `iris/project.py` and `iris/segmentation/__init__.py`:
 - If 0.2.A is adopted, most of this task is subsumed. Do items 1 and 4
   regardless; they are prerequisites for A.
 
+- Done. The migration (PR #1) removed the application side, as expected
+  under 0.2.A. PR #15 removed what was left in tests: a mock of the
+  deleted `viewManagerStore` module and `window.vars` fixtures.
+
 ### T0.9 Issue and fork triage
 
 1. ESA-PhiLab issues: close the 2023 install notes (#35, #37, #38, #46,
@@ -402,6 +512,9 @@ Correctness fixes in `iris/project.py` and `iris/segmentation/__init__.py`:
 **Risks and known unknowns.**
 - PR #19 is described as 80% done with rjsf; adopting rjsf adds a heavy
   dependency to the admin app. Evaluate before merging rather than after.
+
+- Not started (2026-11-24). The ESA-PhiLab install issues listed in step 1
+  are still open and unlabelled.
 
 ---
 

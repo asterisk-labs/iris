@@ -10,7 +10,7 @@ export async function predictMask(
   trainPixels: number[],
   trainLabels: number[],
 ): Promise<Uint8Array> {
-  const response = await fetch(`${appUrls().segmentation}predict_mask/${encodeURIComponent(imageId)}`, {
+  const response = await fetch(`${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/predict`, {
     method: 'POST',
     body: JSON.stringify({ user_pixels: trainPixels, user_labels: trainLabels }),
     credentials: 'same-origin',

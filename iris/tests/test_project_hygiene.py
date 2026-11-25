@@ -57,23 +57,21 @@ def test_no_warning_without_a_stale_default_folder(tmp_path, capsys):
     assert "Warning: using path" not in capsys.readouterr().out
 
 
-def test_render_image_uses_own_shape_not_global(tmp_path, app):
-    """A standalone Project renders from its own config even when the global
+def test_render_image_uses_own_shape_not_global(tmp_path, project):
+    """A standalone Project renders from its own config even when the app's
     project (the demo) has a different image size."""
-    from iris.project import project as global_project
 
     np.save(str(tmp_path / "1.npy"), np.zeros((3, 5, 1), dtype=np.uint8), allow_pickle=False)
     p = Project()
     p.file = str(tmp_path / "pr.json")
     p.config = {"images": {"path": str(tmp_path / "{id}.npy")}, "views": {}, "name": "x"}
     p.image_ids = ["1"]
-    p.image_order = [0]
 
     # A constant expression has no shape of its own, so the shape must come
     # from this project's image, not the demo's
     out = p.render_image("1", {"name": "c", "data": ["1", "0.5", "0"]})
     assert out.shape == (3, 5, 3)
-    assert out.shape[:2] != global_project.get_image_shape(global_project.image_ids[0])
+    assert out.shape[:2] != project.get_image_shape(project.image_ids[0])
 
 
 def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
@@ -84,7 +82,6 @@ def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
     p.file = str(tmp_path / "pr.json")
     p.config = {"images": {"path": str(tmp_path / "{id}.npy")}, "views": {}, "name": "x"}
     p.image_ids = ["1"]
-    p.image_order = [0]
 
     out = p.render_image("1", {"name": "g", "data": ["$B1"], "cmap": "viridis"})
     expected = (255 * matplotlib.colormaps["viridis"](np.arange(16).reshape(4, 4) / 15)[..., :3]).astype("uint8")
@@ -95,8 +92,36 @@ def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
         p.render_image("1", {"name": "g", "data": ["$B1"], "cmap": "no-such-colormap"})
 
 
-def test_default_config_sets_n_jobs_to_all_cores():
+def test_default_config_sets_n_jobs():
     default_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "default_config.json")
     with open(default_file) as f:
         defaults = json.load(f)
-    assert defaults["segmentation"]["ai_model"]["n_jobs"] == -1
+    assert defaults["segmentation"]["ai_model"]["n_jobs"] == 4
+
+
+def test_bing_views_are_dropped_on_load(tmp_path, capsys):
+    file = _write_project(tmp_path, {
+        "views": {"Bing": {"type": "bingmap"}, "Grey": {"type": "image", "data": "$B1"}},
+        "view_groups": {"default": ["Bing", "Grey"]},
+    })
+    p = Project()
+    p.load_from(file)
+    assert list(p['views']) == ["Grey"]
+    assert p['view_groups'] == {"default": ["Grey"]}
+    assert "no longer supported" in capsys.readouterr().out
+
+
+def test_users_can_be_added_to_a_database_with_the_old_tested_column(app):
+    from iris.models import User, db
+    user = User(name="new")
+    db.session.add(user)
+    db.session.commit()
+    assert db.session.execute(db.text("select tested from user")).scalar() == 0
+    assert "tested" not in user.to_json()
+
+
+def test_users_cannot_override_n_jobs(project, app):
+    project.save_user_config(77, {"segmentation": {"ai_model": {"n_jobs": -1, "max_depth": 7}}})
+    ai_model = project.get_user_config(77)["segmentation"]["ai_model"]
+    assert ai_model["n_jobs"] == 4
+    assert ai_model["max_depth"] == 7

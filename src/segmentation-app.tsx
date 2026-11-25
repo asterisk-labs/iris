@@ -16,7 +16,7 @@ import { useSegmentationSetup } from './components/segmentation/hooks/useSegment
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useConfigLoader, applyImageGeometry } from './hooks/useConfigLoader';
 import type { ImageInfo } from './stores/segmentation/types';
-import { bootPage, bootUrls, exposeDebugHandle } from './boot';
+import { bootUrls, exposeDebugHandle } from './boot';
 
 const SegmentationApp: React.FC = () => {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -79,7 +79,7 @@ const SegmentationApp: React.FC = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/user/get/current', {
+        const response = await fetch('/api/v1/users/current', {
           credentials: 'same-origin'
         });
         
@@ -128,7 +128,7 @@ const SegmentationApp: React.FC = () => {
       if (!currentImageId) return;
 
       const response = await fetch(
-        `/segmentation/api/images/list?current_image_id=${encodeURIComponent(currentImageId)}`,
+        `/api/v1/images?current_image_id=${encodeURIComponent(currentImageId)}`,
         { credentials: 'same-origin' }
       );
 
@@ -322,7 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (container) {
       // Page data from the template, before anything fetches
       bootUrls();
-      useSegmentationStore.getState().setImageLocation(bootPage().imageLocation);
       exposeDebugHandle({ store: useSegmentationStore });
 
       const root = createRoot(container);

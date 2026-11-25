@@ -5,7 +5,7 @@
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/gt-sse-center/iris/ci.yml?logo=githubA)](https://github.com/gt-sse-center/iris/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/loriab/iris/graph/badge.svg)](https://codecov.io/gh/loriab/iris)
 [![Docs Config](https://img.shields.io/badge/Docs-configuration_file-lightblue)](https://github.com/gt-sse-center/iris/blob/master/docs/config.md)
-![python](https://img.shields.io/badge/python-3.9+-blue.svg)
+![python](https://img.shields.io/badge/python-3.12+-blue.svg)
 ![License](https://img.shields.io/github/license/gt-sse-center/iris)
 <!--[![Documentation
 Status](https://img.shields.io/github/actions/workflow/status/MolSSI/QCManyBody/ci.yml?label=docs&logo=readthedocs&logoColor=white)](https://molssi.github.io/QCManyBody/)-->
@@ -26,7 +26,7 @@ Tool for manual image segmentation of satellite imagery (or images in general). 
 
 ### Prerequisites
 
-IRIS requires Python 3.9 or higher and Node.js 18+ for the admin interface. We recommend using [UV](https://docs.astral.sh/uv/) for Python and dependency management.
+IRIS requires Python 3.12 or higher and Node.js 18+ for the admin interface. We recommend using [UV](https://docs.astral.sh/uv/) for Python and dependency management.
 
 #### Install UV
 

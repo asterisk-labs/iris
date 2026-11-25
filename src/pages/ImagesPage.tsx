@@ -15,7 +15,7 @@ const ImagesPage: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/admin/api/images?order_by=${orderBy}&ascending=${isAscending}`
+        `/api/v1/admin/images?order_by=${orderBy}&ascending=${isAscending}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -39,7 +39,7 @@ const ImagesPage: React.FC = () => {
     setExportMessage('Exporting all images...');
 
     try {
-      const response = await fetch('/admin/api/export-all-geotiffs', {
+      const response = await fetch('/api/v1/admin/export-all-geotiffs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ const ImagesPage: React.FC = () => {
                 <td>
                   {hasAnnotations ? (
                     <a
-                      href={`/admin/api/export-merged-geotiff/${image.image_id}`}
+                      href={`/api/v1/admin/images/${encodeURIComponent(image.image_id)}/merged-geotiff`}
                       download={`${image.image_id}_merged.tif`}
                       style={{ textDecoration: 'underline', cursor: 'pointer' }}
                     >

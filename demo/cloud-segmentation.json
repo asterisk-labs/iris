@@ -63,10 +63,6 @@
     }
   ],
   "views": {
-    "Bing": {
-      "type": "bingmap",
-      "description": "Aerial Imagery"
-    },
     "Cirrus": {
       "type": "image",
       "description": "Cirrus band. High clouds are often picked up as red.",
@@ -151,7 +147,6 @@
     "score": "f1",
     "prioritise_unmarked_images": true,
     "unverified_threshold": 1,
-    "test_images": null,
     "ai_model": {
       "bands": null,
       "train_ratio": 0.8,

@@ -25,7 +25,7 @@ const PasswordResetRequestsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/admin/api/password-reset-requests');
+      const response = await fetch('/api/v1/admin/password-reset-requests');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -51,7 +51,7 @@ const PasswordResetRequestsPage: React.FC = () => {
 
     setGeneratingFor(requestId);
     try {
-      const response = await fetch(`/admin/api/password-reset-requests/${requestId}/generate-password`, {
+      const response = await fetch(`/api/v1/admin/password-reset-requests/${requestId}/generate-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

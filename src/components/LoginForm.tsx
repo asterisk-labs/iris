@@ -29,7 +29,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialMode = '
     if (mode === 'forgot-password') {
       if (!username.trim()) { setError('Username is required'); setLoading(false); return; }
       try {
-        const response = await fetch('/user/request-password-reset', {
+        const response = await fetch('/api/v1/auth/request-password-reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username }),
@@ -57,7 +57,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialMode = '
     }
 
     try {
-      const endpoint = mode === 'login' ? '/user/login' : '/user/register';
+      const endpoint = mode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register';
       const body = mode === 'login' ? { username, password } : { username, password, email };
       const response = await fetch(endpoint, {
         method: 'POST',

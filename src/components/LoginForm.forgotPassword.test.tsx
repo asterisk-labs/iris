@@ -86,7 +86,7 @@ describe('LoginForm - Forgot Password Mode', () => {
 
     // Verify API was called correctly
     expect(global.fetch).toHaveBeenCalledWith(
-      '/user/request-password-reset',
+      '/api/v1/auth/request-password-reset',
       expect.objectContaining({
         method: 'POST',
         headers: {

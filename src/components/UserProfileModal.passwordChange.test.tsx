@@ -16,7 +16,6 @@ describe('UserProfileModal - Password Change', () => {
     name: 'testuser',
     email: 'test@example.com',
     admin: false,
-    tested: true,
     created: '2024-01-01T00:00:00',
     image_seed: 12345,
     segmentation: {
@@ -217,7 +216,7 @@ describe('UserProfileModal - Password Change', () => {
 
     // Verify API was called with correct data
     expect(global.fetch).toHaveBeenCalledWith(
-      '/user/api/change-password',
+      '/api/v1/auth/change-password',
       expect.objectContaining({
         method: 'POST',
         headers: {

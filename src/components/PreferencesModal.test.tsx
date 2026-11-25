@@ -40,7 +40,7 @@ describe('PreferencesModal - Keyboard Shortcuts', () => {
     global.fetch = vi.fn((url) => {
       // Handle both relative and absolute URLs
       const urlString = typeof url === 'string' ? url : url.toString();
-      if (urlString.includes('/segmentation/api/user-config')) {
+      if (urlString.includes('/api/v1/user-config')) {
         return Promise.resolve({
           ok: true,
           json: () =>

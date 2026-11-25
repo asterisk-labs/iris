@@ -36,8 +36,8 @@ export const useConfigLoader = (): ConfigLoaderResult => {
       
       // Load config and user data in parallel
       const [configResponse, userResponse] = await Promise.all([
-        fetch('/segmentation/api/config', { credentials: 'same-origin' }),
-        fetch('/user/get/current', { credentials: 'same-origin' })
+        fetch('/api/v1/config', { credentials: 'same-origin' }),
+        fetch('/api/v1/users/current', { credentials: 'same-origin' })
       ]);
 
       if (!configResponse.ok) {

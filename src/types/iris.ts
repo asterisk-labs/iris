@@ -1,3 +1,5 @@
+import type { AIModelConfig as AIModelSchema, ClassConfig, ProjectConfig } from './config.generated';
+
 // IRIS API Type Definitions
 
 export interface User {
@@ -6,7 +8,6 @@ export interface User {
   email?: string; // Optional for backward compatibility
   created: string;
   isAdmin: boolean;
-  tested: boolean;
   image_seed: number;
   segmentation: {
     score: number;
@@ -38,7 +39,6 @@ export interface UserDto {
   name: string;
   created: string;
   admin: boolean; // Backend uses 'admin'
-  tested: boolean;
   image_seed: number;
   segmentation: {
     score: number;
@@ -87,71 +87,18 @@ export interface ImagesApiResponse {
 }
 
 // Preferences/Config Types
-export interface AIModelConfig {
-  n_estimators: number;
-  max_depth: number;
-  n_leaves: number;
-  train_ratio: number;
-  max_train_pixels: number;
-  use_edge_filter: boolean;
-  use_meshgrid: boolean;
-  meshgrid_cells: string;
-  use_superpixels: boolean;
-  bands: string[];
-  /** Threads for LightGBM; -1 is all cores. Set server-side, not edited here */
-  n_jobs?: number;
-  suppression_filter_size: number;
-  suppression_threshold: number;
-  suppression_default_class: number;
-}
+// The project config is generated from iris/schema.py
+export type { ClassConfig, ProjectConfig };
 
-export interface ClassConfig {
-  name: string;
-  colour: [number, number, number, number]; // RGBA tuple
-  css_colour?: string; // Optional CSS color string (computed)
-  description?: string;
-  user_colour?: [number, number, number, number]; // Optional user-specific color
-}
-
-export interface ProjectConfig {
-  name: string;
-  host: string;
-  port: number;
-  images: string | string[];
-  classes: ClassConfig[];
-  views: ViewConfig[] | { [key: string]: ViewConfig }; // Support both array and object formats
-  view_groups: string[][] | { [key: string]: string[] }; // Support both array and object formats
-  segmentation: {
-    mask_path: string;
-    mask_area?: [number, number, number, number]; // Optional mask area coordinates
-    ai_model: AIModelConfig;
-    scoring: {
-      enabled: boolean;
-      metrics: string[];
-    };
-  };
-  chat?: {
-    enabled: boolean;
-    github_repo: string;
-    utterances_theme?: string;
-  };
-}
-
-export interface ViewConfig {
-  name: string;
-  type: string;
-  bands?: string[];
-  expression?: string;
-  colormap?: string;
-  vmin?: number;
-  vmax?: number;
-}
+/** A user's AI settings: the server fills in every default. */
+export type AIModelConfig = {
+  [K in keyof AIModelSchema]-?: NonNullable<AIModelSchema[K]>;
+};
 
 export interface UserInfo {
   id: number;
   name: string;
   admin: boolean;
-  tested: boolean;
   created: string;
   image_seed: number;
   segmentation: {
@@ -222,7 +169,6 @@ export interface UserProfile {
   name: string;
   email?: string; // Optional for backward compatibility
   admin: boolean;
-  tested: boolean;
   created: string;
   image_seed: number;
   segmentation: {

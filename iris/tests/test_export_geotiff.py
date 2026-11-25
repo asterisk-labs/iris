@@ -31,8 +31,9 @@ class TestGeoTIFFExport:
 
         # Mock the mask reading to simulate existing user annotations
         # Note: rasterio is imported inside the function
+        mock_project = MagicMock()
         with patch('iris.segmentation.read_masks') as mock_read, \
-             patch('iris.segmentation.api.project') as mock_project, \
+             patch.dict(client.application.extensions, {'iris': mock_project}), \
              patch('rasterio.open') as mock_rio_open, \
              patch('tempfile.NamedTemporaryFile') as mock_temp:
 
@@ -82,7 +83,7 @@ class TestGeoTIFFExport:
                 )
 
                 # Execute the export request
-                response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+                response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
                 # Verify successful export
                 assert response.status_code == 200
@@ -120,7 +121,8 @@ class TestGeoTIFFExport:
         image_id = 'test_image_001'
 
         # Mock project to return valid image_ids
-        with patch('iris.segmentation.api.project') as mock_project, \
+        mock_project = MagicMock()
+        with patch.dict(client.application.extensions, {'iris': mock_project}), \
              patch('iris.segmentation.read_masks') as mock_read:
 
             mock_project.image_ids = [image_id]
@@ -128,7 +130,7 @@ class TestGeoTIFFExport:
             # Simulate missing mask file (user hasn't annotated this image yet)
             mock_read.side_effect = FileNotFoundError('Mask file not found')
 
-            response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+            response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
             # Verify appropriate error response
             assert response.status_code == 404
@@ -149,11 +151,12 @@ class TestGeoTIFFExport:
         image_id = 'test_image_001'
 
         # Mock project to have valid image_ids
-        with patch('iris.segmentation.api.project') as mock_project:
+        mock_project = MagicMock()
+        with patch.dict(client.application.extensions, {'iris': mock_project}):
             mock_project.image_ids = [image_id]
 
             # Attempt export without authentication (no session)
-            response = client.get(f'/segmentation/api/export-geotiff/{image_id}')
+            response = client.get(f'/api/v1/images/{image_id}/geotiff')
 
             # Verify authentication is required
             # The @requires_auth decorator returns 403 Forbidden

@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
 
-from iris.project import project
 from iris.segmentation import encode_mask, get_score, image_dict_to_array
 
 
-def test_encode_mask_integer_and_binary_and_unknown(tmp_path, monkeypatch):
+def test_encode_mask_integer_and_binary_and_unknown(tmp_path, monkeypatch, project):
     # set minimal classes used by encode_mask
     project.classes = [{"colour": (0, 0, 0, 0)}, {"colour": (255, 0, 0, 255)}]
     mask = np.array([[0, 1], [1, 0]], dtype=np.uint8)
@@ -32,7 +31,7 @@ def test_image_dict_to_array_and_passthrough():
         ("accuracy", 75),
     ],
 )
-def test_get_score_variants(score, exp):
+def test_get_score_variants(score, exp, project):
     m1 = np.array([0, 1, 1, 0])
     m2 = np.array([0, 1, 0, 0])
 
