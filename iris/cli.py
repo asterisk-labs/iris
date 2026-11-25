@@ -50,7 +50,9 @@ def demo(
 
 @app.command()
 def label(
-    project: Annotated[str, typer.Argument(help="Path to project configuration file (JSON or YAML)")],
+    project: Annotated[
+        str, typer.Argument(help="Path to project configuration file (JSON or YAML), or hf://datasets/... on the Hub")
+    ],
     debug: Annotated[bool, typer.Option("--debug", "-d", help="Start in debug mode")] = False,
     production: Annotated[bool, typer.Option("--production", "-p", help="Use production WSGI server")] = False,
     admin_user: Annotated[
@@ -62,13 +64,26 @@ def label(
     Start IRIS with a custom project configuration file.
 
     Load your own project configuration (JSON or YAML format) and start the annotation server.
+    A project on the Hugging Face Hub is downloaded to a folder of the same name first.
 
     Examples:
         iris label my-project.json
         iris label config.yaml --production
         iris label project.json --admin-user admin --admin-password secret
+        iris label hf://datasets/asterisk-labs/iris-datasets/hyperspectral/project.json
     """
     from iris import start_server
+
+    if project.startswith("hf://"):
+        import requests
+
+        from iris.hub import download_project
+
+        try:
+            project = str(download_project(project))
+        except (ValueError, requests.RequestException) as error:
+            typer.echo(f"Error: {error}", err=True)
+            raise typer.Exit(code=1) from error
 
     project_path = Path(project)
     if not project_path.exists():
@@ -207,7 +222,7 @@ def export_all(
         exported_count = 0
         skipped_count = 0
 
-        from iris.segmentation import compute_merged_mask, get_mask_filenames
+        from iris.segmentation import NO_LABEL, compute_merged_mask, get_mask_filenames, load_final_mask
 
         # Progress bar setup
         total_images = len(proj.image_ids)
@@ -245,12 +260,7 @@ def export_all(
                         image_path = list(image_path.values())[0]
 
                 # Load and merge masks
-                final_masks = []
-                for path in mask_files:
-                    mask_data = np.load(path)
-                    final_masks.append(np.argmax(mask_data, axis=-1))
-
-                final_masks = np.dstack(final_masks)
+                final_masks = np.dstack([load_final_mask(path) for path in mask_files])
                 merged_mask = compute_merged_mask(final_masks)
 
                 # Render RGB image
@@ -323,6 +333,7 @@ def export_all(
                     dst.set_band_description(2, 'Green')
                     dst.set_band_description(3, 'Blue')
                     dst.set_band_description(4, 'Merged Segmentation Mask')
+                    dst.update_tags(4, unlabelled=NO_LABEL)
 
                 exported_count += 1
 

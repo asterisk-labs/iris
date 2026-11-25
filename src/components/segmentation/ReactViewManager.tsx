@@ -26,13 +26,19 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
   
   const currentViews = useSegmentationStore(useShallow(s => s.getCurrentViews()));
   
+  const empty = !imageId || currentViews.length === 0;
+
+  // The area changes with the window and when a side column opens or closes
   useEffect(() => {
-    window.addEventListener('resize', updateViewDimensions);
-    updateViewDimensions();
-    return () => window.removeEventListener('resize', updateViewDimensions);
-  }, [updateViewDimensions, currentViews.length]);
-  
-  if (!imageId || currentViews.length === 0) {
+    const container = containerRef.current;
+    updateViewDimensions(container?.clientWidth);
+    if (!container) return undefined;
+    const observer = new ResizeObserver(() => updateViewDimensions(container.clientWidth));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [updateViewDimensions, currentViews.length, empty]);
+
+  if (empty) {
     return (
       <div 
         ref={containerRef}

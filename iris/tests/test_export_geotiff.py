@@ -105,6 +105,8 @@ class TestGeoTIFFExport:
                 red, band = mock_dst.write.call_args_list[0].args
                 assert band == 1
                 np.testing.assert_array_equal(red, rendered[1:3, 1:3, 0])
+                # The mask band says which value means unlabelled
+                mock_dst.update_tags.assert_called_once_with(4, unlabelled=255)
 
     def test_export_geotiff_no_mask(self, client, logged_in_user, project_snapshot):
         """

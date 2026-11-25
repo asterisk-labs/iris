@@ -2,7 +2,7 @@
  * Mask colours and rendering to RGBA, as the legacy
  * get_current_mask_and_colours / reload_hidden_mask did.
  *
- *   final  - every pixel in its class colour
+ *   final  - every labelled pixel in its class colour, unlabelled ones transparent
  *   user   - only user-painted pixels, in the class's user_colour if set
  *   errors - test pixels: green where correct, red where wrong
  */

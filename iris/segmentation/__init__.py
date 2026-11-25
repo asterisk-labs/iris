@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime
 from glob import glob
-from os.path import basename, dirname, join
+from os.path import basename, dirname, exists, join
 
 import flask
 import lightgbm as lgb
@@ -21,6 +21,9 @@ from iris.project import current_project
 from iris.segmentation.navigation import next_image_id, user_image_order
 from iris.segmentation.training import filter_training_pixels, meshgrid_features
 from iris.user import requires_auth
+
+# Mask value of a pixel nobody labelled yet, neither the user nor the AI
+NO_LABEL = 255
 
 segmentation_app = flask.Blueprint(
     'segmentation', __name__,
@@ -90,12 +93,26 @@ def get_mask_filenames(image_id, user_id=None):
 
     return final_mask, user_mask
 
+def load_final_mask(path):
+    """Class of each pixel of a saved final mask, NO_LABEL where it has none
+
+    The mask is saved with one boolean layer per class, so a pixel without a
+    class has no layer set. Masks saved before NO_LABEL existed used class 0
+    for that, so an untouched one (all 0 and nothing painted by the user) is
+    read as unlabelled.
+    """
+    layers = np.load(path)
+    final_mask = np.where(layers.any(axis=-1), layers.argmax(axis=-1), NO_LABEL).astype(np.uint8)
+    user_mask_file = path[:-len('final.npy')] + 'user.npy'
+    if not final_mask.any() and exists(user_mask_file) and not np.load(user_mask_file).any():
+        final_mask[:] = NO_LABEL
+    return final_mask
+
 def read_masks(image_id, user_id):
     """Read the final and user mask"""
     final_mask_file, user_mask_file = get_mask_filenames(image_id, user_id)
 
-    final_mask = np.load(final_mask_file)
-    final_mask = np.argmax(final_mask, axis=-1)
+    final_mask = load_final_mask(final_mask_file)
     user_mask = np.load(user_mask_file)
     return final_mask, user_mask
 
@@ -108,11 +125,14 @@ def compute_merged_mask(final_masks):
                     class indices for each user's mask
 
     Returns:
-        2D numpy array of shape (height, width) with merged class indices
+        2D numpy array of shape (height, width) with merged class indices,
+        NO_LABEL where no user labelled the pixel
     """
     # Unfortunately, there is no fast standard solution for mode in numpy or
     # scipy (scipy.stats.mode is not optimised for our case):
-    classes = dict(enumerate(np.unique(final_masks)))
+    classes = dict(enumerate(c for c in np.unique(final_masks) if c != NO_LABEL))
+    if not classes:
+        return np.full(final_masks.shape[:-1], NO_LABEL, dtype=np.uint8)
     class_votes = np.zeros((*final_masks.shape[:-1], len(classes)))
 
     for u in range(final_masks.shape[-1]):
@@ -128,6 +148,7 @@ def compute_merged_mask(final_masks):
     # Retranslate to original classes (we initialised class_votes not with the
     # original class indices):
     merged_mask = np.vectorize(classes.__getitem__, otypes=[np.uint8])(winner_indices)
+    merged_mask[class_votes.max(axis=-1) == 0] = NO_LABEL
 
     return merged_mask
 
@@ -137,7 +158,7 @@ def merge_masks(image_id):
     project = current_project()
     final_mask_paths = get_mask_filenames(image_id, user_id="*")[0]
     users, final_masks = zip(*[
-        [basename(path).split('_')[0], np.argmax(np.load(path), axis=-1)]
+        [basename(path).split('_')[0], load_final_mask(path)]
         for path in glob(final_mask_paths)
     ])
     final_masks = np.dstack(final_masks)
@@ -194,10 +215,11 @@ def encode_mask(mask, mode='binary'):
         mask: 2D integer numpy array.
         mode: Defines how to encode the mask.
             * integer: Each class will be represented by an integer (does not
-                change the mask).
+                change the mask, unlabelled pixels stay NO_LABEL).
             * binary: Each class gets its own boolean layer.
             * rgb: Each class will be saved with its original RGB colour.
             * rgba: Each class will be saved with its original RGBA colour.
+            Unlabelled pixels are 0 in the binary, rgb and rgba modes.
 
     Returns:
         Encoded numpy array.
@@ -214,7 +236,7 @@ def encode_mask(mask, mode='binary'):
     else:
         raise ValueError("Unknown encoding mode:", mode)
 
-    encoded_mask = np.empty((*mask.shape, n_last_dimension))
+    encoded_mask = np.zeros((*mask.shape, n_last_dimension))
     for c, klass in enumerate(project['classes']):
         if mode == 'binary':
             encoded_mask[..., c] = mask == c

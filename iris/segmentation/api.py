@@ -152,7 +152,7 @@ def export_geotiff(image_id):
 
         # Load user's mask
         try:
-            from iris.segmentation import read_masks
+            from iris.segmentation import NO_LABEL, read_masks
             final_mask, user_mask = read_masks(image_id, user_id)
         except FileNotFoundError:
             return flask.jsonify({
@@ -255,6 +255,7 @@ def export_geotiff(image_id):
             dst.set_band_description(2, 'Green')
             dst.set_band_description(3, 'Blue')
             dst.set_band_description(4, 'Segmentation Mask')
+            dst.update_tags(4, unlabelled=NO_LABEL)
 
         # Send file to user
         return flask.send_file(

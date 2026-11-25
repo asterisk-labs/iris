@@ -156,6 +156,12 @@ Having run the demo, you can then create a personalised config file, based on _d
 uv run iris label <your-config-file>
 ```
 
+A project on the Hugging Face Hub is downloaded to a folder of the same name in the current directory and opened from there. The masks are saved in that folder too.
+
+```bash
+uv run iris label hf://datasets/asterisk-labs/iris-datasets/hyperspectral/project.json
+```
+
 ### Project Management Commands
 
 IRIS provides convenient commands for creating and managing projects:

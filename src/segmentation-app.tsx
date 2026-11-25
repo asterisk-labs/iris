@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import TopBar from './components/segmentation/TopBar';
 import LeftToolbar from './components/segmentation/LeftToolbar';
 import RightPanel from './components/segmentation/RightPanel';
+import { sidebarWidth, useSidebars } from './components/segmentation/Sidebar';
 import BottomBar from './components/segmentation/BottomBar';
 import SegmentationModals from './components/segmentation/SegmentationModals';
 import ViewerComparison from './components/segmentation/ViewerComparison';
@@ -11,7 +12,8 @@ import ImageChatPanel from './components/segmentation/ImageChatPanel';
 import PageFeedback from './components/segmentation/PageFeedback';
 import { saveMaskOnUnload } from './services/masks';
 import ActionInfoModal from './components/segmentation/ActionInfoModal';
-import { useKeyboardShortcuts, useToolbarHints } from './hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, useShortcutAction } from './hooks/useKeyboardShortcuts';
+import TooltipLayer from './components/TooltipLayer';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
 import { useConfigLoader, applyImageGeometry } from './hooks/useConfigLoader';
@@ -31,7 +33,7 @@ const SegmentationApp: React.FC = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const { leftExpanded, rightExpanded, toggleLeft, toggleRight } = useSidebars();
 
   // Chat configuration from project config
   const config = useSegmentationStore((state) => state.config);
@@ -59,7 +61,6 @@ const SegmentationApp: React.FC = () => {
     isResetMaskOpen || isClassSelectionOpen || isImageInfoOpen || isConfusionMatrixOpen ||
     errorModalOpen || actionInfoOpen;
   useKeyboardShortcuts(authChecked && isAuthenticated && !anyModalOpen);
-  useToolbarHints();
 
   // Save unsaved changes when the page is closed or navigated away from
   useEffect(() => {
@@ -170,6 +171,15 @@ const SegmentationApp: React.FC = () => {
   const handleOpenImageInfo = useCallback(() => setIsImageInfoOpen(true), []);
   const handleOpenConfusionMatrix = useCallback(() => setIsConfusionMatrixOpen(true), []);
 
+  useShortcutAction('help', handleOpenHelp);
+  useShortcutAction('settings', handleOpenPreferences);
+  useShortcutAction('profile', handleOpenProfile);
+  useShortcutAction('class_dialog', handleSelectClass);
+  useShortcutAction('image_info', handleOpenImageInfo);
+  useShortcutAction('stats', handleOpenConfusionMatrix);
+  useShortcutAction('left_toolbar', toggleLeft);
+  useShortcutAction('right_panel', toggleRight);
+
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
     setIsLoginOpen(false);
@@ -195,29 +205,28 @@ const SegmentationApp: React.FC = () => {
       />
 
       {/* Left Toolbar */}
-      <LeftToolbar onResetMask={handleResetMask} />
+      <LeftToolbar expanded={leftExpanded} onToggle={toggleLeft} onResetMask={handleResetMask} />
 
-      {/* Main Canvas Area */}
+      {/* Main Canvas Area, between the two columns */}
       <div
         style={{
           position: 'fixed',
-          left: '60px',
-          right: isRightPanelCollapsed ? '0' : '280px',
+          left: `${sidebarWidth(leftExpanded)}px`,
+          right: `${sidebarWidth(rightExpanded)}px`,
           top: '50px',
           bottom: '60px',
           overflow: 'auto',
           backgroundColor: '#f5f5f5',
-          transition: 'right 0.3s ease',
         }}
       >
         <ViewerComparison />
       </div>
 
       {/* Right Panel */}
-      <RightPanel 
+      <RightPanel
+        expanded={rightExpanded}
+        onToggle={toggleRight}
         onSelectClass={handleSelectClass}
-        isCollapsed={isRightPanelCollapsed}
-        onToggleCollapse={() => setIsRightPanelCollapsed(!isRightPanelCollapsed)}
       />
 
       {/* Bottom Bar */}
@@ -267,6 +276,9 @@ const SegmentationApp: React.FC = () => {
 
       <PageFeedback />
       <ActionInfoModal />
+
+      {/* Tooltips of all controls */}
+      <TooltipLayer />
 
       <SegmentationModals
         isPreferencesOpen={isPreferencesOpen}

@@ -11,6 +11,9 @@ function persistViewState(get: () => SegmentationState) {
 }
 
 export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
+  // Width of the area between the side columns, once ReactViewManager measured it
+  let areaWidth: number | null = null;
+
   /** Replace the current group's list of view names. */
   const setCurrentViewNames = (names: string[]) => {
     const { viewGroups, currentGroup } = get();
@@ -104,11 +107,12 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
 
     resetViews: () => set({ viewTransform: null }),
 
-    updateViewDimensions: () => {
+    updateViewDimensions: (measured) => {
+      if (measured) areaWidth = measured;
       const { imageDimensions } = get();
       const aspect = imageDimensions ? imageDimensions.width / imageDimensions.height : 1;
       const count = Math.max(get().getCurrentViews().length, 1);
-      const allowedWidth = Math.round((window.innerWidth - 10) / count);
+      const allowedWidth = Math.round(((areaWidth ?? window.innerWidth) - 10) / count);
       const allowedHeight = window.innerHeight - 150;
       const idealWidth = Math.min(allowedWidth, allowedHeight * aspect);
       const idealHeight = Math.min(idealWidth / aspect, allowedHeight);
