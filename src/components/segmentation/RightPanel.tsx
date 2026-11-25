@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Command, tooltip } from '../../segmentation/input/shortcuts';
 import { controlButtonStyle } from '../controlStyles';
 import Sidebar, { SidebarGroup } from './Sidebar';
+import { useShortcutAction } from '../../hooks/useKeyboardShortcuts';
 import ToolButton from './toolbar/ToolButton';
 
 const ICONS = '/segmentation/static/icons';
@@ -14,6 +15,80 @@ const MASK_TYPES: Array<{ value: 'final' | 'user' | 'errors'; icon: string; titl
   { value: 'user', icon: `${ICONS}/mask_user.png`, title: 'User mask', label: 'User', command: 'mask_user' },
   { value: 'errors', icon: `${ICONS}/mask_errors.png`, title: 'Error mask', label: 'Errors', command: 'mask_errors' },
 ];
+
+const FOLDED_SECTIONS_KEY = 'iris-right-panel-folded';
+
+/** Sections of the panel the user folded, remembered across reloads */
+const readFoldedSections = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(localStorage.getItem(FOLDED_SECTIONS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+/** Section of the panel whose title (or shortcut) folds and unfolds it */
+const Section: React.FC<{
+  title: string;
+  command?: Command;
+  last?: boolean;
+  children: React.ReactNode;
+}> = ({ title, command, last = false, children }) => {
+  const { theme } = useTheme();
+  const [folded, setFolded] = React.useState(() => Boolean(readFoldedSections()[title]));
+
+  const toggle = () => {
+    const next = !folded;
+    setFolded(next);
+    try {
+      localStorage.setItem(
+        FOLDED_SECTIONS_KEY, JSON.stringify({ ...readFoldedSections(), [title]: next })
+      );
+    } catch { /* ignore */ }
+  };
+  useShortcutAction(command, toggle);
+
+  return (
+    <section style={{
+      padding: '14px 0',
+      borderBottom: last ? 'none' : `1px solid ${theme.panelBorder}`,
+    }}>
+      <button
+        onClick={toggle}
+        aria-expanded={!folded}
+        {...tooltip(`${folded ? 'Show' : 'Hide'} ${title.toLowerCase()}`, ...(command ? [command] : []))}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          width: '100%',
+          padding: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: theme.gray600,
+        }}
+      >
+        <span style={{
+          display: 'inline-block',
+          width: '10px',
+          fontSize: '10px',
+          transform: folded ? 'rotate(-90deg)' : 'none',
+          transition: 'transform 0.15s ease',
+        }}>▾</span>
+        <span style={{
+          flex: 1,
+          textAlign: 'left',
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}>{title}</span>
+      </button>
+      {!folded && <div style={{ marginTop: '12px' }}>{children}</div>}
+    </section>
+  );
+};
 
 /** Button that stays highlighted while its option is on */
 const PanelButton: React.FC<{
@@ -60,32 +135,6 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
   const iconFilter = actualThemeName === 'dark'
     ? 'invert(1) brightness(0.9)' 
     : 'none';
-
-  // Modern card section wrapper
-  const SectionCard: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
-    <div style={{
-      paddingBottom: '20px',
-      marginBottom: '20px',
-      borderBottom: `1px solid ${theme.panelBorder}`,
-      ...style
-    }}>
-      {children}
-    </div>
-  );
-
-  // Modern section header
-  const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h3 style={{
-      margin: '0 0 12px 0',
-      fontSize: '11px',
-      fontWeight: '600',
-      color: theme.gray600,
-      letterSpacing: '0.5px',
-      textTransform: 'uppercase',
-    }}>
-      {children}
-    </h3>
-  );
 
   // Segmented control for mask types
   const SegmentedControl: React.FC<{
@@ -200,11 +249,10 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
 
   return (
     <Sidebar side="right" expanded onToggle={onToggle} name="options" command="right_panel">
-      <div style={{ padding: '6px 14px 0' }}>
+      <div style={{ padding: '0 14px' }}>
 
       {/* Class Selection */}
-      <SectionCard style={{ borderBottom: 'none', paddingBottom: '16px', marginBottom: '16px' }}>
-        <SectionHeader>Class</SectionHeader>
+      <Section title="Class">
         <button
           onClick={onSelectClass}
           {...tooltip('Select class, or press 1..9', 'class_dialog')}
@@ -231,11 +279,10 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
           />
           <span style={{ flex: 1, textAlign: 'left', fontWeight: '500' }}>{currentClassName}</span>
         </button>
-      </SectionCard>
+      </Section>
 
       {/* Mask Layers */}
-      <SectionCard>
-        <SectionHeader>Layers</SectionHeader>
+      <Section title="Layers" command="fold_layers">
         
         {/* Show/Hide Toggle */}
         <div style={{ 
@@ -284,11 +331,10 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
             onChange={(type) => setMaskType(type as 'final' | 'user' | 'errors')}
           />
         </div>
-      </SectionCard>
+      </Section>
 
       {/* Filters */}
-      <SectionCard style={{ borderBottom: 'none' }}>
-        <SectionHeader>Adjustments</SectionHeader>
+      <Section title="Adjustments" command="fold_adjustments" last>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Brightness Slider */}
           <div {...tooltip('Brightness', 'brightness_up', 'brightness_down')}>
@@ -399,7 +445,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
             <PanelButton label="Reset" title="Reset all image filters" command="reset_filters" onClick={resetFilters} />
           </div>
         </div>
-      </SectionCard>
+      </Section>
       </div>
     </Sidebar>
   );

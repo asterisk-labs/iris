@@ -68,6 +68,8 @@ export const SHORTCUTS = [
   { key: 'O', command: 'export_geotiff', description: 'Export the image and mask as GeoTIFF', codes: ['KeyO'] },
   { key: 'T', command: 'image_info', description: 'Image information', codes: ['KeyT'] },
   { key: 'Q', command: 'stats', description: 'Confusion matrix and statistics', codes: ['KeyQ'] },
+  { key: 'L', command: 'fold_layers', description: 'Fold or unfold the layers', codes: ['KeyL'] },
+  { key: 'J', command: 'fold_adjustments', description: 'Fold or unfold the adjustments', codes: ['KeyJ'] },
   { key: '[', command: 'left_toolbar', description: 'Expand or collapse the toolbar', chars: ['['] },
   { key: ']', command: 'right_panel', description: 'Expand or collapse the side panel', chars: [']'] },
   { key: '.', command: 'profile', description: 'User profile', chars: ['.'] },

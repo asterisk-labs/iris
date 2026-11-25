@@ -27,9 +27,15 @@ export function useKeyboardShortcuts(enabled: boolean): void {
   }, [enabled]);
 }
 
-/** Run `action` for the shortcut of `command` while the component is mounted. */
-export function useShortcutAction(command: Command, action: () => void): void {
+/**
+ * Run `action` for the shortcut of `command` while the component is
+ * mounted. Without a command nothing is bound.
+ */
+export function useShortcutAction(command: Command | undefined, action: () => void): void {
   const actionRef = useRef(action);
   actionRef.current = action;
-  useEffect(() => registerShortcutAction(command, () => actionRef.current()), [command]);
+  useEffect(() => {
+    if (!command) return undefined;
+    return registerShortcutAction(command, () => actionRef.current());
+  }, [command]);
 }
