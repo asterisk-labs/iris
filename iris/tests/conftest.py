@@ -150,3 +150,47 @@ def restore_config_file(app):
         # Reload project to ensure consistency, keeping the test project path
         project.load_from(config_file)
         project.config['path'] = test_project_dir
+
+
+@pytest.fixture
+def write_tif():
+    """write_tif(path, bands=1, ...) writes a 64 x 64 GeoTIFF of zeros."""
+    import numpy as np
+    import rasterio as rio
+
+    def write(path, bands=1, crs='EPSG:32633', interleave='band', tiled=True):
+        profile = {
+            'driver': 'GTiff', 'width': 64, 'height': 64, 'count': bands, 'dtype': 'float32',
+            'interleave': interleave, 'tiled': tiled, 'crs': crs,
+            'transform': rio.transform.from_origin(500000, 4000000, 10, 10),
+        }
+        if tiled:
+            profile.update(blockxsize=16, blockysize=16)
+        else:
+            profile.update(blockysize=4)
+        with rio.open(path, 'w', **profile) as file:
+            file.write(np.zeros((bands, 64, 64), np.float32))
+        return str(path)
+
+    return write
+
+
+@pytest.fixture
+def write_project(tmp_path):
+    """write_project(paths, **segmentation) writes a project file and returns its path."""
+    import json
+
+    def write(paths, **segmentation):
+        config = {
+            'images': {'path': paths},
+            'classes': [{'name': 'a', 'colour': [0, 0, 0, 0]}, {'name': 'b', 'colour': [1, 1, 1, 1]}],
+            'views': {'v': {'type': 'image', 'data': '$B1'}},
+            'segmentation': {
+                'path': str(tmp_path / 'masks' / '{id}.png'), 'mask_encoding': 'rgb', **segmentation,
+            },
+        }
+        path = tmp_path / 'p.json'
+        path.write_text(json.dumps(config))
+        return str(path)
+
+    return write
