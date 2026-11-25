@@ -92,9 +92,12 @@ export interface ToolSlice {
   currentTool: Tool;
   toolSize: number;
   toolShape: ToolShape;
+  /** Brush size of the draw and the eraser tool, each kept on its own */
+  brushSizes: { draw: number; eraser: number };
   currentClass: number;
   setCurrentTool: (tool: Tool) => void;
   setToolSize: (size: number) => void;
+  setBrushSize: (tool: 'draw' | 'eraser', size: number) => void;
   setToolShape: (shape: ToolShape) => void;
   setCurrentClass: (classId: number) => void;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import ToolButton from './toolbar/ToolButton';
-import PaintbrushSelector from './toolbar/PaintbrushSelector';
+import BrushTool from './toolbar/BrushTool';
 import Sidebar, { SidebarGroup } from './Sidebar';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 
@@ -43,24 +43,20 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ expanded, onToggle, onResetMa
           title="Move/Pan"
           label={label('Move')}
         />
-        <PaintbrushSelector
+        <BrushTool
+          tool="draw"
           id="tb_tool_draw"
           icon="/segmentation/static/icons/pencil.png"
-          checked={currentTool === 'draw'}
-          onClick={() => setCurrentTool('draw')}
           disabled={isLoading}
           title="Draw pixels"
-          dropdownType="draw"
           label={label('Draw')}
         />
-        <PaintbrushSelector
+        <BrushTool
+          tool="eraser"
           id="tb_tool_eraser"
           icon="/segmentation/static/icons/eraser.png"
-          checked={currentTool === 'eraser'}
-          onClick={() => setCurrentTool('eraser')}
           disabled={isLoading}
           title="Erase pixels"
-          dropdownType="eraser"
           label={label('Erase')}
         />
       </SidebarGroup>

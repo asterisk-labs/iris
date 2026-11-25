@@ -5,6 +5,7 @@
 
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { saveThenGo } from '../navigation';
+import { biggerBrushSize, smallerBrushSize } from '../../stores/segmentation/toolSlice';
 
 export interface Shortcut {
   /** Key label as shown to users. */
@@ -26,6 +27,12 @@ export interface Shortcut {
 const store = () => useSegmentationStore.getState();
 const views = () => useSegmentationStore.getState();
 
+/** Resize the brush in use, the draw or the eraser one */
+function resizeBrush(step: (size: number) => number) {
+  const { currentTool, brushSizes, setBrushSize } = store();
+  if (currentTool !== 'move') setBrushSize(currentTool, step(brushSizes[currentTool]));
+}
+
 function predict() {
   store().predictMask().catch((error: Error) => {
     store().showErrorModal(error.message, 'AI Prediction Error');
@@ -42,6 +49,8 @@ export const SHORTCUTS = [
   { key: 'Z', command: 'tool_reset_views', description: 'Reset the view in the canvases', codes: ['KeyZ'], run: () => views().resetViews() },
   { key: 'D', command: 'tool_draw', description: 'Draw pixels on the mask', codes: ['KeyD'], run: () => store().setCurrentTool('draw') },
   { key: 'E', command: 'tool_eraser', description: 'Erase previously drawn pixels', codes: ['KeyE'], run: () => store().setCurrentTool('eraser') },
+  { key: '+', command: 'brush_bigger', description: 'Bigger brush or eraser, whichever is selected', chars: ['+', '='], run: () => resizeBrush(biggerBrushSize) },
+  { key: '-', command: 'brush_smaller', description: 'Smaller brush or eraser, whichever is selected', chars: ['-'], run: () => resizeBrush(smallerBrushSize) },
   { key: 'N', command: 'reset_mask', description: 'Clear the whole mask', codes: ['KeyN'], run: () => store().requestResetMask() },
   { key: 'A', command: 'predict_mask', description: 'Use the AI to help you filling out the mask', codes: ['KeyA'], run: predict },
   { key: 'Space', command: 'toggle_mask', description: 'Toggle mask on/off', codes: ['Space'], run: () => store().toggleMask() },
