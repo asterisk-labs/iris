@@ -254,11 +254,15 @@ def build_app(project_file, args=None, db_uri=None):
     return app
 
 def create_default_admin(app, admin_user=None, admin_password=None):
-    # Add a default admin account:
+    # Add a default admin account, unless the project has one already:
+    name = admin_user if admin_user and admin_password else 'admin'
     with app.app_context():
-        admin = User.query.filter_by(name='admin').first()
-    if admin is not None:
-        return
+        if User.query.filter_by(admin=True).first() is not None:
+            return
+        if User.query.filter_by(name=name).first() is not None:
+            print(f'Warning: there is no admin, and the user "{name}" exists but is not one. '
+                  'Start IRIS with --admin-user <new name> --admin-password <password> to create an admin.')
+            return
 
     # Non-interactive mode (for CI/testing)
     if admin_user and admin_password:
