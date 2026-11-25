@@ -201,6 +201,11 @@ def export_geotiff(image_id):
 
         # Fix dimensions if needed
         correct_height, correct_width = final_mask.shape
+        crs, transform = project.get_georef(image_id)
+
+        # The mask covers only the mask area
+        x0, y0, x1, y1 = project.get_mask_area(image_id)
+        rendered_rgb = rendered_rgb[y0:y1, x0:x1]
 
         # Create profile for output GeoTIFF
         profile = {
@@ -209,9 +214,9 @@ def export_geotiff(image_id):
             'width': correct_width,
             'height': correct_height,
             'count': 4,  # RGB + mask
-            'crs': None,
-            'transform': rio.transform.from_bounds(0, 0, correct_width, correct_height,
-                                                   correct_width, correct_height)
+            'crs': crs,
+            'transform': transform or rio.transform.from_bounds(0, 0, correct_width, correct_height,
+                                                                correct_width, correct_height),
         }
 
         # Create temporary file for export
