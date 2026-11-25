@@ -52,8 +52,6 @@ def main():
 
     if not failed_imports:
         print("SUCCESS: All tests passed! IRIS is ready to use.")
-        print("\nTry running:")
-        print("  iris demo")
         return 0
     else:
         print(f"FAILED: {len(failed_imports)} module(s) failed to import:")
