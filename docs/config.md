@@ -266,9 +266,9 @@ take the values in the [default configuration file](../iris/default_config.json)
 - `train_ratio`, `max_train_pixels`: share of each class's painted pixels
   used for training, and a cap per class.
 - `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.
-- `n_jobs`: threads LightGBM may use. `-1` (the default) means all cores;
-  set a positive number to leave cores free for other users on a shared
-  server.
+- `n_jobs`: threads LightGBM may use, 4 by default. `-1` means all cores,
+  which is much slower than a few threads on machines with many cores. Users
+  cannot override this one.
 - `use_edge_filter`, `use_superpixels`, `use_meshgrid`, `meshgrid_cells`:
   extra per-pixel features (Sobel edges, Felzenszwalb superpixels, and the
   pixel's cell in an `RxC` grid, or `"pixelwise"` for its position).

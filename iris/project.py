@@ -590,6 +590,11 @@ class Project:
             # set by the user (or by a potential attacker):
             config['images'] = deepcopy(self.config['images'])
             config['views'] = deepcopy(self.config['views'])
+            # Threads are the server's to give out, and preferences saved by
+            # earlier versions hold a copy of the old default (-1, all cores)
+            ai_model = self.config['segmentation'].get('ai_model')
+            if ai_model and config['segmentation'].get('ai_model'):
+                config['segmentation']['ai_model']['n_jobs'] = ai_model.get('n_jobs', 4)
             if "path" in self.config['segmentation']:
                 config['segmentation']['path'] = self.config['segmentation']['path']
 

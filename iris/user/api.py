@@ -9,7 +9,7 @@ from sqlalchemy import func
 
 from iris import db
 from iris.models import Action, User
-from iris.user import requires_auth
+from iris.user import may_see_private_data, requires_auth
 
 
 def get_current_user():
@@ -49,6 +49,8 @@ def get_profile(user_id):
 
     # Get base user data
     user_data = user.to_json()
+    if not may_see_private_data(user):
+        del user_data["email"]
 
     # Calculate rank
     total_score = func.sum(Action.score).label("total_score")

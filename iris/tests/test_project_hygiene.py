@@ -92,11 +92,11 @@ def test_single_band_view_uses_matplotlib_colormaps(tmp_path, monkeypatch):
         p.render_image("1", {"name": "g", "data": ["$B1"], "cmap": "no-such-colormap"})
 
 
-def test_default_config_sets_n_jobs_to_all_cores():
+def test_default_config_sets_n_jobs():
     default_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "default_config.json")
     with open(default_file) as f:
         defaults = json.load(f)
-    assert defaults["segmentation"]["ai_model"]["n_jobs"] == -1
+    assert defaults["segmentation"]["ai_model"]["n_jobs"] == 4
 
 
 def test_bing_views_are_dropped_on_load(tmp_path, capsys):
@@ -118,3 +118,10 @@ def test_users_can_be_added_to_a_database_with_the_old_tested_column(app):
     db.session.commit()
     assert db.session.execute(db.text("select tested from user")).scalar() == 0
     assert "tested" not in user.to_json()
+
+
+def test_users_cannot_override_n_jobs(project, app):
+    project.save_user_config(77, {"segmentation": {"ai_model": {"n_jobs": -1, "max_depth": 7}}})
+    ai_model = project.get_user_config(77)["segmentation"]["ai_model"]
+    assert ai_model["n_jobs"] == 4
+    assert ai_model["max_depth"] == 7

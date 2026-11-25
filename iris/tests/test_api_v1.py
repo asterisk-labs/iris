@@ -26,9 +26,6 @@ def test_every_route_needs_a_login_unless_public(client, route):
 @pytest.mark.parametrize('route', [r for r in ROUTES if '/admin/' in r.path or 'project-config' in r.path],
                          ids=lambda r: f'{r.method} {r.path}')
 def test_admin_routes_refuse_other_users(client, logged_in_user, route):
-    # Read-only for any logged-in user, as before
-    if route.path in ('/admin/users', '/admin/actions', '/admin/images'):
-        pytest.skip('open to every logged-in user')
     assert client.open('/api/v1' + _fill(route.path), method=route.method).status_code == 403
 
 
@@ -95,3 +92,20 @@ def test_urls_used_by_the_frontend_exist(app, url):
 def test_frontend_urls_were_found():
     assert len(FRONTEND_URLS) > 20
     assert '/api/v1/images/1/mask' in FRONTEND_URLS
+
+
+def test_emails_are_only_shown_to_the_user_and_admins(app, client, logged_in_user):
+    from iris.models import User, db
+    User.query.get(1).email = 'me@example.org'
+    db.session.add(User(id=2, name='other', email='other@example.org'))
+    db.session.commit()
+    for path in ('/api/v1/users/{}', '/api/v1/users/{}/profile'):
+        assert client.get(path.format(1)).json['email'] == 'me@example.org'
+        assert client.get(path.format('current')).json['email'] == 'me@example.org'
+        other = client.get(path.format(2))
+        assert other.json['name'] == 'other'
+        assert b'other@example.org' not in other.data
+        assert 'config' not in other.json
+    User.query.get(1).admin = True
+    db.session.commit()
+    assert client.get('/api/v1/users/2').json['email'] == 'other@example.org'

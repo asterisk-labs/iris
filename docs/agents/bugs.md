@@ -70,15 +70,6 @@ it catches most corruption, so impact is low.
 that it belongs to `session['user_id']`. A user can change another
 user's annotation metadata by posting to `/set_action_info/<id>`.
 
-### AI prediction is very slow on machines with many cores
-
-*Found on `part0-remaining`.*
-
-`segmentation.ai_model.n_jobs` defaults to -1, all cores
-(`iris/default_config.json`). LightGBM spends its time on thread
-synchronisation for the small per-image fits: 15 s with 192 threads against
-0.03 s with 4, on 1600 rows and 26 features.
-
 ---
 
 ## Tests

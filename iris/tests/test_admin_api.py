@@ -561,15 +561,13 @@ class TestAdminAPIIntegration(TestAdminAPIEndpoints):
             assert response.status_code == 200, f"Failed to access {endpoint}"
 
     def test_regular_users_can_access_api(self, client):
-        """Test that regular authenticated users can access API (if allowed by @requires_auth)."""
+        """Regular users get none of the admin data."""
         self.login_regular(client)
 
-        # The @requires_auth decorator allows any authenticated user
         # If you want admin-only access, you'd need a different decorator
         response = client.get("/api/v1/admin/users")
-        # This should succeed if @requires_auth only checks authentication
         # Adjust assertion based on your actual authorization requirements
-        assert response.status_code in [200, 403]
+        assert response.status_code == 403
 
     def test_api_responses_are_consistent(self, client):
         """Test that API responses have consistent structure."""

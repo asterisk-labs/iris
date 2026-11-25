@@ -22,6 +22,9 @@ export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = (
   const { images, currentImageId } = useSegmentationStore(useShallow(s => ({ images: s.images, currentImageId: s.currentImageId })));
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'name' | 'queue'>('name');
+  const [onlyTodo, setOnlyTodo] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -46,6 +49,25 @@ export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = (
       onNavigate(imageId);
     }
   };
+
+  // The store holds the images in the order Next and Previous follow
+  const shown = images.filter(image =>
+    image.image_id.toLowerCase().includes(search.trim().toLowerCase()) &&
+    !(onlyTodo && image.has_user_annotation));
+  if (sort === 'name') {
+    shown.sort((a, b) => a.image_id.localeCompare(b.image_id, undefined, { numeric: true }));
+  }
+
+  const toggleStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '3px 6px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    borderRadius: '4px',
+    border: `1px solid ${active ? theme.primary : theme.modalBorder}`,
+    backgroundColor: active ? theme.primaryPale : 'transparent',
+    color: theme.gray900,
+  });
 
   const getStatusIcon = (image: { has_user_annotation: boolean; has_any_annotation: boolean }) => {
     if (image.has_user_annotation) {
@@ -137,6 +159,31 @@ export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = (
             </div>
           ) : (
             <>
+              <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <input
+                  type="text"
+                  aria-label="Find an image"
+                  placeholder="Find an image"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '13px',
+                    borderRadius: '4px',
+                    border: `1px solid ${theme.modalBorder}`,
+                    backgroundColor: theme.modalBg,
+                    color: theme.gray900,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button type="button" aria-pressed={sort === 'name'} onClick={() => setSort('name')}
+                    style={toggleStyle(sort === 'name')} title="Sort by name">A–Z</button>
+                  <button type="button" aria-pressed={sort === 'queue'} onClick={() => setSort('queue')}
+                    style={toggleStyle(sort === 'queue')} title="Sort in your shuffled image order">My order</button>
+                  <button type="button" aria-pressed={onlyTodo} onClick={() => setOnlyTodo(!onlyTodo)}
+                    style={toggleStyle(onlyTodo)} title="Only images you have not annotated">To do</button>
+                </div>
+              </div>
               <div 
                 className="image-dropdown-header"
                 style={{
@@ -156,7 +203,12 @@ export const ImageNavigationDropdown: React.FC<ImageNavigationDropdownProps> = (
                 <span>Status</span>
               </div>
               <div className="image-dropdown-list">
-                {images.map((image) => {
+                {shown.length === 0 && (
+                  <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: theme.gray600 }}>
+                    No matching images
+                  </div>
+                )}
+                {shown.map((image) => {
                   const isCurrent = image.image_id === currentImageId;
                   const statusColor = getStatusColor(image);
                   

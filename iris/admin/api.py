@@ -19,10 +19,10 @@ import flask
 from iris import db
 from iris.models import Action, User
 from iris.project import current_project
-from iris.user import requires_admin, requires_auth
+from iris.user import requires_admin
 
 
-@requires_auth
+@requires_admin
 def users():
     """
     Get list of users as JSON for the React UsersPage component.
@@ -74,7 +74,7 @@ def users():
     return flask.jsonify({'users': users_json})
 
 
-@requires_auth
+@requires_admin
 def actions():
     """
     Get list of actions (annotations) as JSON for the React ActionsPage component.
@@ -157,7 +157,7 @@ def actions():
     })
 
 
-@requires_auth
+@requires_admin
 def images():
     """
     Get image statistics with aggregated action data for the React ImagesPage component.

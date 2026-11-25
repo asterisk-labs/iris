@@ -390,7 +390,7 @@ def predict_mask(image_id):
         tree_learner='data',
         learning_rate=0.05,
         n_estimators=config['ai_model']['n_estimators'],
-        n_jobs=config['ai_model'].get('n_jobs', -1),
+        n_jobs=config['ai_model'].get('n_jobs', 4),
     )
     early_stopping = lgb.early_stopping(4, verbose=False)
     gbm.fit(

@@ -115,4 +115,24 @@ describe('Annotating an image', () => {
     cy.request({ url: '/api/v1/images/coast/views/RGB', failOnStatusCode: false })
       .its('status').should('equal', 403);
   });
+
+  it('sorts and filters the image list', () => {
+    open('/segmentation/');
+    cy.get('[title="Select image to navigate"]').click();
+    cy.get('.image-name').then(($names) => {
+      expect([...$names].map((e) => e.textContent)).to.deep.equal(['coast', 'mountains']);
+    });
+    // Typing must not trigger the one-letter shortcuts
+    cy.get('[aria-label="Find an image"]').type('coas');
+    cy.get('.image-name').should('have.length', 1).and('have.text', 'coast');
+    state((s) => expect(s.currentTool).to.equal('draw'));
+  });
+
+  it('loads the admin pages', () => {
+    cy.intercept('/api/v1/admin/**').as('data');
+    ['users', 'actions/segmentation', 'images', 'password-resets'].forEach((page) => {
+      cy.visit(`/admin/${page}`);
+      cy.wait('@data').its('response.statusCode').should('be.oneOf', [200, 304]);
+    });
+  });
 });

@@ -10,6 +10,12 @@ from iris.project import current_project
 user_app = flask.Blueprint("user", __name__, template_folder="templates", static_folder="static")
 
 
+def may_see_private_data(user):
+    """Whether the logged-in user is an admin or this user themselves."""
+    current = User.query.get(flask.session["user_id"])
+    return current.admin or current.id == user.id
+
+
 @user_app.route("/")
 def index():
     pass
@@ -59,10 +65,10 @@ def get(user_id):
 
     json_user = user.to_json()
 
-    current_user_id = flask.session["user_id"]
-    if current_user_id == user_id or User.query.get(current_user_id).admin:
-        # Only an admin or the user themselves can see the full data:
+    if may_see_private_data(user):
         json_user["config"] = project.get_user_config(user_id)
+    else:
+        del json_user["email"]
     return flask.jsonify(json_user)
 
 
