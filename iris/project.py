@@ -22,9 +22,7 @@ from skimage.segmentation import felzenszwalb
 from iris.imagecache import DEFAULT_CACHE_MB, ImageCache
 from iris.utils import merge_deep_dicts
 
-# Above this many bands, an image should be stored band by band: showing 3
-# bands of pixel interleaved or untiled data reads all of them. RGB(A) images
-# stay below it, so the demos say nothing.
+# RGB(A) images never warn
 MAX_BANDS_ANY_LAYOUT = 4
 
 FIX_GEOTIFF = ('gdal_translate -co TILED=YES -co INTERLEAVE=BAND '
@@ -32,10 +30,7 @@ FIX_GEOTIFF = ('gdal_translate -co TILED=YES -co INTERLEAVE=BAND '
 
 
 def band_layout_problem(path, name=None):
-    """Why reading a few bands of an image file is slow, or None.
-
-    Only the header is read. name is how the file is shown in the message.
-    """
+    """Why reading a few bands of path is slow, or None. Only reads the header."""
     name = name or path
     lower = path.lower()
     if lower.endswith('npy'):
@@ -343,11 +338,7 @@ class Project:
         self.config['images']['shape'] = [height, width]
 
     def _check_band_layout(self):
-        """Warn about image files that make rendering a few bands slow.
-
-        Only the first image of each source is checked, once per load, from
-        the file header.
-        """
+        """Check the first image of each source."""
         paths = self.get_image_path(self.image_ids[0])
         if not isinstance(paths, dict):
             paths = {'pictures': paths}
@@ -355,7 +346,6 @@ class Project:
             try:
                 problem = band_layout_problem(path, relpath(path, dirname(self.file)))
             except Exception:
-                # An unreadable file is reported when it is first shown
                 continue
             if problem:
                 print(f"Warning: {source}: {problem}")

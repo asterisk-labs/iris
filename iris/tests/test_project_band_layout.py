@@ -1,4 +1,3 @@
-"""Loading a project warns when its images make rendering a few bands slow."""
 import json
 
 import numpy as np
@@ -8,7 +7,7 @@ from iris.project import Project, band_layout_problem
 
 
 def _tif(path, bands, interleave='band', tiled=True):
-    """A small float32 GeoTIFF of 64 x 64 pixels."""
+    """A 64 x 64 float32 GeoTIFF."""
     profile = {
         'driver': 'GTiff', 'width': 64, 'height': 64, 'count': bands, 'dtype': 'float32',
         'interleave': interleave, 'tiled': tiled,
@@ -24,7 +23,6 @@ def _tif(path, bands, interleave='band', tiled=True):
 
 
 def _project(tmp_path, paths):
-    """Write a project whose sources are {name: path template}."""
     config = {
         "images": {"path": paths},
         "classes": [{"name": "a", "colour": [0, 0, 0, 0]}, {"name": "b", "colour": [1, 1, 1, 1]}],
