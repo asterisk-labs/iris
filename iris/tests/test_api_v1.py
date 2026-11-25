@@ -109,3 +109,25 @@ def test_emails_are_only_shown_to_the_user_and_admins(app, client, logged_in_use
     User.query.get(1).admin = True
     db.session.commit()
     assert client.get('/api/v1/users/2').json['email'] == 'other@example.org'
+
+
+def test_only_the_owner_or_an_admin_can_edit_an_action(app, client, logged_in_user):
+    from iris.models import Action, User, db
+    db.session.add(User(id=2, name='other'))
+    db.session.add(Action(id=1, type='segmentation', image_id='a', user_id=1))
+    db.session.add(Action(id=2, type='segmentation', image_id='a', user_id=2, notes='mine'))
+    db.session.commit()
+
+    def edit(action_id):
+        return client.post(f'/api/v1/actions/{action_id}', data=json.dumps({'notes': 'edited'})).status_code
+
+    assert edit(1) == 200
+    assert edit(2) == 403
+    db.session.expire_all()
+    assert Action.query.get(1).notes == 'edited'
+    assert Action.query.get(2).notes == 'mine'
+
+    User.query.get(1).admin = True
+    db.session.commit()
+    assert edit(2) == 200
+    assert edit(99) == 404

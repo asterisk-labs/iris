@@ -13,12 +13,11 @@ look at them. Delete this file when the PR is merged.
 - Breaking changes to expressions and config settings are fine, and what
   saving preferences does to a config file is not a concern for now.
 - The admin lists (users, actions, images) need an admin. Other users' emails
-  are no longer shown through `/api/v1/users/<id>` or its profile.
+  are no longer shown through `/api/v1/users/<id>` or its profile. Only its
+  owner or an admin can edit an action's difficulty, notes and complete flag.
 
 ## Still open
 
-- Any logged-in user can still edit any action's difficulty, notes and
-  complete flag (`set_action_info`, in `bugs.md`).
 - `save_mask` still checks its marker bytes with `and` (in `bugs.md`).
 - Logging out is a GET request.
 - The JSON-template idea for views in fork issue #8 is undecided. `parse` is

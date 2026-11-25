@@ -8,7 +8,7 @@ from PIL import Image as PILImage
 from skimage.transform import resize
 
 from iris.expressions import ExpressionError
-from iris.models import Action, db
+from iris.models import Action, User, db
 from iris.project import current_project
 from iris.user import requires_auth
 
@@ -62,6 +62,9 @@ def get_action_info(image_id):
 @requires_auth
 def set_action_info(action_id):
     action = Action.query.get_or_404(action_id)
+    user = User.query.get(flask.session['user_id'])
+    if action.user_id != user.id and not user.admin:
+        return flask.make_response('Permission denied!', 403)
 
     for k, v in json.loads(flask.request.data).items():
         if k == "difficulty":

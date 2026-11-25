@@ -61,15 +61,6 @@ reset and predict, would cut this to a few MB in normal use.
 *both* magic bytes are wrong. It should be `or`. The length check above
 it catches most corruption, so impact is low.
 
-### Any logged-in user can edit any action's info
-
-*Found on `finish-migration`.*
-
-`iris/main/__init__.py`, `set_action_info`: loads the `Action` by id with
-`get_or_404` and updates difficulty, notes and complete without checking
-that it belongs to `session['user_id']`. A user can change another
-user's annotation metadata by posting to `/set_action_info/<id>`.
-
 ---
 
 ## Tests
