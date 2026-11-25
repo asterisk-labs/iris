@@ -77,6 +77,8 @@ export interface ProjectConfig {
   host?: string | null;
   port?: number | null;
   debug?: boolean | null;
+  /** Let people in as guests, without an account (default false) */
+  guests?: boolean | null;
   path?: string | null;
   images: ImagesConfig;
   classes: ClassConfig[];

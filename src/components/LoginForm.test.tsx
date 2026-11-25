@@ -205,4 +205,28 @@ describe('LoginForm', () => {
       expect(screen.getByText('The passwords are not identical!')).toBeInTheDocument();
     });
   });
+
+  describe('guests', () => {
+    const page = (data: object) => {
+      document.head.innerHTML = `<script type="application/json" id="iris-page">${JSON.stringify(data)}</script>`;
+    };
+
+    it('offers to continue without an account when the project takes guests', async () => {
+      page({ guests: true });
+      const onSuccess = vi.fn();
+      (global.fetch as any).mockResolvedValueOnce({ ok: true, text: async () => 'Successful login!' });
+
+      renderWithTheme(<LoginForm onSuccess={onSuccess} />);
+      fireEvent.click(screen.getByText('Continue without an account'));
+
+      await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+      expect(global.fetch).toHaveBeenCalledWith('/api/v1/auth/guest', { method: 'POST' });
+    });
+
+    it('does not offer it otherwise', () => {
+      page({ guests: false });
+      renderWithTheme(<LoginForm />);
+      expect(screen.queryByText('Continue without an account')).not.toBeInTheDocument();
+    });
+  });
 });

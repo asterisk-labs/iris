@@ -4,7 +4,7 @@ Tests for segmentation SPA functionality.
 These tests verify that the React migration maintains proper routing and blueprint
 registration without breaking existing API endpoints or functionality.
 """
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import flask
 
@@ -91,7 +91,8 @@ def test_segmentation_spa_route_no_image_id():
         mock_render.assert_called_once_with(
             'segmentation/react-app.html',  # React SPA template
             image_id='default_image',       # The default image ID
-            debug_mode=mock_project.debug   # Debug mode from project
+            debug_mode=mock_project.debug,  # Debug mode from project
+            guests=ANY,
         )
 
 
@@ -140,7 +141,8 @@ def test_segmentation_spa_route_with_valid_image_id():
         mock_render.assert_called_once_with(
             'segmentation/react-app.html',  # React SPA template
             image_id='test_image',          # The requested image ID
-            debug_mode=mock_project.debug   # Debug mode from project
+            debug_mode=mock_project.debug,  # Debug mode from project
+            guests=ANY,
         )
 
 
@@ -246,7 +248,8 @@ def test_segmentation_spa_route_with_user_session_and_last_mask(mock_action, moc
             mock_render.assert_called_once_with(
                 'segmentation/react-app.html',  # React SPA template
                 image_id='last_worked_image',   # User's last work (not default)
-                debug_mode=mock_project.debug   # Debug mode from project
+                debug_mode=mock_project.debug,  # Debug mode from project
+                guests=ANY,
             )
 
 
@@ -311,7 +314,8 @@ def test_segmentation_spa_route_with_user_session_no_last_mask(mock_action, mock
             mock_render.assert_called_once_with(
                 'segmentation/react-app.html',  # React SPA template
                 image_id='default_image',       # Project default (no user history)
-                debug_mode=mock_project.debug   # Debug mode from project
+                debug_mode=mock_project.debug,  # Debug mode from project
+                guests=ANY,
             )
 
 

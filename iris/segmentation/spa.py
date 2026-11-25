@@ -44,7 +44,8 @@ def segmentation_spa():
         return flask.render_template(
             'segmentation/react-app.html',
             image_id=image_id,
-            debug_mode=project.debug
+            debug_mode=project.debug,
+            guests=bool(project.config.get('guests')),
         )
 
     except Exception:

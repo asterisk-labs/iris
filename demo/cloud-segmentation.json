@@ -2,6 +2,7 @@
   "name": "cloud-segmentation",
   "port": 5000,
   "host": "127.0.0.1",
+  "guests": true,
   "images": {
     "path": {
       "Sentinel1": "images/{id}/s1.tif",

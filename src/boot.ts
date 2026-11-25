@@ -3,7 +3,7 @@
  * <script type="application/json"> elements:
  *
  *   #iris-urls  (base.html)       application URLs from url_for
- *   #iris-page  (segmentation)    image id, debug flag
+ *   #iris-page  (segmentation)    image id, debug flag, whether guests may enter
  */
 
 import { AppUrls, setAppUrls } from './services/http';
@@ -11,6 +11,7 @@ import { AppUrls, setAppUrls } from './services/http';
 export interface PageBoot {
   imageId: string | null;
   debug: boolean;
+  guests: boolean;
 }
 
 function readJson<T>(id: string): T | null {
@@ -32,10 +33,11 @@ export function bootUrls(): AppUrls | null {
 }
 
 export function bootPage(): PageBoot {
-  const page = readJson<{ image_id?: string | null; debug?: boolean }>('iris-page');
+  const page = readJson<{ image_id?: string | null; debug?: boolean; guests?: boolean }>('iris-page');
   return {
     imageId: page?.image_id ?? null,
     debug: !!page?.debug,
+    guests: !!page?.guests,
   };
 }
 
