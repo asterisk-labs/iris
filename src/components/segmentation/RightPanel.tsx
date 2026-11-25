@@ -3,6 +3,31 @@ import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Command, tooltip } from '../../segmentation/input/shortcuts';
+import { controlButtonStyle } from '../controlStyles';
+
+/** Button that stays highlighted while its option is on */
+const PanelButton: React.FC<{
+  label: string;
+  title: string;
+  command: Command;
+  active?: boolean;
+  onClick: () => void;
+}> = ({ label, title, command, active = false, onClick }) => {
+  const { theme } = useTheme();
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      {...tooltip(title, command)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ ...controlButtonStyle(theme, { active, hovered }), flex: 1, minHeight: '34px' }}
+    >
+      {label}
+    </button>
+  );
+};
 
 interface RightPanelProps {
   onSelectClass: () => void;
@@ -12,7 +37,8 @@ interface RightPanelProps {
 
 const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onToggleCollapse }) => {
   const { theme, actualThemeName } = useTheme();
-  
+  const [classHovered, setClassHovered] = React.useState(false);
+
   const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
@@ -232,25 +258,15 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
         <button
           onClick={onSelectClass}
           {...tooltip('Select class, or press 1..9')}
+          onMouseEnter={() => setClassHovered(true)}
+          onMouseLeave={() => setClassHovered(false)}
           style={{
-            width: '100%',
-            padding: '10px 12px',
-            backgroundColor: theme.buttonSecondaryBg,
-            border: `1px solid ${theme.buttonSecondaryBorder}`,
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
+            ...controlButtonStyle(theme, { hovered: classHovered }),
+            justifyContent: 'flex-start',
             gap: '10px',
+            width: '100%',
+            minHeight: '36px',
             fontSize: '13px',
-            color: theme.buttonSecondaryText,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
           }}
         >
           <img
@@ -428,92 +444,14 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSelectClass, isCollapsed, onT
 
           {/* Toggle Buttons Row */}
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => setContrast(!contrast)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                backgroundColor: contrast ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
-                color: contrast ? theme.buttonPrimaryText : theme.buttonSecondaryText,
-                border: contrast ? 'none' : `1px solid ${theme.buttonSecondaryBorder}`,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!contrast) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!contrast) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-                }
-              }}
-              {...tooltip('Toggle contrast', 'toggle_contrast')}
-            >
-              Contrast
-            </button>
-
-            <button
-              onClick={() => setInvert(!invert)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                backgroundColor: invert ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
-                color: invert ? theme.buttonPrimaryText : theme.buttonSecondaryText,
-                border: invert ? 'none' : `1px solid ${theme.buttonSecondaryBorder}`,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '500',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!invert) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!invert) {
-                  e.currentTarget.style.backgroundColor = theme.buttonSecondaryBg;
-                }
-              }}
-              {...tooltip('Toggle invert', 'toggle_invert')}
-            >
-              Invert
-            </button>
+            <PanelButton label="Contrast" title="Toggle contrast" command="toggle_contrast" active={contrast} onClick={() => setContrast(!contrast)} />
+            <PanelButton label="Invert" title="Toggle invert" command="toggle_invert" active={invert} onClick={() => setInvert(!invert)} />
           </div>
 
           {/* Reset Button */}
-          <button
-            onClick={resetFilters}
-            {...tooltip('Reset all image filters', 'reset_filters')}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: 'transparent',
-              color: theme.gray600,
-              border: `1px solid ${theme.buttonSecondaryBorder}`,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '500',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.buttonSecondaryHover;
-              e.currentTarget.style.color = theme.gray900;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = theme.gray600;
-            }}
-          >
-            Reset
-          </button>
+          <div style={{ display: 'flex' }}>
+            <PanelButton label="Reset" title="Reset all image filters" command="reset_filters" onClick={resetFilters} />
+          </div>
         </div>
       </SectionCard>
     </div>
