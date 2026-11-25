@@ -60,16 +60,16 @@ if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 -c "import sys; print('.'.join(map(str, sys.version_info[:2])))")
     echo "Found Python $PYTHON_VERSION"
     
-    # Check if version is >= 3.8
-    if python3 -c "import sys; exit(0 if sys.version_info >= (3, 8) else 1)"; then
+    # Check if version is >= 3.10
+    if python3 -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)"; then
         echo "[OK] Python version is compatible"
     else
-        echo "ERROR: Python 3.8+ required. Installing Python 3.9 with UV..."
-        uv python install 3.9
+        echo "ERROR: Python 3.10+ required. Installing Python 3.12 with UV..."
+        uv python install 3.12
     fi
 else
-    echo "ERROR: Python not found. Installing Python 3.9 with UV..."
-    uv python install 3.9
+    echo "ERROR: Python not found. Installing Python 3.12 with UV..."
+    uv python install 3.12
 fi
 
 # Install IRIS using UV sync (creates venv and installs dependencies)
