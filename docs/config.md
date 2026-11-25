@@ -68,6 +68,11 @@ When you have your data distributed over multiple files (e.g. coming from Sentin
 }
 ```
 
+For images with more than four bands, use tiled, band interleaved GeoTIFFs. Otherwise IRIS reads every band to show three, about 40 times slower for 128 bands. IRIS warns when it loads such a project:
+```
+gdal_translate -co TILED=YES -co INTERLEAVE=BAND -co COMPRESS=ZSTD in.tif out.tif
+```
+
 ### images : shape
 Optional. IRIS reads the size of each image from the file, and images in
 one project may differ in size. If you do give a shape it must be
