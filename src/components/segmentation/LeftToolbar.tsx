@@ -31,7 +31,7 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ expanded, onToggle, onResetMa
   const label = (text: string) => (expanded ? text : undefined);
 
   return (
-    <Sidebar side="left" expanded={expanded} onToggle={onToggle} name="toolbar">
+    <Sidebar side="left" expanded={expanded} onToggle={onToggle} name="toolbar" command="left_toolbar">
       {/* Drawing Tools */}
       <SidebarGroup expanded={expanded}>
         <ToolButton

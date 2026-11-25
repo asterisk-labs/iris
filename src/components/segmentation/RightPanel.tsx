@@ -166,9 +166,9 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
   if (!expanded) {
     // The same options as icon buttons, like the collapsed toolbar
     return (
-      <Sidebar side="right" expanded={false} onToggle={onToggle} name="options">
+      <Sidebar side="right" expanded={false} onToggle={onToggle} name="options" command="right_panel">
         <SidebarGroup expanded={false}>
-          <ToolButton icon={`${ICONS}/class.png`} onClick={onSelectClass} title={`Class: ${currentClassName}`} />
+          <ToolButton icon={`${ICONS}/class.png`} onClick={onSelectClass} title={`Class: ${currentClassName}`} command="class_dialog" />
         </SidebarGroup>
         <SidebarGroup expanded={false}>
           <ToolButton icon={`${ICONS}/show_mask.png`} checked={showMask} onClick={toggleMask} title="Show or hide the mask" command="toggle_mask" />
@@ -199,7 +199,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
   }
 
   return (
-    <Sidebar side="right" expanded onToggle={onToggle} name="options">
+    <Sidebar side="right" expanded onToggle={onToggle} name="options" command="right_panel">
       <div style={{ padding: '6px 14px 0' }}>
 
       {/* Class Selection */}
@@ -207,7 +207,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
         <SectionHeader>Class</SectionHeader>
         <button
           onClick={onSelectClass}
-          {...tooltip('Select class, or press 1..9')}
+          {...tooltip('Select class, or press 1..9', 'class_dialog')}
           onMouseEnter={() => setClassHovered(true)}
           onMouseLeave={() => setClassHovered(false)}
           style={{

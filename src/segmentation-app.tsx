@@ -12,7 +12,7 @@ import ImageChatPanel from './components/segmentation/ImageChatPanel';
 import PageFeedback from './components/segmentation/PageFeedback';
 import { saveMaskOnUnload } from './services/masks';
 import ActionInfoModal from './components/segmentation/ActionInfoModal';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, useShortcutAction } from './hooks/useKeyboardShortcuts';
 import TooltipLayer from './components/TooltipLayer';
 import { useSegmentationSetup } from './components/segmentation/hooks/useSegmentationSetup';
 import { useSegmentationStore } from './stores/segmentationStore';
@@ -170,6 +170,15 @@ const SegmentationApp: React.FC = () => {
   const handleOpenProfile = useCallback(() => setIsProfileOpen(true), []);
   const handleOpenImageInfo = useCallback(() => setIsImageInfoOpen(true), []);
   const handleOpenConfusionMatrix = useCallback(() => setIsConfusionMatrixOpen(true), []);
+
+  useShortcutAction('help', handleOpenHelp);
+  useShortcutAction('settings', handleOpenPreferences);
+  useShortcutAction('profile', handleOpenProfile);
+  useShortcutAction('class_dialog', handleSelectClass);
+  useShortcutAction('image_info', handleOpenImageInfo);
+  useShortcutAction('stats', handleOpenConfusionMatrix);
+  useShortcutAction('left_toolbar', toggleLeft);
+  useShortcutAction('right_panel', toggleRight);
 
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);

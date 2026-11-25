@@ -11,10 +11,16 @@ export interface Shortcut {
   key: string;
   description: string;
   /** KeyboardEvent.code values that trigger it. */
-  codes: readonly string[];
-  run: () => void;
+  codes?: readonly string[];
+  /**
+   * KeyboardEvent.key values that trigger it, for symbols whose place
+   * depends on the keyboard layout (on a Spanish keyboard [ needs AltGr).
+   */
+  chars?: readonly string[];
+  /** What it does, unless a component registers it with useShortcutAction(). */
+  run?: () => void;
   /** Toolbar button id (without the `tb_` prefix) this shortcut belongs to. */
-  command?: string;
+  command: string;
 }
 
 const store = () => useSegmentationStore.getState();
@@ -57,6 +63,16 @@ export const SHORTCUTS = [
       store().showNotice(`Group: ${views().currentGroup}`);
     },
   },
+  // Controls of the page, run by the components that own them
+  { key: 'K', command: 'class_dialog', description: 'Open the list of classes', codes: ['KeyK'] },
+  { key: 'O', command: 'export_geotiff', description: 'Export the image and mask as GeoTIFF', codes: ['KeyO'] },
+  { key: 'T', command: 'image_info', description: 'Image information', codes: ['KeyT'] },
+  { key: 'Q', command: 'stats', description: 'Confusion matrix and statistics', codes: ['KeyQ'] },
+  { key: '[', command: 'left_toolbar', description: 'Expand or collapse the toolbar', chars: ['['] },
+  { key: ']', command: 'right_panel', description: 'Expand or collapse the side panel', chars: [']'] },
+  { key: '.', command: 'profile', description: 'User profile', chars: ['.'] },
+  { key: ',', command: 'settings', description: 'Settings', chars: [','] },
+  { key: '?', command: 'help', description: 'Help', chars: ['?'] },
 ] as const satisfies readonly Shortcut[];
 
 export type Command = (typeof SHORTCUTS)[number]['command'];
@@ -73,18 +89,34 @@ function selectClassFromDigit(code: string): boolean {
 }
 
 const byCode = new Map<string, Shortcut>();
-for (const shortcut of SHORTCUTS) {
-  for (const code of shortcut.codes) byCode.set(code, shortcut);
+const byChar = new Map<string, Shortcut>();
+for (const shortcut of SHORTCUTS as readonly Shortcut[]) {
+  for (const code of shortcut.codes ?? []) byCode.set(code, shortcut);
+  for (const char of shortcut.chars ?? []) byChar.set(char, shortcut);
 }
 
-/** Run the shortcut for a key press. Returns whether one matched. */
-export function handleShortcut(code: string): boolean {
-  const shortcut = byCode.get(code);
+/** Commands run by the components that registered them */
+const actions = new Map<string, () => void>();
+
+/** Run `action` for a command until the returned function is called. */
+export function registerShortcutAction(command: Command, action: () => void): () => void {
+  actions.set(command, action);
+  return () => {
+    if (actions.get(command) === action) actions.delete(command);
+  };
+}
+
+/**
+ * Run the shortcut for a key press. Returns whether one matched. When Alt
+ * is held only the character counts, since Alt (or AltGr) changes it.
+ */
+export function handleShortcut(code: string, key = '', altKey = false): boolean {
+  const shortcut = (!altKey && byCode.get(code)) || byChar.get(key);
   if (shortcut) {
-    shortcut.run();
+    (actions.get(shortcut.command) ?? shortcut.run)?.();
     return true;
   }
-  return selectClassFromDigit(code);
+  return !altKey && selectClassFromDigit(code);
 }
 
 /** The shortcut for a toolbar button id such as `tb_undo`. */

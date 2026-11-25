@@ -55,7 +55,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          {...tooltip('Image information')}
+          {...tooltip('Image information', 'image_info')}
         >
           <ImageIcon size={16} color={theme.toolbarText} />
           {currentImageId}
@@ -78,7 +78,7 @@ const BottomBar: React.FC<BottomBarProps> = ({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          {...tooltip('Confusion matrix and statistics')}
+          {...tooltip('Confusion matrix and statistics', 'stats')}
         >
           <BarChartIcon size={16} color={theme.toolbarText} />
           Stats

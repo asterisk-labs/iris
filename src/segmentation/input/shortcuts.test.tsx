@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { handleShortcut, shortcutForButton } from './shortcuts';
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { handleShortcut, registerShortcutAction, shortcutForButton } from './shortcuts';
+import { useKeyboardShortcuts, useShortcutAction } from '../../hooks/useKeyboardShortcuts';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 
 const classes = [
@@ -62,6 +62,33 @@ describe('keyboard shortcuts', () => {
     expect(shortcutForButton('tb_tool_reset_views')).toMatchObject({ key: 'Z' });
     expect(shortcutForButton('something')).toBeUndefined();
   });
+
+  it('runs the action a component registered, until it unregisters', () => {
+    const openHelp = vi.fn();
+    const unregister = registerShortcutAction('help', openHelp);
+    expect(handleShortcut('Slash', '?')).toBe(true);
+    expect(openHelp).toHaveBeenCalledTimes(1);
+    unregister();
+    handleShortcut('Slash', '?');
+    expect(openHelp).toHaveBeenCalledTimes(1);
+  });
+
+  it('matches symbols by the character typed, also with Alt (AltGr)', () => {
+    const toggle = vi.fn();
+    const unregister = registerShortcutAction('right_panel', toggle);
+    // On a Spanish Mac keyboard ] is Option and the + key
+    handleShortcut('BracketRight', ']', true);
+    expect(toggle).toHaveBeenCalledTimes(1);
+    // The same key without Option types +, which is not ]
+    handleShortcut('BracketRight', '+');
+    expect(toggle).toHaveBeenCalledTimes(1);
+    unregister();
+  });
+
+  it('ignores letters typed with Alt', () => {
+    expect(handleShortcut('KeyE', '€', true)).toBe(false);
+    expect(useSegmentationStore.getState().currentTool).toBe('draw');
+  });
 });
 
 describe('useKeyboardShortcuts', () => {
@@ -83,6 +110,19 @@ describe('useKeyboardShortcuts', () => {
     rerender({ enabled: false });
     press('KeyD');
     expect(useSegmentationStore.getState().currentTool).toBe('move');
+  });
+
+  it('runs the actions of mounted components for their keys', () => {
+    const toggle = vi.fn();
+    const { unmount } = renderHook(() => {
+      useKeyboardShortcuts(true);
+      useShortcutAction('left_toolbar', toggle);
+    });
+    press('BracketLeft', window, { key: '[' });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    unmount();
+    press('BracketLeft', window, { key: '[' });
+    expect(toggle).toHaveBeenCalledTimes(1);
   });
 
   it('ignores typing in form fields and modified keys', () => {

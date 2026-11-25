@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { ImageNavigationDropdown } from './toolbar/ImageNavigationDropdown';
 import { goFromToolbar, goToPickedImage } from '../../segmentation/navigation';
 import { tooltip } from '../../segmentation/input/shortcuts';
+import { useShortcutAction } from '../../hooks/useKeyboardShortcuts';
 import { 
   SaveIcon, 
   DownloadIcon, 
@@ -87,6 +88,10 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
       fail(error instanceof Error ? error.message : 'Unknown error');
     }
   };
+
+  useShortcutAction('export_geotiff', () => {
+    if (!isLoading) void handleExportGeoTIFF();
+  });
 
   return (
     <div
@@ -238,7 +243,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
-          {...tooltip('Export the image and mask as GeoTIFF')}
+          {...tooltip('Export the image and mask as GeoTIFF', 'export_geotiff')}
         >
           <DownloadIcon size={16} color={theme.toolbarText} />
           Export
@@ -265,7 +270,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           aria-label="User profile"
-          {...tooltip('User profile')}
+          {...tooltip('User profile', 'profile')}
         >
           <UserIcon size={20} color={theme.toolbarText} />
         </button>
@@ -288,7 +293,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           aria-label="Settings"
-          {...tooltip('Settings')}
+          {...tooltip('Settings', 'settings')}
         >
           <SettingsIcon size={20} color={theme.toolbarText} />
         </button>
@@ -310,7 +315,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenPreferences, onOpenHelp, onOpenPr
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.toolbarHover)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           aria-label="Help"
-          {...tooltip('Help')}
+          {...tooltip('Help', 'help')}
         >
           <HelpIcon size={20} color={theme.toolbarText} />
         </button>
