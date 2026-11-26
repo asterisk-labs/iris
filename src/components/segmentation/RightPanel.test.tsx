@@ -31,4 +31,12 @@ describe('RightPanel sections', () => {
     act(() => { handleShortcut('KeyL', 'l'); });
     expect(screen.queryByText('Show Mask')).not.toBeInTheDocument();
   });
+
+  it('shows the shortcut of a layer over its name too', () => {
+    renderPanel();
+    const shortcutOf = (name: string) => screen.getByText(name).closest('[data-tooltip]')?.getAttribute('data-shortcut');
+    expect(shortcutOf('Show Mask')).toBe('Space');
+    expect(shortcutOf('Image')).toBe('P');
+    expect(shortcutOf('Satellite')).toBe('M');
+  });
 });

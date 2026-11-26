@@ -127,7 +127,11 @@ const SwitchRow: React.FC<{
 }> = ({ label, on, onToggle, hint, command }) => {
   const { theme } = useTheme();
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+    // The whole row shows the shortcut, not only the switch
+    <div
+      {...tooltip(hint, command)}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}
+    >
       <span style={{ fontSize: '13px', fontWeight: '500', color: theme.gray900 }}>{label}</span>
       <button
         onClick={onToggle}
@@ -135,7 +139,6 @@ const SwitchRow: React.FC<{
         role="switch"
         aria-checked={on}
         aria-label={label}
-        {...tooltip(hint, command)}
         style={{
           width: '44px',
           height: '24px',
