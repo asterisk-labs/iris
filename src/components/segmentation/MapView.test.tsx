@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, render, screen } from '../../test/test-utils';
-import MapView from './MapView';
+import MapView, { RERENDER_DELAY_MS } from './MapView';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { MaskHistory } from '../../segmentation/mask/history';
 import { NO_LABEL } from '../../segmentation/mask/MaskDocument';
@@ -53,10 +53,14 @@ vi.mock('maplibre-gl', () => ({ Map: FakeMap }));
 
 /** Images load at once */
 class LoadingImage {
+  static urls: string[] = [];
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
   complete = true;
-  set src(_url: string) { setTimeout(() => this.onload?.()); }
+  set src(url: string) {
+    LoadingImage.urls.push(url);
+    setTimeout(() => this.onload?.());
+  }
 }
 
 const corners: Corners = [[8, 46], [8.1, 46], [8.1, 45.9], [8, 45.9]];
@@ -65,6 +69,7 @@ const view = { name: 'RGB', type: 'image' as const, description: '' };
 describe('MapView', () => {
   beforeEach(() => {
     FakeMap.instances = [];
+    LoadingImage.urls = [];
     vi.stubGlobal('Image', LoadingImage);
     useSegmentationStore.setState({
       maskDocument: null, maskHistory: new MaskHistory(), canUndo: false, canRedo: false,
@@ -148,5 +153,24 @@ describe('MapView', () => {
     render(<MapView view={view} imageId="coast" />);
     expect(FakeMap.instances).toHaveLength(0);
     expect(screen.getByText(/needs georeferenced COGs/)).toBeInTheDocument();
+  });
+
+  it('renders the view again for a new brightness once the slider rests', async () => {
+    useSegmentationStore.setState({ brightness: 100 });
+    await renderMap();
+    expect(LoadingImage.urls).toEqual(['/api/v1/images/coast/views/RGB']);
+
+    vi.useFakeTimers();
+    try {
+      act(() => useSegmentationStore.setState({ brightness: 120 }));
+      act(() => useSegmentationStore.setState({ brightness: 150 }));
+      act(() => { vi.advanceTimersByTime(RERENDER_DELAY_MS - 1); });
+      expect(LoadingImage.urls).toHaveLength(1);
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(LoadingImage.urls).toEqual(['/api/v1/images/coast/views/RGB', '/api/v1/images/coast/views/RGB?brightness=1.5']);
+    } finally {
+      vi.useRealTimers();
+      useSegmentationStore.setState({ brightness: 100 });
+    }
   });
 });

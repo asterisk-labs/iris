@@ -41,12 +41,19 @@ const brushPolygon = (georef: Georef, [x, y]: [number, number], size: number): F
   return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] } };
 };
 
-/** CSS filter of the image, set in the side panel */
-const imageFilter = () => {
+/** How long the brightness slider has to rest before the view is rendered again */
+export const RERENDER_DELAY_MS = 250;
+
+/**
+ * CSS filter of the image, set in the side panel. The server already
+ * stretched the image for `renderedBrightness`; the filter only makes up the
+ * difference until the image for the current brightness arrives.
+ */
+const imageFilter = (renderedBrightness: number) => {
   const { brightness, saturation, contrast, invert } = useSegmentationStore.getState();
   return [
     invert ? 'invert(1)' : '',
-    `brightness(${brightness}%)`,
+    `brightness(${(100 * brightness) / renderedBrightness}%)`,
     contrast ? 'contrast(200%)' : '',
     `saturate(${saturation}%)`,
   ].filter(Boolean).join(' ');
@@ -232,15 +239,21 @@ const MapView: React.FC<MapViewProps> = ({ view, imageId }) => {
     const canvas = document.createElement('canvas');
     canvas.width = georef.width;
     canvas.height = georef.height;
-    const image = new Image();
+    let image = new Image();
+    let rendered = useSegmentationStore.getState().brightness;
     let cancelled = false;
     let cancelReady = () => {};
+    let rerender: ReturnType<typeof setTimeout> | undefined;
+    const url = (brightness: number) => {
+      const base = `${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/views/${encodeURIComponent(view.name)}`;
+      return brightness === 100 ? base : `${base}?brightness=${brightness / 100}`;
+    };
 
     const draw = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx || !image.complete) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.filter = imageFilter();
+      ctx.filter = imageFilter(rendered);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
       if (mapRef.current) refreshCanvasSource(mapRef.current, 'image');
@@ -258,15 +271,36 @@ const MapView: React.FC<MapViewProps> = ({ view, imageId }) => {
       });
     };
     image.onerror = () => { if (!cancelled) setStatus('error'); };
-    image.src = `${appUrls().main}api/v1/images/${encodeURIComponent(imageId)}/views/${encodeURIComponent(view.name)}`;
+    image.src = url(rendered);
+
+    // Brightness changes show at once through the filter; once the slider
+    // rests, the server stretches the bands again, so that what the old
+    // stretch clipped can come back.
+    const fetchForBrightness = () => {
+      const wanted = useSegmentationStore.getState().brightness;
+      if (wanted === rendered) return;
+      const next = new Image();
+      next.onload = () => {
+        if (cancelled || useSegmentationStore.getState().brightness !== wanted) return;
+        image = next;
+        rendered = wanted;
+        draw();
+      };
+      next.src = url(wanted);
+    };
 
     const unsubscribe = useSegmentationStore.subscribe((s, prev) => {
       if (s.brightness !== prev.brightness || s.saturation !== prev.saturation
           || s.contrast !== prev.contrast || s.invert !== prev.invert) draw();
+      if (s.brightness !== prev.brightness) {
+        clearTimeout(rerender);
+        rerender = setTimeout(fetchForBrightness, RERENDER_DELAY_MS);
+      }
     });
 
     return () => {
       cancelled = true;
+      clearTimeout(rerender);
       unsubscribe();
       cancelReady();
       const map = mapRef.current;

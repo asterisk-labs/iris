@@ -599,7 +599,9 @@ class Project:
         else:
             return self['images']['path'].format(id=image_id)
 
-    def render_image(self, image_id, view):
+    def render_image(self, image_id, view, brightness=1.0):
+        """The view as an RGB uint8 array. brightness scales the stretch
+        window of every band, so that clipped values can come back."""
         # Find all required variables
         bands = find_bands(view['data'])
         image = self.get_image(image_id, bands=bands)
@@ -616,29 +618,22 @@ class Project:
             rgb_bands[i] = band
 
         # Stretch between 0->1, with percentile clip if specified in view
-        if 'clip' in view:
-            if 'vmin' in view or 'vmax' in view:
-                raise ValueError("Cannot specify both 'clip' and 'vmin'/'vmax' in view")
-            clip = float(view['clip'])
-            def linear_scale(z):
-                return np.clip(
-                            (z - np.percentile(z,clip))/(np.percentile(z,100-clip)-np.percentile(z,clip)),
-                            0,
-                            1
-                            )
-        elif 'vmin' in view or 'vmax' in view:
-            if 'vmin' in view and 'vmax' in view:
-                def linear_scale(z):
-                    return np.clip((z - view['vmin'])/(view['vmax']-view['vmin']), 0, 1)
-            elif 'vmin' in view:
-                def linear_scale(z):
-                    return np.clip((z - view['vmin'])/(z.max()-view['vmin']), 0, 1)
-            elif 'vmax' in view:
-                def linear_scale(z):
-                    return np.clip((z - z.min())/(view['vmax']-z.min()), 0, 1)
-        else:
-            def linear_scale(z):
-                return (z - z.min())/(z.max()-z.min())
+        if 'clip' in view and ('vmin' in view or 'vmax' in view):
+            raise ValueError("Cannot specify both 'clip' and 'vmin'/'vmax' in view")
+
+        def window(z):
+            if 'clip' in view:
+                clip = float(view['clip'])
+                return np.percentile(z, clip), np.percentile(z, 100 - clip)
+            return view.get('vmin', z.min()), view.get('vmax', z.max())
+
+        def linear_scale(z):
+            low, high = window(z)
+            # Brightness above 1 narrows the window, so dark values spread
+            # out; below 1 it widens it, bringing back what was clipped
+            high = low + (high - low) / brightness
+            return np.clip((z - low) / (high - low), 0, 1)
+
         rgb_bands = list(map(linear_scale, rgb_bands))
 
         if len(rgb_bands) == 1:

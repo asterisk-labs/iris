@@ -29,8 +29,12 @@ def image(image_id, view):
     project = current_project()
     if image_id not in project.image_ids or view not in project['views']:
         return flask.make_response('Unknown image or view!', 404)
+    # The brightness slider of the side panel, as a factor (1 is the view as configured)
+    brightness = flask.request.args.get('brightness', 1.0, type=float)
+    if not 0.05 <= brightness <= 20:
+        return flask.make_response('brightness must be between 0.05 and 20', 400)
     try:
-        image = project.render_image(image_id, project['views'][view])
+        image = project.render_image(image_id, project['views'][view], brightness=brightness)
     except ExpressionError as error:
         return flask.make_response(f"View '{view}': {error}", 400)
     return array_to_png(image)
