@@ -127,3 +127,26 @@ def test_predict_mask_with_meshgrid_and_edges(client, logged_in_user, monkeypatc
 
     assert response.status_code == 200, response.data
     assert len(response.data) == width * height
+
+
+def test_image_bands_follow_the_order_of_image_dict_to_array():
+    from iris.segmentation import image_dict_to_array
+    from iris.segmentation.training import image_bands
+    rng = np.random.default_rng(0)
+    image = {"A": {"B1": rng.random((4, 5)), "B2": rng.random((4, 5))}, "C": {"B1": rng.random((4, 5))}}
+    assert np.array_equal(np.dstack(image_bands(image)), image_dict_to_array(image))
+
+
+@pytest.mark.parametrize("dtype", [np.int16, np.float64])
+def test_predicting_in_strips_matches_one_stacked_array(dtype):
+    import lightgbm as lgb
+
+    from iris.segmentation.training import feature_rows, predict_in_strips
+    rng = np.random.default_rng(1)
+    features = [(rng.random((50, 30)) * 1000).astype(dtype) for _ in range(6)]
+    stacked = np.dstack(features).reshape(-1, 6)
+    labels = (stacked[:, 0] > 500).astype(int) + (stacked[:, 1] > 500)
+    train = rng.choice(len(stacked), 300, replace=False)
+    model = lgb.LGBMClassifier(n_estimators=10, n_jobs=1, verbose=-1).fit(feature_rows(features, train), labels[train])
+    assert np.array_equal(feature_rows(features, train), stacked[train])
+    assert np.array_equal(predict_in_strips(model, features, rows=7), model.predict(stacked))

@@ -59,3 +59,43 @@ def meshgrid_features(shape, cells):
     y = (np.arange(width) * cols) // width
     x_grid, y_grid = np.meshgrid(x, y, indexing='ij')
     return x_grid[..., np.newaxis], y_grid[..., np.newaxis]
+
+
+def image_bands(image_dict):
+    """The 2D band arrays from Project.get_image, in the order
+    image_dict_to_array stacks them."""
+    if isinstance(image_dict, np.ndarray):
+        if image_dict.ndim == 2:
+            return [image_dict]
+        return [image_dict[..., i] for i in range(image_dict.shape[-1])]
+    return [band for value in image_dict.values() for band in image_bands(value)]
+
+
+def feature_dtype(features):
+    """float32 for band values, float64 when a feature (e.g. edges) already
+    is, so that the model sees the same numbers as with one stacked array."""
+    return np.result_type(np.float32, *(f.dtype for f in features))
+
+
+def feature_rows(features, indices):
+    """The feature vectors of the pixels at `indices`, as rows."""
+    rows = np.stack([f.ravel()[indices] for f in features], axis=-1)
+    return rows.astype(feature_dtype(features))
+
+
+def predict_in_strips(model, features, rows=32, **kwargs):
+    """model.predict over every pixel, a strip of rows at a time.
+
+    Stacking all bands of a whole image into one (pixels, features) array
+    and handing it to LightGBM, which converts it to float64, copies
+    gigabytes for a cube of embeddings. Strips stay in cache: with 77 bands
+    of 1024 x 1024 this took 1 to 2 s instead of 5 to 8 s, with the same
+    result.
+    """
+    height = features[0].shape[0]
+    dtype = feature_dtype(features)
+    out = []
+    for row in range(0, height, rows):
+        block = np.stack([f[row:row + rows] for f in features], axis=-1)
+        out.append(model.predict(block.reshape(-1, len(features)).astype(dtype), **kwargs))
+    return np.concatenate(out)
