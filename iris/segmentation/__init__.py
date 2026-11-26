@@ -19,7 +19,13 @@ from iris.models import Action, User, db
 from iris.ordering import previous_in_order
 from iris.project import current_project
 from iris.segmentation.navigation import next_image_id, user_image_order
-from iris.segmentation.training import filter_training_pixels, meshgrid_features
+from iris.segmentation.training import (
+    feature_rows,
+    filter_training_pixels,
+    image_bands,
+    meshgrid_features,
+    predict_in_strips,
+)
 from iris.user import requires_auth
 
 # Mask value of a pixel nobody labelled yet, neither the user nor the AI
@@ -352,21 +358,12 @@ def predict_mask(image_id):
 
     # How to exclude certain bands?
     image_dict = project.get_image(image_id, bands=config['ai_model']['bands'])
-    image = image_dict_to_array(image_dict)
-
-    n_channels = image.shape[-1]
 
     # Select only the masking area (per image: the configured area, or the
     # whole image when none is configured):
     area = project.get_mask_area(image_id)
     mask_width, mask_height = project.get_mask_shape(image_id)
-    mask_area = (
-        slice(area[1], area[3]),
-        slice(area[0], area[2]),
-        slice(None, None, None)
-    )
-    mask_size = mask_width * mask_height
-    image = image[mask_area]
+    bands = [b[area[1]:area[3], area[0]:area[2]] for b in image_bands(image_dict)]
 
     data = json.loads(flask.request.data)
     try:
@@ -376,26 +373,23 @@ def predict_mask(image_id):
     except ValueError as error:
         return flask.make_response(str(error), 400)
 
-    inputs = [image]
+    # One 2D array per feature; they are only stacked a strip at a time
+    features = list(bands)
     if config['ai_model']['use_edge_filter']:
-        edges = np.dstack([
-            sobel(image[..., i])
-            for i in range(n_channels)
-        ])
-        inputs.append(edges)
+        features.extend(sobel(band) for band in bands)
 
     if config['ai_model']['use_meshgrid']:
-        inputs.extend(meshgrid_features(
-            image.shape, config['ai_model']['meshgrid_cells']
-        ))
+        features.extend(
+            grid[..., 0] for grid in meshgrid_features(
+                (mask_height, mask_width), config['ai_model']['meshgrid_cells']
+            )
+        )
 
     if config['ai_model']['use_superpixels']:
-        super_pixels = felzenszwalb(
+        image = np.dstack(bands)
+        features.append(felzenszwalb(
             image, scale=image.shape[0]/5, sigma=4, min_size=100
-        )
-        inputs.append(super_pixels)
-
-    inputs = np.dstack(inputs).reshape(mask_size, -1)
+        ))
 
     train_indices, val_indices, train_labels, val_labels = train_test_split(
         user_indices, user_labels, stratify=user_labels,
@@ -416,14 +410,14 @@ def predict_mask(image_id):
     )
     early_stopping = lgb.early_stopping(4, verbose=False)
     gbm.fit(
-        inputs[train_indices, :], train_labels,
-        eval_set=[(inputs[val_indices, :], val_labels)],
+        feature_rows(features, train_indices), train_labels,
+        eval_set=[(feature_rows(features, val_indices), val_labels)],
         callbacks=[early_stopping]
     )
 
     # predict the mask for the whole image:
-    predictions = gbm.predict(
-        inputs, num_iteration=gbm.best_iteration_
+    predictions = predict_in_strips(
+        gbm, features, num_iteration=gbm.best_iteration_
     )
     predictions = predictions.astype(np.uint8)
 

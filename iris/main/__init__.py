@@ -123,6 +123,7 @@ def array_to_png(array):
 
     img = PILImage.fromarray(array) # convert arr to image
     file_object = io.BytesIO()   # create file in memory
-    img.save(file_object, 'PNG') # save PNG in file in memory
+    # Level 1: the default (6) spent most of a view request compressing
+    img.save(file_object, 'PNG', compress_level=1)
     file_object.seek(0)          # move to beginning of file
     return flask.send_file(file_object,  mimetype='image/png')
