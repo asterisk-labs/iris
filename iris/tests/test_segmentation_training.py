@@ -72,6 +72,80 @@ def _training_pixels(mask_size, per_class, rng):
     return pixels, labels
 
 
+def _mask(response, key="mask"):
+    import base64
+    return np.frombuffer(base64.b64decode(response.json[key]), dtype=np.uint8)
+
+
+def _predict(client, project, config, per_class=(60, 60), seed=3):
+    image_id = project.image_ids[0]
+    width, height = project.get_mask_shape(image_id)
+    pixels, labels = _training_pixels(width * height, list(per_class), np.random.RandomState(seed))
+    response = client.post(
+        f"/api/v1/images/{image_id}/predict",
+        data=json.dumps({"user_pixels": pixels, "user_labels": labels}),
+        content_type="application/json",
+    )
+    return response, pixels, labels
+
+
+@pytest.mark.parametrize("kind", ["lightgbm", "linear"])
+def test_predict_returns_mask_errors_and_scores(client, logged_in_user, monkeypatch, project, kind):
+    from copy import deepcopy
+    config = deepcopy(project.config)
+    config["segmentation"]["ai_model"].update({"type": kind, "train_ratio": 0.75})
+    monkeypatch.setattr(project, "get_user_config", lambda user_id: config)
+
+    response, pixels, labels = _predict(client, project, config)
+    assert response.status_code == 200, response.data
+    body = response.json
+    assert body["model"]["type"] == kind
+    assert body["n_train"] == 90 and body["n_test"] == 30  # round(60 * 0.75) per class
+    errors = _mask(response, "errors")
+    # Only test pixels are marked, as correct (1) or wrong (2)
+    assert (errors > 0).sum() == 30 and set(np.unique(errors)) <= {0, 1, 2}
+    assert np.isin(np.flatnonzero(errors), pixels).all()
+    matrix = np.array(body["confusion_matrix"])
+    assert matrix.shape == (len(project["classes"]),) * 2 and matrix.sum() == 30
+    assert (np.trace(matrix) == (errors == 1).sum())
+    assert set(body["per_class_accuracy"]) == {"0", "1"}
+    assert 0 <= body["overall_accuracy"] <= 1
+
+
+def test_unknown_model_type_is_a_400(client, logged_in_user, monkeypatch, project):
+    from copy import deepcopy
+    config = deepcopy(project.config)
+    config["segmentation"]["ai_model"]["type"] = "transformer"
+    monkeypatch.setattr(project, "get_user_config", lambda user_id: config)
+    response, _, _ = _predict(client, project, config)
+    assert response.status_code == 400 and b"Unknown ai_model.type" in response.data
+
+
+def test_split_is_seeded_and_per_class():
+    from iris.ml.sampling import split_train_test
+    pixels = np.arange(100)
+    labels = np.repeat([0, 1, 2], [50, 45, 5])
+    a = split_train_test(pixels, labels, 0.8, 30)
+    b = split_train_test(pixels, labels, 0.8, 30)
+    assert np.array_equal(a.train_pixels, b.train_pixels)
+    assert a.classes == [0, 1]  # class 2 has too few pixels
+    assert np.bincount(a.train_labels).tolist() == [30, 30]  # capped at 30
+    assert len(a.test_pixels) == 20 + 15
+    assert not set(a.train_pixels) & set(a.test_pixels)
+
+
+def test_score_uses_the_iris_formula():
+    from iris.ml.sampling import Split, score
+    split = Split([0, 1], np.array([], int), np.array([], int), np.array([0, 1, 2, 3]), np.array([0, 0, 1, 1]))
+    predictions = np.array([0, 1, 1, 1], np.uint8)
+    errors, metrics = score(predictions, split, 3)
+    assert errors.tolist() == [1, 2, 1, 1]
+    assert metrics["confusion_matrix"] == [[1, 1, 0], [0, 2, 0], [0, 0, 0]]
+    assert metrics["per_class_accuracy"] == {"0": 0.5, "1": 1.0}
+    assert metrics["overall_accuracy"] == 2 * 0.5 * 1.0 / 1.5
+    assert metrics["worst_class"] == 0
+
+
 def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user, project):
 
     image_id = project.image_ids[0]
@@ -85,7 +159,7 @@ def test_predict_mask_ignores_a_class_with_one_pixel(client, logged_in_user, pro
     )
 
     assert response.status_code == 200, response.data
-    predictions = np.frombuffer(response.data, dtype=np.uint8)
+    predictions = _mask(response)
     assert predictions.size == width * height
     assert set(np.unique(predictions).tolist()) <= {0, 1}
 
@@ -126,7 +200,7 @@ def test_predict_mask_with_meshgrid_and_edges(client, logged_in_user, monkeypatc
     )
 
     assert response.status_code == 200, response.data
-    assert len(response.data) == width * height
+    assert _mask(response).size == width * height
 
 
 def test_image_bands_follow_the_order_of_image_dict_to_array():

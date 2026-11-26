@@ -11,6 +11,9 @@
         "prioritise_unmarked_images":true,
         "unverified_threshold": 1,
         "ai_model": {
+            "type": "lightgbm",
+            "linear_c": 1.0,
+            "class_weight": null,
             "bands": null,
             "train_ratio": 0.8,
             "max_train_pixels": 20000,

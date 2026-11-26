@@ -92,8 +92,8 @@ export type { ClassConfig, ProjectConfig };
 
 /** A user's AI settings: the server fills in every default. */
 export type AIModelConfig = {
-  [K in keyof AIModelSchema]-?: NonNullable<AIModelSchema[K]>;
-};
+  [K in Exclude<keyof AIModelSchema, 'class_weight'>]-?: NonNullable<AIModelSchema[K]>;
+} & { class_weight: 'balanced' | null };
 
 export interface UserInfo {
   id: number;

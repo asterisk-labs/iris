@@ -7,8 +7,8 @@
  */
 
 import { create } from 'zustand';
-import { splitTrainTest, usableClasses, MIN_CLASSES } from '../../segmentation/ai/sampling';
-import { scorePrediction } from '../../segmentation/ai/metrics';
+import { paintedPixels, usableClasses, MIN_CLASSES } from '../../segmentation/ai/sampling';
+import { toConfusionMatrix } from '../../segmentation/ai/metrics';
 import { loadMask, saveMask } from '../../services/masks';
 import { NO_LABEL } from '../../segmentation/mask/MaskDocument';
 import { predictMask as requestPrediction } from '../../services/prediction';
@@ -90,40 +90,34 @@ const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
     if (usableClasses(userPixelCounts).length < MIN_CLASSES) {
       throw new Error('You need to draw at least 10 pixels for more than one class to use the AI.');
     }
-    const aiModel = config?.segmentation?.ai_model;
-    if (!doc || !currentImageId || !aiModel) return;
+    if (!doc || !currentImageId || !config?.segmentation?.ai_model) return;
 
     set({ isLoading: true });
-    get().setLoadingMessage('Prepare training data...');
+    get().setLoadingMessage('Train AI...');
     try {
-      const split = splitTrainTest(doc.final, doc.user, userPixelCounts, {
-        trainRatio: aiModel.train_ratio ?? 0.8,
-        maxTrainPixels: aiModel.max_train_pixels ?? 20000,
-      });
-
-      get().setLoadingMessage('Train AI...');
-      let predicted: Uint8Array;
+      const { pixels, labels } = paintedPixels(doc.final, doc.user);
+      let result;
       try {
-        predicted = await requestPrediction(currentImageId, split.trainPixels, split.trainLabels);
+        result = await requestPrediction(currentImageId, pixels, labels);
       } catch (error) {
         if (error instanceof AuthError) get().requestLogin();
+        else if (error instanceof HttpError && error.status === 400) get().showErrorModal(error.body);
         else get().showErrorModal('Could not predict the mask due to a server problem!');
         return;
       }
-      if (predicted.length !== doc.length) {
+      if (result.mask.length !== doc.length || result.errors.length !== doc.length) {
         get().showErrorModal('Could not predict the mask: the server returned the wrong number of pixels.');
         return;
       }
 
       get().setLoadingMessage('Process results...');
-      const { errors, confusionMatrix } = scorePrediction(predicted, split, classes.map(c => c.name));
-      doc.setErrors(errors);
-      doc.applyPrediction(predicted);
+      doc.setErrors(result.errors);
+      doc.applyPrediction(result.mask);
       set({
         maskRevision: doc.revision,
         predictionRevision: doc.revision,
         userPixelCounts: doc.counts(),
-        confusionMatrix,
+        confusionMatrix: toConfusionMatrix(result, classes.map(c => c.name)),
       });
       get().recordHistory();
       get().setMaskChanged(true);

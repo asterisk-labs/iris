@@ -559,6 +559,14 @@ pluggable pixel model so a linear model on embeddings is a config switch.
   `max_train_pixels` raised by a user to 200k it is not. Keep the cap
   visible in the UI.
 
+- Done (branch `t1.1.1-2-models`). `iris/ml/models.py` has `LightGBMModel`
+  and `LinearModel` behind `get_model`, chosen with `ai_model.type`
+  (`lightgbm`, the default, or `linear`), with `linear_c` and
+  `class_weight` flat rather than nested. Each user switches in
+  Preferences > Segmentation AI, and the next prediction uses it. The
+  features stay in `iris/segmentation/training.py` (2D arrays, predicted
+  in strips since #30), not a new `features.py`.
+
 ### T1.1.2 Prediction API contract
 
 **Goal.** One JSON endpoint owned by React, with sampling and metrics
@@ -625,6 +633,15 @@ Response:
 - Browser-side `RNG(42)` shuffling gave users deterministic splits; the
   server seed reproduces that, but results will not be bit-identical to the
   old path. Nobody should depend on it.
+
+- Done (branch `t1.1.1-2-models`), on the existing route
+  `POST /api/v1/images/<id>/predict`: the browser sends every painted pixel,
+  and the server splits them (`iris/ml/sampling.py`, numpy seed 42, so not
+  the same pixels as the old browser split), fits, and returns the mask,
+  the errors mask, the confusion matrix, per-class and overall accuracy
+  (the IRIS formula) and a description of the model. The browser's split
+  and scoring code is gone. The legacy JavaScript described below was
+  already removed by 0.2.A.
 
 ### T1.1.3 Embedding ingestion and views
 

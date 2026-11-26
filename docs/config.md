@@ -163,7 +163,7 @@ Since this app was developed for multi-spectral satellite data (i.e. images with
         *type:* Must be `image`.
     </li>
     <li>
-        *data:* Can be either one string (monochrome image) or a list of three strings (rgb image). Each string must contain an expression that returns a valid band array. It can contain arithmetic (`+ - * / // % **`), single comparisons, `& | ^ ~`, the constant `PI` and calls of `max`, `min`, `mean`, `median`, `log`, `exp`, `sin`, `cos`, `edges` and `superpixels`. Anything else (e.g. indexing, or methods such as `.clip()`) is rejected. One refers to the bands by using variable names starting with `$B`, e.g. `$B1` for the first band of the image file. If you set `image:path` to a dictionary, you need the file identifiers as prefix, i.e. `$FileIdentifier.B1` (e.g. `$Sentinel2.B1`).
+        *data:* Can be either one string (monochrome image) or a list of three strings (rgb image). Each string must contain an expression that returns a valid band array. It can contain arithmetic (`+ - * / // % **`), single comparisons, `& | ^ ~`, the constant `PI` and calls of `max`, `min`, `mean`, `median`, `log`, `exp`, `sin`, `cos`, `edges` and `superpixels`. `$Source.B14:B77` stands for every band from 14 to 77 of a source, and `pca(...)` turns any number of bands into their first three principal components, shown as red, green and blue: `"data": "pca($AlphaEarth.B1:B64)"` with `"clip": 2` is a good way to look at an embedding. The components are fitted per image, so the same colour can mean different things in two images. Anything else (e.g. indexing, or methods such as `.clip()`) is rejected. One refers to the bands by using variable names starting with `$B`, e.g. `$B1` for the first band of the image file. If you set `image:path` to a dictionary, you need the file identifiers as prefix, i.e. `$FileIdentifier.B1` (e.g. `$Sentinel2.B1`).
     </li>
     <li>
         *cmap:* If `data` contains only one string (monochrome image), you can set a matplotlib colormap name here to render that image.
@@ -268,6 +268,14 @@ take the values in the [default configuration file](../iris/default_config.json)
 
 - `bands`: list of band names (for example `["$Sentinel2.B2", "$Sentinel2.B3"]`)
   to train on, or `null` for all bands.
+- `type`: `lightgbm` (the default; gradient-boosted trees) or `linear`
+  (logistic regression on standardised features). The linear model is meant
+  for embedding bands such as AlphaEarth; on raw reflectance it is usually
+  worse. Each user can switch in Preferences, and the next prediction uses it.
+- `linear_c`: regularisation of the linear model; smaller values give a
+  simpler model. Default 1.
+- `class_weight`: `null`, or `"balanced"` to weigh classes by how rarely
+  they were painted.
 - `train_ratio`, `max_train_pixels`: share of each class's painted pixels
   used for training, and a cap per class.
 - `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.

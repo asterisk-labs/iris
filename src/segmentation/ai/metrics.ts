@@ -1,87 +1,33 @@
 /**
- * Scoring of a prediction on the held-out test pixels, as the legacy
- * legacyPredictMask and the store's createConfusionMatrix did.
+ * The scores of a prediction, computed by the server, in the form the
+ * confusion matrix and the AI recommendation show them.
  */
 
 import type { ConfusionMatrix } from '../../types/iris';
-import type { TrainTestSplit } from './sampling';
+import type { PredictionResult } from '../../services/prediction';
 
-export interface PredictionScore {
-  /** Errors mask: 0 not tested, 1 correct, 2 wrong. */
-  errors: Uint8Array;
-  confusionMatrix: ConfusionMatrix;
-}
-
-/**
- * Compare `predicted` with the user's labels on the test pixels.
- *
- * The overall score is `n * prod(acc) / sum(acc)` over the usable classes,
- * the legacy formula. A class with no test pixels gives NaN, as before.
- */
-export function scorePrediction(
-  predicted: Uint8Array,
-  split: TrainTestSplit,
-  classNames: string[],
-): PredictionScore {
-  const classCount = classNames.length;
-  const matrix: number[][] = Array.from({ length: classCount }, () => new Array(classCount).fill(0));
-  const truePositives: { [classId: number]: number } = {};
-  const tested: { [classId: number]: number } = {};
-  for (const c of split.classes) {
-    truePositives[c] = 0;
-    tested[c] = 0;
-  }
-
-  const errors = new Uint8Array(predicted.length);
-  for (let k = 0; k < split.testPixels.length; k++) {
-    const i = split.testPixels[k];
-    const label = split.testLabels[k];
-    const guess = predicted[i];
-    matrix[label][guess] += 1;
-    tested[label]++;
-    if (label === guess) {
-      truePositives[label]++;
-      errors[i] = 1;
-    } else {
-      errors[i] = 2;
-    }
-  }
-
+export function toConfusionMatrix(result: PredictionResult, classNames: string[]): ConfusionMatrix {
   const perClass: number[] = [];
-  let product = split.classes.length;
-  let sum = 0;
-  let worstClass: number | null = null;
-  let worstAccuracy = 1;
-  for (const c of split.classes) {
-    const accuracy = truePositives[c] / tested[c];
+  const truePositives: { [classId: number]: number } = {};
+  for (const [id, accuracy] of Object.entries(result.perClassAccuracy)) {
+    const c = Number(id);
     perClass[c] = accuracy;
-    product *= accuracy;
-    sum += accuracy;
-    if (accuracy < worstAccuracy) {
-      worstAccuracy = accuracy;
-      worstClass = c;
-    }
+    truePositives[c] = result.confusionMatrix[c]?.[c] ?? 0;
   }
-
-  let totalSamples = 0;
-  for (const row of matrix) for (const v of row) totalSamples += v;
-
+  const worst = result.worstClass;
   return {
-    errors,
-    confusionMatrix: {
-      matrix,
-      classCount,
-      totalSamples,
-      accuracyStats: {
-        overall: split.classes.length > 0 && sum > 0 ? product / sum : 0,
-        perClass,
-        worstClass,
-        worstAccuracy,
-        truePositives,
-      },
-      timestamp: new Date(),
-      classes: classNames,
+    matrix: result.confusionMatrix,
+    classCount: classNames.length,
+    totalSamples: result.nTest,
+    accuracyStats: {
+      overall: result.overallAccuracy,
+      perClass,
+      worstClass: worst,
+      worstAccuracy: worst === null ? 1 : result.perClassAccuracy[String(worst)],
+      truePositives,
     },
+    timestamp: new Date(),
+    classes: classNames,
   };
 }
 
