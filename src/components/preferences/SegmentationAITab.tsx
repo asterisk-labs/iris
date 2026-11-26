@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
  * Segmentation AI Tab Component
  * 
  * Contains three accordion sections:
- * 1. Model Parameters - LightGBM model configuration
+ * 1. Model Parameters - which model, and its settings
  * 2. Model Inputs - Feature selection (bands, edge filter, meshgrid, superpixels)
  * 3. Postprocessing - Suppression filter settings
  */
@@ -109,6 +109,38 @@ const SegmentationAITab: React.FC<SegmentationAITabProps> = ({
       {/* Model Parameters */}
       <AccordionSection title="Model Parameters">
         <div style={rowStyle}>
+          <span style={labelStyle}>Model</span>
+          <select data-testid="select-model-type" style={selectStyle}
+            value={config.segmentation.ai_model.type ?? 'lightgbm'}
+            onChange={(e) => updateAIModelConfig('type', e.target.value)}
+          >
+            <option value="lightgbm">LightGBM (trees)</option>
+            <option value="linear">Linear (for embeddings)</option>
+          </select>
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Balance classes</span>
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" data-testid="checkbox-class-weight"
+              checked={config.segmentation.ai_model.class_weight === 'balanced'}
+              onChange={(e) => updateAIModelConfig('class_weight', e.target.checked ? 'balanced' : null)}
+              style={{ width: '16px', height: '16px', accentColor: theme.primary, cursor: 'pointer' }}
+            />
+          </label>
+        </div>
+        {config.segmentation.ai_model.type === 'linear' ? (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Regularisation (C, smaller is simpler)</span>
+          <input type="number" data-testid="input-linear-c" min="0.001" step="0.1" style={numberInputStyle}
+            value={config.segmentation.ai_model.linear_c ?? 1}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              if (value > 0) updateAIModelConfig('linear_c', value);
+            }}
+          />
+        </div>
+        ) : (<>
+        <div style={rowStyle}>
           <span style={labelStyle}>Number of estimators</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 220px' }}>
             <input type="number" data-testid="input-n-estimators" min="10" max="200"
@@ -156,6 +188,7 @@ const SegmentationAITab: React.FC<SegmentationAITabProps> = ({
             />
           </div>
         </div>
+        </>)}
         <div style={rowStyle}>
           <span style={labelStyle}>Train ratio</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 220px' }}>

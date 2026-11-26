@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import time
@@ -6,22 +7,21 @@ from glob import glob
 from os.path import basename, dirname, exists, join
 
 import flask
-import lightgbm as lgb
 import numpy as np
 from scipy.ndimage import convolve
 from skimage.filters import sobel
 from skimage.io import imsave
 from skimage.segmentation import felzenszwalb
 from sklearn.metrics import accuracy_score, f1_score, jaccard_score
-from sklearn.model_selection import train_test_split
 
+from iris.ml.models import get_model
+from iris.ml.sampling import score, split_train_test
 from iris.models import Action, User, db
 from iris.ordering import previous_in_order
 from iris.project import current_project
 from iris.segmentation.navigation import next_image_id, user_image_order
 from iris.segmentation.training import (
     feature_rows,
-    filter_training_pixels,
     image_bands,
     meshgrid_features,
     predict_in_strips,
@@ -365,11 +365,15 @@ def predict_mask(image_id):
     mask_width, mask_height = project.get_mask_shape(image_id)
     bands = [b[area[1]:area[3], area[0]:area[2]] for b in image_bands(image_dict)]
 
+    # Every pixel the user painted; the server keeps some back to test on
     data = json.loads(flask.request.data)
+    ai_model = config['ai_model']
     try:
-        user_indices, user_labels = filter_training_pixels(
-            data['user_pixels'], data['user_labels']
+        split = split_train_test(
+            data['user_pixels'], data['user_labels'],
+            ai_model['train_ratio'], ai_model['max_train_pixels'],
         )
+        model = get_model(ai_model)
     except ValueError as error:
         return flask.make_response(str(error), 400)
 
@@ -391,34 +395,12 @@ def predict_mask(image_id):
             image, scale=image.shape[0]/5, sigma=4, min_size=100
         ))
 
-    train_indices, val_indices, train_labels, val_labels = train_test_split(
-        user_indices, user_labels, stratify=user_labels,
-        test_size=0.3, random_state=42
-    )
-
-    gbm = lgb.LGBMClassifier(
-        num_leaves=config['ai_model']['n_leaves'],
-        max_bin=128,
-        max_depth=config['ai_model']['max_depth'],
-        # min_data_in_leaf=1000,
-        # bagging_fraction=0.2,
-        # boosting_type='dart',
-        tree_learner='data',
-        learning_rate=0.05,
-        n_estimators=config['ai_model']['n_estimators'],
-        n_jobs=config['ai_model'].get('n_jobs', 4),
-    )
-    early_stopping = lgb.early_stopping(4, verbose=False)
-    gbm.fit(
-        feature_rows(features, train_indices), train_labels,
-        eval_set=[(feature_rows(features, val_indices), val_labels)],
-        callbacks=[early_stopping]
-    )
+    started = time.time()
+    model.fit(feature_rows(features, split.train_pixels), split.train_labels)
+    fit_seconds = time.time() - started
 
     # predict the mask for the whole image:
-    predictions = predict_in_strips(
-        gbm, features, num_iteration=gbm.best_iteration_
-    )
+    predictions = predict_in_strips(model, features)
     predictions = predictions.astype(np.uint8)
 
     # Apply suppression filter:
@@ -434,9 +416,11 @@ def predict_mask(image_id):
         suppress = 100 * neighbourhood_ratio.ravel() < config['ai_model']['suppression_threshold']
         predictions[suppress] = config['ai_model']['suppression_default_class']
 
-    # Return the results:
-    response = flask.make_response(
-        predictions.tobytes()
-    )
-    response.headers.set('Content-Type', 'application/octet-stream')
-    return response
+    errors, metrics = score(predictions, split, len(project['classes']))
+    return flask.jsonify({
+        'mask': base64.b64encode(predictions.tobytes()).decode(),
+        'errors': base64.b64encode(errors.tobytes()).decode(),
+        **metrics,
+        'model': {**model.describe(), 'n_features': len(features), 'fit_seconds': round(fit_seconds, 3)},
+    })
+

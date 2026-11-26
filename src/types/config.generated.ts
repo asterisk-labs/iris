@@ -1,6 +1,12 @@
 // Generated from iris/schema.py by `python -m iris.schema`. Do not edit.
 
 export interface AIModelConfig {
+  /** lightgbm (trees, the default) or linear (logistic regression, for embeddings) */
+  type?: 'lightgbm' | 'linear' | null;
+  /** Inverse regularisation of the linear model: smaller is simpler */
+  linear_c?: number | null;
+  /** balanced weighs classes by how rarely they are painted */
+  class_weight?: 'balanced' | null;
   /** null for all bands */
   bands?: string[] | null;
   train_ratio?: number | null;

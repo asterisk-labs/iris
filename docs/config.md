@@ -268,6 +268,14 @@ take the values in the [default configuration file](../iris/default_config.json)
 
 - `bands`: list of band names (for example `["$Sentinel2.B2", "$Sentinel2.B3"]`)
   to train on, or `null` for all bands.
+- `type`: `lightgbm` (the default; gradient-boosted trees) or `linear`
+  (logistic regression on standardised features). The linear model is meant
+  for embedding bands such as AlphaEarth; on raw reflectance it is usually
+  worse. Each user can switch in Preferences, and the next prediction uses it.
+- `linear_c`: regularisation of the linear model; smaller values give a
+  simpler model. Default 1.
+- `class_weight`: `null`, or `"balanced"` to weigh classes by how rarely
+  they were painted.
 - `train_ratio`, `max_train_pixels`: share of each class's painted pixels
   used for training, and a cap per class.
 - `n_estimators`, `max_depth`, `n_leaves`: LightGBM tree parameters.

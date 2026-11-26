@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import SegmentationAITab from './SegmentationAITab';
 import { UserConfig } from '../../types/iris';
@@ -24,6 +24,9 @@ const mockConfig: UserConfig = {
       meshgrid_cells: '5x5',
       use_superpixels: false,
       n_jobs: -1,
+      type: 'lightgbm',
+      linear_c: 1,
+      class_weight: null,
     },
   },
   classes: [
@@ -73,5 +76,29 @@ describe('SegmentationAITab', () => {
     );
     const div = container.querySelector('[data-testid="segmentation-ai-tab"]');
     expect(div).toBeInTheDocument();
+  });
+
+  it('switches the model, and shows the setting of the linear one', () => {
+    const update = vi.fn();
+    const { rerender } = renderWithTheme(
+      <SegmentationAITab config={mockConfig} allBands={['B1', 'B2']} updateAIModelConfig={update} moveBands={vi.fn()} />,
+    );
+    expect(screen.getByTestId('input-n-estimators')).toBeInTheDocument();
+    expect(screen.queryByTestId('input-linear-c')).toBeNull();
+    fireEvent.change(screen.getByTestId('select-model-type'), { target: { value: 'linear' } });
+    expect(update).toHaveBeenCalledWith('type', 'linear');
+
+    const linear = { ...mockConfig, segmentation: { ...mockConfig.segmentation,
+      ai_model: { ...mockConfig.segmentation.ai_model, type: 'linear' as const } } };
+    rerender(
+      <ThemeProvider>
+        <SegmentationAITab config={linear} allBands={['B1', 'B2']} updateAIModelConfig={update} moveBands={vi.fn()} />
+      </ThemeProvider>,
+    );
+    expect(screen.queryByTestId('input-n-estimators')).toBeNull();
+    fireEvent.change(screen.getByTestId('input-linear-c'), { target: { value: '0.5' } });
+    expect(update).toHaveBeenCalledWith('linear_c', 0.5);
+    fireEvent.click(screen.getByTestId('checkbox-class-weight'));
+    expect(update).toHaveBeenCalledWith('class_weight', 'balanced');
   });
 });

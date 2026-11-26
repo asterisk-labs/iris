@@ -82,6 +82,12 @@ class ViewConfig(_Model):
 
 
 class AIModelConfig(_Model):
+    type: Optional[Literal['lightgbm', 'linear']] = Field(
+        None, description='lightgbm (trees, the default) or linear (logistic regression, for embeddings)')
+    linear_c: Optional[Annotated[Number, Field(gt=0)]] = Field(
+        None, description='Inverse regularisation of the linear model: smaller is simpler')
+    class_weight: Optional[Literal['balanced']] = Field(
+        None, description='balanced weighs classes by how rarely they are painted')
     bands: Optional[list[StrictStr]] = Field(None, description='null for all bands')
     train_ratio: Optional[Number] = None
     max_train_pixels: Optional[StrictInt] = None

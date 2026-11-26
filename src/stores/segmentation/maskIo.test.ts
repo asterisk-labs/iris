@@ -133,19 +133,30 @@ describe('mask store actions', () => {
       s0.paintPixels(Array.from({ length: 15 }, (_, i) => 20 + i), 1);
       s0.recordHistory();
 
-      const predicted = new Uint8Array(50).fill(1);
-      fetchMock.mockResolvedValueOnce(bytesResponse(predicted));
+      const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+      const errors = new Uint8Array(50);
+      errors.fill(2, 0, 7);
+      errors.fill(1, 20, 27);
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+        mask: b64(new Uint8Array(50).fill(1)), errors: b64(errors),
+        confusion_matrix: [[0, 7], [0, 7]], per_class_accuracy: { 0: 0, 1: 1 },
+        overall_accuracy: 0, worst_class: 0, n_train: 16, n_test: 14,
+        model: { type: 'lightgbm', n_features: 3, fit_seconds: 0.1 },
+      })));
       await useSegmentationStore.getState().predictMask();
 
       const [url, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
       expect(url).toBe('/api/v1/images/img/predict');
+      // Every painted pixel goes to the server, which picks the training ones
       const sent = JSON.parse(init.body as string);
-      expect(sent.user_pixels).toHaveLength(16); // round(15 * 0.5) = 8 per class
+      expect(sent.user_pixels).toHaveLength(30);
+      expect(sent.user_labels.filter((l: number) => l === 1)).toHaveLength(15);
       const s = useSegmentationStore.getState();
       expect(s.maskDocument!.final[0]).toBe(0); // user pixel kept
       expect(s.maskDocument!.final[40]).toBe(1); // unpainted pixel filled
       expect(Array.from(s.maskDocument!.errors).filter(v => v).length).toBe(14);
       expect(s.confusionMatrix!.matrix[0][1]).toBe(7);
+      expect(s.confusionMatrix!.accuracyStats.worstClass).toBe(0);
       expect(s.predictionRevision).toBe(s.maskRevision);
       expect(s.maskChanged).toBe(true);
 
