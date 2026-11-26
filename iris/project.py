@@ -604,6 +604,10 @@ class Project:
         bands = find_bands(view['data'])
         image = self.get_image(image_id, bands=bands)
         rgb_bands = [evaluate(expression, image) for expression in view['data']]
+        # One expression giving three channels (e.g. pca) is an RGB image
+        three = len(rgb_bands) == 1 and np.ndim(rgb_bands[0]) == 3 and np.shape(rgb_bands[0])[-1] == 3
+        if three:
+            rgb_bands = [rgb_bands[0][..., i] for i in range(3)]
 
         # Broadcast (single numbers are converted to an array with the size of
         # this image)
@@ -641,7 +645,7 @@ class Project:
                 return (z - z.min())/(z.max()-z.min())
         rgb_bands = list(map(linear_scale, rgb_bands))
 
-        if len(rgb_bands) == 1:
+        if len(rgb_bands) == 1 and not three:
             # matplotlib.colormaps raises KeyError on an unknown name where
             # cm.get_cmap (gone in Matplotlib 3.11) raised ValueError
             rgb_bands = matplotlib.colormaps[view['cmap']](rgb_bands)[..., :3]
