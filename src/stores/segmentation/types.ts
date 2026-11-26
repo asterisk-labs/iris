@@ -10,8 +10,8 @@ import type { StateCreator } from 'zustand';
 import type { ClassConfig, ConfusionMatrix, ProjectConfig, UserInfo } from '../../types/iris';
 import type { MaskDocument } from '../../segmentation/mask/MaskDocument';
 import type { MaskHistory } from '../../segmentation/mask/history';
-import type { ViewTransform } from '../../segmentation/geometry/transform';
 import type { Size } from '../../segmentation/geometry/brush';
+import type { Corners, LngLat } from '../../segmentation/geometry/georef';
 import type { ActionInfo } from '../../services/actionInfo';
 import type { MaskType } from '../../segmentation/mask/palette';
 
@@ -29,6 +29,14 @@ export interface ImageInfo {
   shape?: [number, number];
   /** [x0, y0, x1, y1] mask area for this image (configured, or the whole image) */
   mask_area?: [number, number, number, number];
+  /** [lon, lat] of the image corners, clockwise from the top left; null without a CRS */
+  corners?: Corners | null;
+}
+
+/** Where the maps of the views look, shared by all of them */
+export interface Camera {
+  center: LngLat;
+  zoom: number;
 }
 
 export interface ViewConfig {
@@ -136,9 +144,17 @@ export interface ViewSlice {
   currentView: string | null;
   showControls: boolean;
   imageDimensions: Size | null;
-  viewTransform: ViewTransform | null;
-  viewWidth: number;
-  viewHeight: number;
+  /** Corners of the current image on the map, null when it has no CRS */
+  imageCorners: Corners | null;
+  /** Where the maps look; null fits the image */
+  camera: Camera | null;
+  /** Counts the resets of the views, for the maps to fit the image again */
+  resetViewsCount: number;
+  /** Pixel of the image under the mouse, in whichever view it is */
+  cursor: [number, number] | null;
+  showImage: boolean;
+  /** Satellite imagery below and around the image */
+  showSatellite: boolean;
   setViews: (views: { [name: string]: ViewConfig }) => void;
   setViewGroups: (groups: ViewGroup) => void;
   setCurrentGroup: (group: string) => void;
@@ -146,15 +162,17 @@ export interface ViewSlice {
   setCurrentView: (viewName: string | null) => void;
   toggleControls: () => void;
   setImageDimensions: (width: number, height: number) => void;
+  setImageCorners: (corners: Corners | null) => void;
   addView: (name: string, position?: number) => void;
   removeView: (position: number) => void;
   replaceView: (position: number, name: string) => void;
   getCurrentViews: () => ViewConfig[];
-  setViewTransform: (t: ViewTransform | null) => void;
-  /** Back to the default fit-to-canvas view. */
+  setCamera: (camera: Camera | null) => void;
+  /** Fit the image in the views again. */
   resetViews: () => void;
-  /** Fit the views in the area between the side columns, `width` wide when given. */
-  updateViewDimensions: (width?: number) => void;
+  setCursor: (cursor: [number, number] | null) => void;
+  toggleImage: () => void;
+  toggleSatellite: () => void;
 }
 
 /** Page-level feedback and modal requests. */

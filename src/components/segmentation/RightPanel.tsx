@@ -7,6 +7,7 @@ import { controlButtonStyle } from '../controlStyles';
 import Sidebar, { SidebarGroup } from './Sidebar';
 import { useShortcutAction } from '../../hooks/useKeyboardShortcuts';
 import ToolButton from './toolbar/ToolButton';
+import { GlobeIcon, ImageIcon } from '../icons/ToolbarIcons';
 
 const ICONS = '/segmentation/static/icons';
 
@@ -116,6 +117,52 @@ const PanelButton: React.FC<{
   );
 };
 
+/** A layer and its switch */
+const SwitchRow: React.FC<{
+  label: string;
+  on: boolean;
+  onToggle: () => void;
+  hint: string;
+  command: Command;
+}> = ({ label, on, onToggle, hint, command }) => {
+  const { theme } = useTheme();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+      <span style={{ fontSize: '13px', fontWeight: '500', color: theme.gray900 }}>{label}</span>
+      <button
+        onClick={onToggle}
+        onMouseDown={(e) => e.preventDefault()}
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        {...tooltip(hint, command)}
+        style={{
+          width: '44px',
+          height: '24px',
+          backgroundColor: on ? theme.toggleOn : theme.toggleOff,
+          border: 'none',
+          borderRadius: '12px',
+          cursor: 'pointer',
+          position: 'relative',
+          transition: 'background-color 0.2s ease',
+        }}
+      >
+        <div style={{
+          position: 'absolute',
+          top: '2px',
+          left: on ? '22px' : '2px',
+          width: '20px',
+          height: '20px',
+          backgroundColor: theme.toggleThumb,
+          borderRadius: '50%',
+          transition: 'left 0.2s ease',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+        }} />
+      </button>
+    </div>
+  );
+};
+
 interface RightPanelProps {
   expanded: boolean;
   onToggle: () => void;
@@ -126,6 +173,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
   const { theme, actualThemeName } = useTheme();
   const [classHovered, setClassHovered] = React.useState(false);
 
+  const { showImage, showSatellite, toggleImage, toggleSatellite } = useSegmentationStore(useShallow(s => ({ showImage: s.showImage, showSatellite: s.showSatellite, toggleImage: s.toggleImage, toggleSatellite: s.toggleSatellite })));
   const { showMask, toggleMask, maskType, setMaskType, brightness, saturation, contrast, invert, setBrightness, setSaturation, setContrast, setInvert, resetFilters, changeBrightness, changeSaturation, currentClass, classes } = useSegmentationStore(useShallow(s => ({ showMask: s.showMask, toggleMask: s.toggleMask, maskType: s.maskType, setMaskType: s.setMaskType, brightness: s.brightness, saturation: s.saturation, contrast: s.contrast, invert: s.invert, setBrightness: s.setBrightness, setSaturation: s.setSaturation, setContrast: s.setContrast, setInvert: s.setInvert, resetFilters: s.resetFilters, changeBrightness: s.changeBrightness, changeSaturation: s.changeSaturation, currentClass: s.currentClass, classes: s.classes })));
   
   // Get current class name
@@ -223,6 +271,12 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
         </SidebarGroup>
         <SidebarGroup expanded={false}>
           <ToolButton icon={`${ICONS}/show_mask.png`} checked={showMask} onClick={toggleMask} title="Show or hide the mask" command="toggle_mask" />
+          <ToolButton checked={showImage} onClick={toggleImage} title="Show or hide the image" command="toggle_image">
+            <ImageIcon size={18} />
+          </ToolButton>
+          <ToolButton checked={showSatellite} onClick={toggleSatellite} title="Show or hide the satellite imagery" command="toggle_satellite">
+            <GlobeIcon size={18} />
+          </ToolButton>
         </SidebarGroup>
         <SidebarGroup expanded={false}>
           {MASK_TYPES.map((option) => (
@@ -285,45 +339,12 @@ const RightPanel: React.FC<RightPanelProps> = ({ expanded, onToggle, onSelectCla
 
       {/* Mask Layers */}
       <Section title="Layers" command="fold_layers">
-        
-        {/* Show/Hide Toggle */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          marginBottom: '12px',
-          padding: '8px 0',
-        }}>
-          <span style={{ fontSize: '13px', fontWeight: '500', color: theme.gray900 }}>Show Mask</span>
-          <button
-            onClick={toggleMask}
-            style={{
-              width: '44px',
-              height: '24px',
-              backgroundColor: showMask ? theme.toggleOn : theme.toggleOff,
-              border: 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              position: 'relative',
-              transition: 'background-color 0.2s ease',
-            }}
-            aria-label="Show mask"
-            {...tooltip('Show or hide the mask', 'toggle_mask')}
-          >
-            <div style={{
-              position: 'absolute',
-              top: '2px',
-              left: showMask ? '22px' : '2px',
-              width: '20px',
-              height: '20px',
-              backgroundColor: theme.toggleThumb,
-              borderRadius: '50%',
-              transition: 'left 0.2s ease',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-            }} />
-          </button>
+        <div style={{ marginBottom: '12px' }}>
+          <SwitchRow label="Show Mask" on={showMask} onToggle={toggleMask} hint="Show or hide the mask" command="toggle_mask" />
+          <SwitchRow label="Image" on={showImage} onToggle={toggleImage} hint="Show or hide the image" command="toggle_image" />
+          <SwitchRow label="Satellite" on={showSatellite} onToggle={toggleSatellite} hint="Show or hide the satellite imagery" command="toggle_satellite" />
         </div>
-        
+
         {/* Mask Type Selector */}
         <div style={{ marginBottom: '8px' }}>
           <div style={{ fontSize: '12px', color: theme.gray600, marginBottom: '8px' }}>Type</div>

@@ -152,18 +152,26 @@ describe('view slice', () => {
     expect(store().viewGroups.default).toEqual(['RGB', 'Snow', 'Radar']);
   });
 
-  it('validates image dimensions and sizes the views to the image aspect', () => {
+  it('validates image dimensions', () => {
     store().setImageDimensions(-1, 10);
     expect(store().imageDimensions).toBeNull();
     store().setImageDimensions(1024, 512);
     expect(store().imageDimensions).toEqual({ width: 1024, height: 512 });
-    expect(store().viewWidth / store().viewHeight).toBeCloseTo(2, 1);
   });
 
-  it('keeps and resets the shared transform', () => {
-    store().setViewTransform({ zoom: 2, originX: 3, originY: 4 });
+  it('keeps the shared camera until the views are reset or the image moves', () => {
+    const corners: [number, number][] = [[8, 46], [8.1, 46], [8.1, 45.9], [8, 45.9]];
+    store().setImageCorners(corners as never);
+    store().setCamera({ center: [8.05, 45.95], zoom: 14 });
+    store().setImageCorners(corners.map((c) => [...c]) as never);
+    expect(store().camera).not.toBeNull();
+
     store().resetViews();
-    expect(store().viewTransform).toBeNull();
+    expect(store().camera).toBeNull();
+
+    store().setCamera({ center: [8.05, 45.95], zoom: 14 });
+    store().setImageCorners([[0, 1], [1, 1], [1, 0], [0, 0]]);
+    expect(store().camera).toBeNull();
   });
 });
 

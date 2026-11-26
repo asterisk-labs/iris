@@ -133,6 +133,24 @@ export const ChevronRightIcon: React.FC<IconProps> = ({ size = 18, color = 'curr
   </svg>
 );
 
+export const GlobeIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor', className }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18" />
+  </svg>
+);
+
 export const ImageIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor', className }) => (
   <svg
     width={size}

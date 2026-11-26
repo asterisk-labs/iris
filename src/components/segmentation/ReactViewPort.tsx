@@ -10,7 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ViewConfig } from '../../stores/segmentationStore';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 import { useTheme } from '../../contexts/ThemeContext';
-import ViewportCanvases from './ViewportCanvases';
+import MapView from './MapView';
 
 interface ReactViewPortProps {
   view: ViewConfig;
@@ -185,7 +185,7 @@ const ReactViewPort: React.FC<ReactViewPortProps> = ({
       {/* Layers Container */}
       <div style={layersContainerStyle}>
         {view.type === 'image' && (
-          <ViewportCanvases view={view} imageId={imageId} />
+          <MapView view={view} imageId={imageId} />
         )}
       </div>
 

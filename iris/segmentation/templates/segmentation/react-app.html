@@ -7,6 +7,7 @@
 {% block title %}segmentation{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="{{ url_for('segmentation.static', filename='css/segmentation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/segmentationApp.css') }}">
 
     <script type="application/json" id="iris-page">{{ {
         'image_id': image_id,

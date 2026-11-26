@@ -5,4 +5,5 @@ recursive-include iris *.png
 recursive-include iris *.html
 recursive-include iris *.css
 recursive-include iris *.js
+recursive-include iris *.mjs
 recursive-include iris *.json
