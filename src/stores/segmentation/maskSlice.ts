@@ -31,6 +31,7 @@ export const createMaskSlice: SliceCreator<MaskSlice> = (set, get) => {
     canUndo: false,
     canRedo: false,
     maskChanged: false,
+    maskSavedAt: null,
     maskType: 'final',
     showMask: true,
     confusionMatrix: null,

@@ -5,7 +5,8 @@ import { controlButtonStyle, controlIconFilter } from '../../controlStyles';
 
 interface ToolButtonProps {
   id?: string;
-  icon: string;
+  /** Image of the icon; without one, the children are the icon */
+  icon?: string;
   onClick: () => void;
   title?: string;
   className?: string;
@@ -73,17 +74,19 @@ const ToolButton: React.FC<ToolButtonProps> = ({
       }}
       data-testid={testId}
     >
-      <img 
-        src={icon} 
-        className="icon" 
-        alt="" 
-        style={{ 
-          flexShrink: 0, 
-          width: '18px', 
-          height: '18px',
-          filter: iconFilter,
-        }} 
-      />
+      {icon && (
+        <img
+          src={icon}
+          className="icon"
+          alt=""
+          style={{
+            flexShrink: 0,
+            width: '18px',
+            height: '18px',
+            filter: iconFilter,
+          }}
+        />
+      )}
       {label && (
         <span style={{
           fontSize: '13px',

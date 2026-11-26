@@ -11,9 +11,6 @@ function persistViewState(get: () => SegmentationState) {
 }
 
 export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
-  // Width of the area between the side columns, once ReactViewManager measured it
-  let areaWidth: number | null = null;
-
   /** Replace the current group's list of view names. */
   const setCurrentViewNames = (names: string[]) => {
     const { viewGroups, currentGroup } = get();
@@ -28,9 +25,12 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
     currentView: null,
     showControls: false,
     imageDimensions: null,
-    viewTransform: null,
-    viewWidth: 400,
-    viewHeight: 400,
+    imageCorners: null,
+    camera: null,
+    resetViewsCount: 0,
+    cursor: null,
+    showImage: true,
+    showSatellite: true,
 
     setViews: (views) => set({ views }),
 
@@ -75,7 +75,13 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
         return;
       }
       set({ imageDimensions: { width, height } });
-      get().updateViewDimensions();
+    },
+
+    setImageCorners: (imageCorners) => {
+      // A new place on the map: look at the image, not where the last one was
+      if (JSON.stringify(imageCorners) !== JSON.stringify(get().imageCorners)) {
+        set({ imageCorners, camera: null });
+      }
     },
 
     addView: (name, position = -1) => {
@@ -103,21 +109,14 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set, get) => {
       return (viewGroups[currentGroup] || []).map(name => views[name]).filter(Boolean);
     },
 
-    setViewTransform: (viewTransform) => set({ viewTransform }),
+    setCamera: (camera) => set({ camera }),
 
-    resetViews: () => set({ viewTransform: null }),
+    resetViews: () => set({ camera: null, resetViewsCount: get().resetViewsCount + 1 }),
 
-    updateViewDimensions: (measured) => {
-      if (measured) areaWidth = measured;
-      const { imageDimensions } = get();
-      const aspect = imageDimensions ? imageDimensions.width / imageDimensions.height : 1;
-      const count = Math.max(get().getCurrentViews().length, 1);
-      const allowedWidth = Math.round(((areaWidth ?? window.innerWidth) - 10) / count);
-      const allowedHeight = window.innerHeight - 150;
-      const idealWidth = Math.min(allowedWidth, allowedHeight * aspect);
-      const idealHeight = Math.min(idealWidth / aspect, allowedHeight);
-      const width = Math.round(idealWidth / Math.max(1, idealHeight / allowedHeight));
-      set({ viewWidth: width, viewHeight: Math.round(width / aspect) });
-    },
+    setCursor: (cursor) => set({ cursor }),
+
+    toggleImage: () => set({ showImage: !get().showImage }),
+
+    toggleSatellite: () => set({ showSatellite: !get().showSatellite }),
   };
 };

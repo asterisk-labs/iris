@@ -55,6 +55,15 @@ class TestImageNavigationAPI:
         assert returned_ids == project_ids, \
             "Returned image IDs should match project image IDs"
 
+    def test_list_images_gives_where_each_image_is(self, client, logged_in_user, project):
+        """The map views place each image between its corners, in longitude and latitude."""
+        data = client.get('/api/v1/images').get_json()
+
+        for image in data['images']:
+            assert image['corners'] == project.get_corners(image['image_id'])
+            assert len(image['corners']) == 4
+            assert all(-180 <= lon <= 180 and -90 <= lat <= 90 for lon, lat in image['corners'])
+
     def test_annotation_status_tracking(self, client, logged_in_user, app, project):
         """
         Test that annotation status is correctly tracked per image.

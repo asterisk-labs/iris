@@ -103,6 +103,7 @@ def list_images():
             'annotation_count': len(image_actions),
             'shape': [height, width],
             'mask_area': project.get_mask_area(image_id),
+            'corners': project.get_corners(image_id),
         })
 
     return flask.jsonify({

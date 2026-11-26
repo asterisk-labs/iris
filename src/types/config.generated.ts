@@ -46,7 +46,8 @@ export interface ImagesConfig {
 }
 
 export interface SegmentationConfig {
-  path: string;
+  /** Where the merged masks go; <project>.iris/segmentation/{id}/mask.png when absent */
+  path?: string | null;
   mask_encoding?: 'integer' | 'binary' | 'rgb' | 'rgba' | null;
   /** [x0, y0, x1, y1]; the whole image when absent */
   mask_area?: [number, number, number, number] | null;

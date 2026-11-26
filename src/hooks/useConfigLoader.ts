@@ -1,19 +1,20 @@
 import { useCallback } from 'react';
 import { useSegmentationStore } from '../stores/segmentationStore';
-import { imageSizeFromShape, maskSizeFromArea } from '../segmentation/geometry/transform';
+import { imageSizeFromShape, maskSizeFromArea } from '../segmentation/geometry/image';
 import type { ImageInfo } from '../stores/segmentation/types';
 import { bootPage } from '../boot';
 
 /**
- * Apply one image's geometry from the image list: its own size and mask
- * area (the configured area, or the whole image when none is configured).
- * Images in a dataset may differ in size, so this runs for the current
- * image after the list is loaded.
+ * Apply one image's geometry from the image list: its own size, its place
+ * on the map and its mask area (the configured area, or the whole image
+ * when none is configured). Images in a dataset may differ in size, so this
+ * runs for the current image after the list is loaded.
  */
 export function applyImageGeometry(info: ImageInfo): void {
   const store = useSegmentationStore.getState();
   const size = imageSizeFromShape(info.shape);
   if (size) store.setImageDimensions(size.width, size.height);
+  store.setImageCorners(info.corners ?? null);
   const area = info.mask_area ?? (size ? [0, 0, size.width, size.height] as [number, number, number, number] : null);
   if (area) {
     store.setMaskArea(area);

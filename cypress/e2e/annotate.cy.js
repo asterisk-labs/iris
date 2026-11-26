@@ -2,7 +2,7 @@
  * The annotation path end to end: paint two classes, predict, save, reload,
  * and find the same mask. Then move between images.
  *
- * Painting goes through pointer events on the canvas and the rest through
+ * Painting goes through mouse events on the map of a view and the rest through
  * the keyboard. The mask is read through window.__IRIS__, the debug handle.
  */
 
@@ -22,24 +22,25 @@ const open = (path) => {
   });
 };
 
-/** Drag across the middle of the first view, at a height from 0 to 1. */
+/**
+ * Drag across the middle of the image in the first view, at a height from 0
+ * to 1 of the image. The map fits the square image in the middle of the view.
+ */
 const stroke = (height) => {
-  cy.get('.preview-canvas').first().then(($canvas) => {
+  cy.get('.maplibregl-canvas').first().then(($canvas) => {
     const canvas = $canvas[0];
-    // Synthetic pointers cannot be captured
-    canvas.setPointerCapture = () => {};
-    canvas.releasePointerCapture = () => {};
+    const win = canvas.ownerDocument.defaultView;
     const box = canvas.getBoundingClientRect();
-    const fire = (type, x, buttons) => canvas.dispatchEvent(
-      new canvas.ownerDocument.defaultView.PointerEvent(type, {
-        clientX: box.left + box.width * x,
-        clientY: box.top + box.height * height,
-        buttons, pointerId: 1, bubbles: true,
-      }));
-    fire('pointerdown', 0.4, 1);
-    fire('pointermove', 0.5, 1);
-    fire('pointermove', 0.6, 1);
-    fire('pointerup', 0.6, 0);
+    const side = Math.min(box.width, box.height);
+    const fire = (target, type, x, buttons) => target.dispatchEvent(new win.MouseEvent(type, {
+      clientX: box.left + box.width / 2 + (x - 0.5) * side,
+      clientY: box.top + box.height / 2 + (height - 0.5) * side,
+      button: 0, buttons, bubbles: true,
+    }));
+    fire(canvas, 'mousedown', 0.4, 1);
+    fire(canvas, 'mousemove', 0.5, 1);
+    fire(canvas, 'mousemove', 0.6, 1);
+    fire(win, 'mouseup', 0.6, 0);
   });
 };
 

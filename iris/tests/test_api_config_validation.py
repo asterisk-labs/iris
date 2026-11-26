@@ -392,8 +392,8 @@ def test_validate_detects_view_group_not_array(logged_in_admin, sample_valid_con
     assert any('badgroup' in err.lower() and 'array' in err.lower() for err in data['errors'])
 
 
-def test_validate_detects_missing_segmentation_path(logged_in_admin, sample_valid_config):
-    """Test that validation detects missing segmentation.path"""
+def test_validate_accepts_missing_segmentation_path(logged_in_admin, sample_valid_config):
+    """segmentation.path is optional, the project falls back to a default"""
     del sample_valid_config['segmentation']['path']
 
     response = logged_in_admin.post('/api/v1/project-config/validate',
@@ -402,9 +402,7 @@ def test_validate_detects_missing_segmentation_path(logged_in_admin, sample_vali
     )
 
     assert response.status_code == 200
-    data = response.json
-    assert data['valid'] is False
-    assert any('path' in err.lower() for err in data['errors'])
+    assert response.json['valid'] is True
 
 
 def test_validate_requires_auth(client):

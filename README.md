@@ -152,6 +152,8 @@ pytest -v ... -- demo
 
 Having run the demo, you can then create a personalised config file, based on _demo/cloud-segmentation.json_. With your own config file, you can then instantiate your own custom project. <a href="https://github.com/ESA-PhiLab/iris/blob/master/docs/config.md">Here is a guide</a> on how to write your own config file.
 
+The images must be georeferenced GeoTIFFs, ideally COGs: each view is a map that shows the image at its place, over satellite imagery.
+
 ```bash
 uv run iris label <your-config-file>
 ```

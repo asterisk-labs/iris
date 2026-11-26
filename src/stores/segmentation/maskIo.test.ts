@@ -98,6 +98,8 @@ describe('mask store actions', () => {
       expect(body[1]).toBe(1);
       expect(body[1 + N]).toBe(1);
       expect(useSegmentationStore.getState().maskChanged).toBe(false);
+      // For the Save button to say the mask was saved
+      expect(useSegmentationStore.getState().maskSavedAt).not.toBeNull();
     });
 
     it('reports a failed save and keeps the unsaved flag', async () => {
@@ -107,6 +109,15 @@ describe('mask store actions', () => {
       const s = useSegmentationStore.getState();
       expect(s.maskChanged).toBe(true);
       expect(s.errorModal.message).toContain('disk full');
+    });
+
+    it('does not show the HTML of a server error page', async () => {
+      useSegmentationStore.getState().paintPixels([0], 1);
+      fetchMock.mockResolvedValueOnce(new Response('<!doctype html><title>500 Internal Server Error</title>', { status: 500 }));
+      await expect(useSegmentationStore.getState().saveCurrentMask()).rejects.toThrow();
+      const { message } = useSegmentationStore.getState().errorModal;
+      expect(message).toContain('Server error (500)');
+      expect(message).not.toContain('<');
     });
 
     it('predicts: fills unpainted pixels, marks test pixels, scores, and can be undone', async () => {

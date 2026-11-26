@@ -126,6 +126,7 @@ def test_api_next_without_another_image(app, client, six_images):
 def test_image_list_is_in_the_users_order(app, client, six_images, monkeypatch):
     monkeypatch.setattr(six_images, 'get_image_shape', lambda i: (2, 2))
     monkeypatch.setattr(six_images, 'get_mask_area', lambda i: [0, 0, 2, 2])
+    monkeypatch.setattr(six_images, 'get_corners', lambda i: None)
     _add_user(app, 1, "u1", seed=123)
     _login(client, "u1")
     images = client.get('/api/v1/images').json['images']

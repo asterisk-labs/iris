@@ -5,7 +5,7 @@
  * It manages multiple ViewPorts and their associated layers (RGB, Mask, Preview, etc.).
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSegmentationStore } from '../../stores/segmentationStore';
 
@@ -22,21 +22,11 @@ const ReactViewManager: React.FC<ReactViewManagerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const { currentGroup, showControls, currentImageId: imageId, currentView, updateViewDimensions, setCurrentView } = useSegmentationStore(useShallow(s => ({ currentGroup: s.currentGroup, showControls: s.showControls, currentImageId: s.currentImageId, currentView: s.currentView, updateViewDimensions: s.updateViewDimensions, setCurrentView: s.setCurrentView })));
+  const { currentGroup, showControls, currentImageId: imageId, currentView, setCurrentView } = useSegmentationStore(useShallow(s => ({ currentGroup: s.currentGroup, showControls: s.showControls, currentImageId: s.currentImageId, currentView: s.currentView, setCurrentView: s.setCurrentView })));
   
   const currentViews = useSegmentationStore(useShallow(s => s.getCurrentViews()));
   
   const empty = !imageId || currentViews.length === 0;
-
-  // The area changes with the window and when a side column opens or closes
-  useEffect(() => {
-    const container = containerRef.current;
-    updateViewDimensions(container?.clientWidth);
-    if (!container) return undefined;
-    const observer = new ResizeObserver(() => updateViewDimensions(container.clientWidth));
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [updateViewDimensions, currentViews.length, empty]);
 
   if (empty) {
     return (

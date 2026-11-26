@@ -16,7 +16,7 @@ describe('keyboard shortcuts', () => {
       classes, currentClass: 0, currentTool: 'draw', showMask: true, maskType: 'final',
       contrast: false, invert: false, brightness: 100, saturation: 100, resetMaskConfirmOpen: false,
     });
-    useSegmentationStore.setState({ viewTransform: { zoom: 2, originX: 1, originY: 1 }, showControls: false });
+    useSegmentationStore.setState({ camera: { center: [8, 46], zoom: 14 }, showControls: false });
   });
 
   it('selects classes with digits, ignoring missing classes', () => {
@@ -38,8 +38,17 @@ describe('keyboard shortcuts', () => {
   });
 
   it('Z resets the view', () => {
+    const before = useSegmentationStore.getState().resetViewsCount;
     handleShortcut('KeyZ');
-    expect(useSegmentationStore.getState().viewTransform).toBeNull();
+    expect(useSegmentationStore.getState().camera).toBeNull();
+    expect(useSegmentationStore.getState().resetViewsCount).toBe(before + 1);
+  });
+
+  it('M and P switch the satellite imagery and the image', () => {
+    useSegmentationStore.setState({ showSatellite: true, showImage: true });
+    handleShortcut('KeyM');
+    handleShortcut('KeyP');
+    expect(useSegmentationStore.getState()).toMatchObject({ showSatellite: false, showImage: false });
   });
 
   it('C, I and X change the filters that are actually drawn', () => {
@@ -140,7 +149,7 @@ describe('useKeyboardShortcuts', () => {
     const space = new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true, cancelable: true });
     window.dispatchEvent(space);
     expect(space.defaultPrevented).toBe(true);
-    const other = new KeyboardEvent('keydown', { code: 'KeyP', key: 'p', bubbles: true, cancelable: true });
+    const other = new KeyboardEvent('keydown', { code: 'KeyY', key: 'y', bubbles: true, cancelable: true });
     window.dispatchEvent(other);
     expect(other.defaultPrevented).toBe(false);
   });

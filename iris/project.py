@@ -15,6 +15,7 @@ import matplotlib
 import numpy as np
 import rasterio as rio
 import yaml
+from rasterio.warp import transform as warp_transform
 from skimage.io import imread
 
 from iris.expressions import evaluate, find_bands
@@ -76,6 +77,7 @@ class Project:
         # images.shape as written in the config file (None when derived)
         self.configured_shape = None
         self._shape_cache = {}
+        self._corners_cache = {}
         # Band counts per image file, keyed on (path, mtime)
         self._band_count_cache = {}
         # Loaded band arrays, see iris.imagecache. Sized from images.cache_mb
@@ -131,6 +133,7 @@ class Project:
         # A reload may point at different images: start the caches afresh,
         # sized from the new config.
         self._shape_cache = {}
+        self._corners_cache = {}
         self._band_count_cache = {}
         self._image_cache = ImageCache.from_mb(
             self.config['images'].get('cache_mb', DEFAULT_CACHE_MB)
@@ -228,7 +231,8 @@ class Project:
                     "default one holds your data."
                 )
 
-        if self.segmentation and not self['segmentation']['path']:
+        # Where the merged masks of all users go, unless the project says
+        if 'segmentation' in self.config and not self['segmentation'].get('path'):
             self.config['segmentation']['path'] = join(
                 self['path'], 'segmentation', '{id}', 'mask.png'
             )
@@ -421,9 +425,8 @@ class Project:
         x0, y0, x1, y1 = self.get_mask_area(image_id)
         return (x1 - x0, y1 - y0)
 
-    def get_georef(self, image_id):
-        """CRS and transform of the mask, from the first source with a CRS, or (None, None)."""
-        x0, y0, _, _ = self.get_mask_area(image_id)
+    def _image_georef(self, image_id):
+        """CRS and transform of the image, from the first source with a CRS, or (None, None)."""
         paths = self.get_image_path(image_id)
         if not isinstance(paths, dict):
             paths = {'pictures': paths}
@@ -432,8 +435,33 @@ class Project:
                 continue
             with rio.open(path) as file:
                 if file.crs is not None:
-                    return file.crs, file.transform * rio.transform.Affine.translation(x0, y0)
+                    return file.crs, file.transform
         return None, None
+
+    def get_georef(self, image_id):
+        """CRS and transform of the mask, from the first source with a CRS, or (None, None)."""
+        crs, transform = self._image_georef(image_id)
+        if crs is None:
+            return None, None
+        x0, y0, _, _ = self.get_mask_area(image_id)
+        return crs, transform * rio.transform.Affine.translation(x0, y0)
+
+    def get_corners(self, image_id):
+        """[lon, lat] of the image corners, clockwise from the top left, or None without a CRS.
+
+        The map views place the image between these corners.
+        """
+        if image_id not in self._corners_cache:
+            crs, transform = self._image_georef(image_id)
+            corners = None
+            if crs is not None:
+                height, width = self.get_image_shape(image_id)
+                pixels = [(0, 0), (width, 0), (width, height), (0, height)]
+                xs, ys = zip(*(transform * pixel for pixel in pixels), strict=True)
+                lons, lats = warp_transform(crs, 'EPSG:4326', xs, ys)
+                corners = [[lon, lat] for lon, lat in zip(lons, lats, strict=True)]
+            self._corners_cache[image_id] = corners
+        return self._corners_cache[image_id]
 
     def image_order(self, seed):
         """The image ids in the order a user with this seed sees them."""

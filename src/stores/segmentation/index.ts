@@ -24,7 +24,11 @@ import type { MaskIoActions, SegmentationState, SliceCreator } from './types';
 
 export * from './types';
 
-const describeError = (error: unknown) => (error instanceof HttpError ? error.body : String(error));
+/** The server's message, or only the status when it answered with an HTML error page */
+const describeError = (error: unknown) => {
+  if (!(error instanceof HttpError)) return String(error);
+  return /^\s*</.test(error.body) ? `Server error (${error.status})` : error.body;
+};
 
 const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
   loadMaskForImage: async (imageId) => {
@@ -69,6 +73,7 @@ const createMaskIoActions: SliceCreator<MaskIoActions> = (set, get) => ({
       await saveMask(currentImageId, doc.final, doc.user);
       get().showNotice('Mask saved', 1000);
       get().setMaskChanged(false);
+      set({ maskSavedAt: Date.now() });
     } catch (error) {
       get().hideNotice();
       if (error instanceof AuthError) get().requestLogin();
